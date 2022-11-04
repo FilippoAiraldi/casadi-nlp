@@ -1,4 +1,3 @@
-__all__ = ['GenericMpc', 'wrappers']
+__all__ = ['GenericMpc']
 
 from casadi_mpc.generic_mpc import GenericMpc
-import casadi_mpc.wrappers as wrappers
