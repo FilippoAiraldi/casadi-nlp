@@ -5,7 +5,7 @@ import numpy as np
 from casadi_mpc.solutions import subsevalf
 
 
-class TestSolution(unittest.TestCase):
+class TestSolutions(unittest.TestCase):
     def test_subsevalf__raises__when_type_is_invalid(self):
         with self.assertRaises(TypeError):
             subsevalf(None, unittest.TestCase, None)

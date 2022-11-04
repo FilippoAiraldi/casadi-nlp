@@ -33,7 +33,7 @@ def subsevalf(
         assumed the type is the same of `old` (so, old and new should share 
         collection type).
     eval : bool, optional
-        Evaluates also the new expression. By default, `True`.
+        Evaluates numerically the new expression. By default, `True`.
 
     Returns
     -------
@@ -46,9 +46,9 @@ def subsevalf(
     TypeError
         Raises if the `old` and `new` are neither SX, MX, dict, Iterable.
     RuntimeError
-        Raises if the `eval=True` but there are symbolic variables that are 
-        still free, i.e., the expression cannot be evaluated since it is still
-        symbolic.
+        Raises if `eval=True` but there are symbolic variables that are still 
+        free, i.e., the expression cannot be evaluated numerically since it is 
+        still (partially) symbolic.
     '''
     if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
         expr = cs.substitute(expr, old, new)
