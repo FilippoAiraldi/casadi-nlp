@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from inspect import getframeinfo, stack
 from typing import List, Tuple
 from types import MappingProxyType
+from numpy import prod
 
 
 @dataclass(frozen=True)
@@ -10,7 +11,7 @@ class MpcDebugEntry:
 
     name: str
     type: str
-    shape: Tuple[int, int]
+    shape: Tuple[int, ...]
     filename: str
     function: str
     lineno: int
@@ -114,7 +115,7 @@ class MpcDebug:
         '''
         return self.__describe(self._h_info, index)
 
-    def register(self, group: str, name: str, shape: Tuple[int, int]) -> None:
+    def register(self, group: str, name: str, shape: Tuple[int, ...]) -> None:
         '''Registers debug information on new object name under the specific 
         group.
 
@@ -125,7 +126,7 @@ class MpcDebug:
             constraints.
         name : str
             Name of the object.
-        shape : Tuple[int, int]
+        shape : Tuple[int, ...]
             Shape of the object.
 
         Raises
@@ -138,7 +139,7 @@ class MpcDebug:
                                                           f'_{group}_info')
         last = info[-1][0].stop if info else 0
         info.append((
-            range(last, last + shape[0] * shape[1]),
+            range(last, last + prod(shape)),
             MpcDebugEntry(
                 name=name,
                 type=self.types[group],
