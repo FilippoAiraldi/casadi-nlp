@@ -5,7 +5,7 @@ import random
 
 
 class TestMpcDebug(unittest.TestCase):
-    def test_register(self):
+    def test_register__adds_correct_info(self):
         debug = MpcDebug()
         group = random.choice(['x', 'g', 'h'])
         name = 'var'
@@ -26,7 +26,7 @@ class TestMpcDebug(unittest.TestCase):
         with self.assertRaises(AttributeError):
             debug.register(group, 'var1', (1, 2))
 
-    def test_xhg_describe(self):
+    def test_xhg_describe__gets_corret_variables(self):
         debug = MpcDebug()
         for group in debug.types.keys():
             debug.register(group, 'var1', (3, 3))
