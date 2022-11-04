@@ -43,3 +43,7 @@ class TestMpcDebug(unittest.TestCase):
             debug.register(group, 'var2', (1, 1))
             with self.assertRaises(IndexError):
                 getattr(debug, f'{group}_describe')(10_000)
+
+
+if __name__ == '__main__':
+    unittest.main()
