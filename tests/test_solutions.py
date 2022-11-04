@@ -2,7 +2,7 @@ import unittest
 import casadi as cs
 from casadi.tools import struct_SX, struct_MX, entry
 import numpy as np
-from casadi_mpc.solutions import subsevalf
+from casadi_mpc.solutions import subsevalf, Solution
 
 
 class TestSolutions(unittest.TestCase):
@@ -51,6 +51,29 @@ class TestSolutions(unittest.TestCase):
             ]
             for actual_val in actual_vals:
                 np.testing.assert_allclose(expected_val, actual_val)
+
+    def test_solution__computes_correct_value(self):
+        f = 0
+        shape = (3, 4)
+
+        for XX, struct_X in [(cs.SX, struct_SX), (cs.MX, struct_MX)]:
+            V = {
+                'x': (XX.sym('x', *shape), np.random.rand(*shape) * 10),
+                'y': (XX.sym('y', *shape), np.random.rand(*shape) * 5),
+                'z': (XX.sym('z'), np.random.rand() + 1),
+            }
+            V_vec = cs.vertcat(*(cs.vec(v) for _, v in V.values()))
+            V_struct = struct_X([entry(n, expr=s) for n, (s, _) in V.items()])
+            expr, expected_val = (
+                (V['x'][i] / V['y'][i])**V['z'][i] for i in range(2))
+
+            S = Solution(f=f, vars=V_struct, vals=V_struct(V_vec), stats={})
+            np.testing.assert_allclose(expected_val, S.value(expr))
+
+    def test_solution__reports_success_properly(self):
+        for flag in (True, False):
+            S = Solution(f=None, vars=None, vals=None, stats={'success': flag})
+            self.assertEqual(S.success, flag)
 
 
 if __name__ == '__main__':

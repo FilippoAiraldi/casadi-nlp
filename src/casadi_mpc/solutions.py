@@ -1,9 +1,62 @@
-from typing import Dict, Union, Iterable
+from dataclasses import dataclass
+from typing import Any, Dict, Union, Iterable
 import casadi as cs
-from casadi.tools.structure3 import CasadiStructured
+from casadi.tools.structure3 import \
+    CasadiStructured, ssymStruct, msymStruct, DMStruct
+
 
 # https://casadi.sourceforge.net/tutorials/tools/structure.pdf
 # https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py
+
+
+@dataclass(frozen=True)
+class Solution:
+    '''Class containing information on the solution of an MPC solver's run.'''
+
+    f: float
+    vars: Union[ssymStruct, msymStruct]
+    vals: DMStruct
+    stats: Dict[str, Any]
+
+    @property
+    def status(self) -> str:
+        '''Gets the status of the solver at this solution.'''
+        return self.stats['return_status']
+
+    @property
+    def success(self) -> bool:
+        '''Gets whether the MPC was run successfully.'''
+        return self.stats['success']
+
+    def value(
+        self,
+        x: Union[cs.SX, cs.MX],
+        eval: bool = True
+    ) -> Union[cs.SX, cs.MX, cs.DM]:
+        '''Computes the value of the expression substituting the values of this
+        solution in the expression.
+
+        Parameters
+        ----------
+        x : Union[cs.SX, cs.MX]
+            The symbolic expression to be evaluated at the solution's values.
+        eval : bool, optional
+            Evaluates numerically the new expression. By default, `True`. See 
+            `casadi_mpc.solutions.subsevalf` for more details.
+
+
+        Returns
+        -------
+        cs.SX or MX or DM
+            The expression evaluated with the solution's values.
+
+        Raises
+        ------
+        RuntimeError
+            Raises if `eval=True` but there are symbolic variables that are 
+            still free since they are outside the solution's variables.
+        '''
+        return subsevalf(x, self.vars, self.vals, eval=eval)
 
 
 def subsevalf(
