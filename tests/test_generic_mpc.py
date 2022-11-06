@@ -6,6 +6,21 @@ from casadi_mpc import GenericMpc
 from casadi_mpc.solutions import subsevalf
 
 
+OPTS = {
+    'expand': True, 'print_time': False,
+    'ipopt': {
+        'max_iter': 500,
+        'tol': 1e-6,
+        'barrier_tol_factor': 1,
+        'sb': 'yes',
+        # for debugging
+        'print_level': 0,
+        'print_user_options': 'no',
+        'print_options_documentation': 'no'
+    }
+}
+
+
 class TestGenericMpc(unittest.TestCase):
     def test_init__raises__with_invalid_sym_type(self):
         with self.assertRaises(Exception):
@@ -189,6 +204,15 @@ class TestGenericMpc(unittest.TestCase):
                               [lam1, lam2], [lam1_, lam2_]),
                     subsevalf(lam, [lam1, lam2], [lam1_, lam2_])
                 )
+
+    def test_set_solver__saves_options_correctly(self):
+        mpc = GenericMpc()
+        opts = OPTS.copy()
+        x = mpc.variable('x')[0]
+        mpc.minimize(x**2)
+        mpc.init_solver(opts)
+        self.assertDictEqual(opts, mpc.solver_opts)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -347,9 +347,29 @@ class GenericMpc:
         return expr, lam_sym
 
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
-        '''Sets the objective function to be minimized.'''
+        '''Sets the objective function to be minimized.
+
+        Parameters
+        ----------
+        objective : Union[cs.SX, cs.MX]
+            A Symbolic variable dependent only on the MPC variables and 
+            parameters that needs to be minimized. 
+        '''
         self._f = objective
 
+    def init_solver(self, opts: Dict[str, Any]) -> None:
+        '''Initializes the IPOPT solver for this MPC with the given options.
+
+        Parameters
+        ----------
+        opts : Dict[str, Any]
+            Options to be passed to the CasADi interface to the solver.
+        '''
+        opts = opts.copy()
+        con = cs.vertcat(self._g, self._h)
+        nlp = {'x': self._x, 'p': self._p, 'g': con, 'f': self._f}
+        self._solver = cs.nlpsol(f'nlpsol_{self.name}', 'ipopt', nlp, opts)
+        self._solver_opts = opts
 
     def __str__(self) -> str:
         '''Returns the MPC name and a short description.'''
