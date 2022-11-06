@@ -1,7 +1,9 @@
+from typing import Dict
 import unittest
 from functools import cached_property
 import casadi as cs
-from casadi_mpc.util import is_casadi_object, cached_property_reset
+from casadi_mpc.util import \
+    is_casadi_object, cached_property_reset, dict2struct, struct_symSX
 
 
 class DummyWithCachedProperty:
@@ -46,6 +48,24 @@ class TestUtil(unittest.TestCase):
         ]:
             self.assertEqual(is_casadi_object(o), flag)
 
+    def test_dict2struct__with_MX__returns_copy_of_dict(self):
+        d = {
+            'x': cs.SX.sym('x'),
+            'y': cs.MX.sym('y'),
+        }
+        s = dict2struct(d)
+        self.assertIsInstance(s, Dict)
+        self.assertDictEqual(d, s)
+        
+    def test_dict2struct__with_SX__returns_struct(self):
+        d = {
+            'x': cs.SX.sym('x', 3, 2),
+            'y': cs.SX.sym('y', 4, 1),
+        }
+        s = dict2struct(d)
+        self.assertIsInstance(s, struct_symSX)
+        for name, x in d.items():
+            self.assertTrue(cs.is_equal(s[name], x))
 
 if __name__ == '__main__':
     unittest.main()

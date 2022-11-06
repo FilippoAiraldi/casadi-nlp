@@ -1,6 +1,7 @@
 from functools import cached_property, wraps
-from typing import Any, Callable
+from typing import Any, Callable, Dict, Union
 import casadi as cs
+from casadi.tools import struct_symSX, entry
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -59,3 +60,27 @@ def cached_property_reset(cproperty: cached_property) -> Callable:
             return func(*args, **kwargs)
         return wrapper
     return actual_decorator
+
+
+def dict2struct(
+    dict: Dict[str, Union[cs.SX, cs.MX]]
+) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    '''Attempts to convert a dictionary of symbols to a struct. This is 
+    possible only if all the symbols are of type `SX`. If one or more is `MX`, 
+    a copy of `dict` is returned.
+
+    Parameters
+    ----------
+    dict : Dict[str, Union[cs.SX, cs.MX]]
+        Dictionary of names and their corresponding symbolic variables.
+
+    Returns
+    -------
+    Union[struct_symSX, Dict[str, cs.MX]]
+        Either a structure generated from `dict`, or a copy of `dict` itself.
+    '''
+    return (
+        dict.copy()
+        if any(isinstance(v, cs.MX) for v in dict.values()) else
+        struct_symSX([entry(name, sym=p) for name, p in dict.items()])
+    )
