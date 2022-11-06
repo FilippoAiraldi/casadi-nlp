@@ -39,19 +39,19 @@ class GenericMpc:
 
         self.id = next(self.__ids)
         self.name = f'MPC{self.id}' if name is None else name
-        self._CSXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
+        self._csXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
 
         self._vars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._cons: Dict[str, Union[cs.SX, cs.MX]] = {}
 
         self._f: Union[cs.SX, cs.MX] = None  # objective
-        self._p = self._CSXX()
-        self._x = self._CSXX()
+        self._p = self._csXX()
+        self._x = self._csXX()
         self._lbx, self._ubx = npy.array([]), npy.array([])
-        self._lam_lbx, self._lam_ubx = self._CSXX(), self._CSXX()
-        self._g, self._lam_g = self._CSXX(), self._CSXX()
-        self._h, self._lam_h = self._CSXX(), self._CSXX()
+        self._lam_lbx, self._lam_ubx = self._csXX(), self._csXX()
+        self._g, self._lam_g = self._csXX(), self._csXX()
+        self._h, self._lam_h = self._csXX(), self._csXX()
         self._lbg, self._lbh = npy.array([]), npy.array([])
 
         self._solver: cs.Function = None
@@ -62,7 +62,7 @@ class GenericMpc:
     @property
     def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
         '''Gets the CasADi symbolic type used in this MPC scheme.'''
-        return self._CSXX
+        return self._csXX
 
     @property
     def f(self) -> Union[None, cs.SX, cs.MX]:
@@ -207,7 +207,7 @@ class GenericMpc:
         '''
         if name in self._pars:
             raise ValueError(f'Parameter name \'{name}\' already exists.')
-        par = self._CSXX.sym(name, *shape)
+        par = self._csXX.sym(name, *shape)
         self._pars[name] = par
         self._p = cs.vertcat(self._p, cs.vec(par))
         self._debug.register('p', name, shape)
@@ -256,16 +256,16 @@ class GenericMpc:
         if npy.all(lb > ub):
             raise ValueError('Improper variable bounds.')
 
-        var = self._CSXX.sym(name, *shape)
+        var = self._csXX.sym(name, *shape)
         self._vars[name] = var
         self._x = cs.vertcat(self._x, cs.vec(var))
         self._lbx = npy.concatenate((self._lbx, lb.flatten('F')))
         self._ubx = npy.concatenate((self._ubx, ub.flatten('F')))
         self._debug.register('x', name, shape)
 
-        lam_lb = self._CSXX.sym(f'lam_lb_{name}', *shape)
+        lam_lb = self._csXX.sym(f'lam_lb_{name}', *shape)
         self._lam_lbx = cs.vertcat(self._lam_lbx, cs.vec(lam_lb))
-        lam_ub = self._CSXX.sym(f'lam_ub_{name}', *shape)
+        lam_ub = self._csXX.sym(f'lam_ub_{name}', *shape)
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
         return var, lam_lb, lam_ub
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
