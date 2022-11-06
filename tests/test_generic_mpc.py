@@ -20,11 +20,12 @@ class TestGenericMpc(unittest.TestCase):
         _np = np.prod(shape1) + np.prod(shape2)
         for sym_type in ('SX', 'MX'):
             mpc = GenericMpc(sym_type=sym_type)
-            p1 = mpc.parameter('par1', shape1)
-            p2 = mpc.parameter('par2', shape2)
+            p1 = mpc.parameter('p1', shape1)
+            p2 = mpc.parameter('p2', shape2)
             self.assertEqual(p1.shape, shape1)
             self.assertEqual(p2.shape, shape2)
             self.assertEqual(mpc.np, _np)
+
             p = cs.vertcat(cs.vec(p1), cs.vec(p2))
             if sym_type == 'SX':
                 # symbolically for SX
@@ -37,14 +38,18 @@ class TestGenericMpc(unittest.TestCase):
                     subsevalf(mpc.p, [p1, p2], [p1_, p2_]),
                     subsevalf(p, [p1, p2], [p1_, p2_]),
                 )
+
             i = 0
-            for name, shape in [('par1', shape1), ('par2', shape2)]:
+            for name, shape in [('p1', shape1), ('p2', shape2)]:
                 for _ in range(np.prod(shape)):
                     self.assertEqual(name, mpc.debug.p_describe(i).name)
                     self.assertEqual(shape, mpc.debug.p_describe(i).shape)
                     i += 1
             with self.assertRaises(IndexError):
                 mpc.debug.p_describe(_np + 1)
+
+            self.assertTrue(cs.is_equal(mpc.parameters['p1'], p1))
+            self.assertTrue(cs.is_equal(mpc.parameters['p2'], p2))
 
     def test_parameter__raises__with_parameters_with_same_name(self):
         for sym_type in ('SX', 'MX'):
@@ -68,6 +73,7 @@ class TestGenericMpc(unittest.TestCase):
             for o in (x2, lam2_lb, lam2_ub):
                 self.assertEqual(o.shape, shape2)
             self.assertEqual(mpc.nx, nx)
+
             x = cs.vertcat(cs.vec(x1), cs.vec(x2))
             if sym_type == 'SX':
                 # symbolically for SX
@@ -84,6 +90,7 @@ class TestGenericMpc(unittest.TestCase):
             ub = cs.vertcat(cs.vec(ub1), cs.vec(ub2))
             np.testing.assert_allclose(mpc.lbx, lb.full().flat)
             np.testing.assert_allclose(mpc.ubx, ub.full().flat)
+
             i = 0
             for name, shape in [('x1', shape1), ('x2', shape2)]:
                 for _ in range(np.prod(shape)):
@@ -92,6 +99,9 @@ class TestGenericMpc(unittest.TestCase):
                     i += 1
             with self.assertRaises(IndexError):
                 mpc.debug.x_describe(nx + 1)
+
+            self.assertTrue(cs.is_equal(mpc.variables['x1'], x1))
+            self.assertTrue(cs.is_equal(mpc.variables['x2'], x2))
 
     def test_variable__raises__with_variables_with_same_name(self):
         for sym_type in ('SX', 'MX'):

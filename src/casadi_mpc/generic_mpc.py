@@ -4,6 +4,8 @@ import casadi as cs
 import numpy as npy
 from casadi_mpc.solutions import Solution, subsevalf
 from casadi_mpc.debug import MpcDebug
+from casadi_mpc.util import \
+    cached_property, cached_property_reset, struct_symSX, dict2struct
 
 
 class GenericMpc:
@@ -173,6 +175,15 @@ class GenericMpc:
         '''Number of inequality constraints in the MPC scheme.'''
         return self._h.shape[0]
 
+    @cached_property
+    def parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        return dict2struct(self._pars)
+
+    @cached_property
+    def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        return dict2struct(self._vars)
+
+    @cached_property_reset(parameters)
     def parameter(
         self,
         name: str,
@@ -205,6 +216,7 @@ class GenericMpc:
         self._debug.register('p', name, shape)
         return par
 
+    @cached_property_reset(variables)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),
