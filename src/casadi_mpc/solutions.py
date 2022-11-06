@@ -43,7 +43,6 @@ class Solution:
             Evaluates numerically the new expression. By default, `True`. See 
             `casadi_mpc.solutions.subsevalf` for more details.
 
-
         Returns
         -------
         cs.SX or MX or DM
