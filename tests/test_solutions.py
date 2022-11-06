@@ -1,3 +1,4 @@
+from functools import partial
 import unittest
 import casadi as cs
 from casadi.tools import struct_SX, struct_MX, entry
@@ -67,7 +68,11 @@ class TestSolutions(unittest.TestCase):
             expr, expected_val = (
                 (V['x'][i] / V['y'][i])**V['z'][i] for i in range(2))
 
-            S = Solution(f=f, vars=V_struct, vals=V_struct(V_vec), stats={})
+            vals = V_struct(V_vec)
+            get_value = partial(subsevalf, old=V_struct, new=vals)
+            S = Solution(
+                f=f, vars=V_struct, vals=V_struct(V_vec),
+                stats={}, _get_value=get_value)
             np.testing.assert_allclose(expected_val, S.value(expr))
 
     def test_solution__reports_success_properly(self):

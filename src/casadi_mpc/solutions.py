@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Dict, Union, Iterable
+from typing import Any, Callable, Dict, Union, Iterable
 import casadi as cs
 from casadi.tools.structure3 import CasadiStructured, ssymStruct, DMStruct
 
@@ -16,6 +16,7 @@ class Solution:
     vars: Union[ssymStruct, Dict[str, cs.MX]]
     vals: DMStruct
     stats: Dict[str, Any]
+    _get_value: Callable[[Union[cs.SX, cs.MX], bool], cs.DM]
 
     @property
     def status(self) -> str:
@@ -54,7 +55,7 @@ class Solution:
             Raises if `eval=True` but there are symbolic variables that are 
             still free since they are outside the solution's variables.
         '''
-        return subsevalf(x, self.vars, self.vals, eval=eval)
+        return self._get_value(x, eval=eval)
 
 
 def subsevalf(
