@@ -5,10 +5,6 @@ from casadi_mpc import GenericMpc
 from casadi_mpc.solutions import subsevalf
 
 
-def random_sym_type() -> str:
-    return 'SX' if np.random.rand() > 0.5 else 'MX'
-
-
 class TestGenericMpc(unittest.TestCase):
     def test_init__raises__with_invalid_sym_type(self):
         with self.assertRaises(Exception):

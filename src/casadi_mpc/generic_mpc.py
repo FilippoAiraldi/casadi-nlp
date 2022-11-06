@@ -20,12 +20,6 @@ class GenericMpc:
     '''
 
     __ids = count(0)
-    __slots__ = [
-        'id', 'name', '_CSXX', '_vars', '_pars', '_cons',
-        '_f', '_p', '_x', '_lbx', '_ubx', '_lam_lbx', '_lam_ubx',
-        '_g', '_lam_g', '_h', '_lam_h',
-        '_solver', '_solver_opts', '_failures', '_debug'
-    ]
 
     def __init__(
         self,
@@ -177,10 +171,12 @@ class GenericMpc:
 
     @cached_property
     def parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the parameters of the MPC scheme.'''
         return dict2struct(self._pars)
 
     @cached_property
     def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the variables of the MPC scheme.'''
         return dict2struct(self._vars)
 
     @cached_property_reset(parameters)
