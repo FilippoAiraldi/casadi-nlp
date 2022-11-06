@@ -26,7 +26,7 @@ class MpcDebugEntry:
             f'  context:  {self.context}\n'
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__class__}({self.__str__()})'
+        return f'{self.__class__.__name__}({self.__str__()})'
 
 
 class MpcDebug:
@@ -38,9 +38,10 @@ class MpcDebug:
      - the inequality constraints `h`
     '''
 
-    __slots__ = ['_x_info', '_g_info', '_h_info']
+    __slots__ = ['_p_info', '_x_info', '_g_info', '_h_info']
 
     types = MappingProxyType({
+        'p': 'Parameter',
         'x': 'Decision variable',
         'g': 'Equality constraint',
         'h': 'Inequality constraint'
@@ -48,12 +49,32 @@ class MpcDebug:
 
     def __init__(self) -> None:
         '''Initializes the debug information collector.'''
-        self._x_info: List[Tuple[range, MpcDebugEntry]] = []
-        self._g_info: List[Tuple[range, MpcDebugEntry]] = []
-        self._h_info: List[Tuple[range, MpcDebugEntry]] = []
+        for s in self.__slots__:
+            self.__setattr__(s, [])
+
+    def p_describe(self, index: int) -> MpcDebugEntry:
+        '''Returns debug information on the parameter at the given `index`.
+
+        Parameters
+        ----------
+        index : int
+            Index of the parameter p to query information about.
+
+        Returns
+        -------
+        MpcDebugEntry
+            A class instance containing debug information on the parameter p
+            at the given index.
+
+        Raises
+        ------
+        IndexError
+            Index not found, or outside bounds of p.
+        '''
+        return self.__describe(self._p_info, index)
 
     def x_describe(self, index: int) -> MpcDebugEntry:
-        '''Returns debug information on the variable x at the given index.
+        '''Returns debug information on the variable at the given `index`.
 
         Parameters
         ----------
@@ -74,7 +95,7 @@ class MpcDebug:
         return self.__describe(self._x_info, index)
 
     def g_describe(self, index: int) -> MpcDebugEntry:
-        '''Returns debug information on the constraint g at the given index.
+        '''Returns debug information on the constraint at the given `index`.
 
         Parameters
         ----------
@@ -95,7 +116,7 @@ class MpcDebug:
         return self.__describe(self._g_info, index)
 
     def h_describe(self, index: int) -> MpcDebugEntry:
-        '''Returns debug information on the constraint h at the given index.
+        '''Returns debug information on the constraint at the given `index`.
 
         Parameters
         ----------
@@ -121,9 +142,9 @@ class MpcDebug:
 
         Parameters
         ----------
-        group : {'x', 'g', 'h'}
-            Whether the object belongs to variables, equality or inequality 
-            constraints.
+        group : {'p', 'x', 'g', 'h'}
+            Indentifies the group the object belongs to: parameters, variables,
+            equality constraints or inequality constraints.
         name : str
             Name of the object.
         shape : Tuple[int, ...]
@@ -154,7 +175,8 @@ class MpcDebug:
 
     def __describe(
         self,
-        info: List[Tuple[range, MpcDebugEntry]], index: int
+        info: List[Tuple[range, MpcDebugEntry]],
+        index: int
     ) -> MpcDebugEntry:
         for range_, description in info:
             if index in range_:
