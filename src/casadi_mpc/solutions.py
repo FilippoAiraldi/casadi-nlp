@@ -61,11 +61,11 @@ class Solution:
 
 def subsevalf(
     expr: Union[cs.SX, cs.MX],
-    old: Union[Union[cs.SX, cs.MX],
+    old: Union[cs.SX, cs.MX,
                Dict[str, Union[cs.SX, cs.MX]],
                Iterable[Union[cs.SX, cs.MX]],
                CasadiStructured],
-    new: Union[Union[cs.SX, cs.MX],
+    new: Union[cs.SX, cs.MX,
                Dict[str, Union[cs.SX, cs.MX]],
                Iterable[Union[cs.SX, cs.MX]],
                CasadiStructured],
