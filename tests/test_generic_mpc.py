@@ -7,14 +7,12 @@ from casadi_mpc.solutions import subsevalf
 
 
 OPTS = {
-    'expand': True, 'print_time': False,
+    'expand': True, 'print_time': True,
     'ipopt': {
         'max_iter': 500,
-        'tol': 1e-6,
-        'barrier_tol_factor': 1,
         'sb': 'yes',
         # for debugging
-        'print_level': 0,
+        'print_level': 5,
         'print_user_options': 'no',
         'print_options_documentation': 'no'
     }
@@ -229,7 +227,7 @@ class TestGenericMpc(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 mpc.solve({})
 
-    def test_solve__computes_correctly__small_example_1(self):
+    def test_solve__computes_correctly__example_0(self):
         for sym_type in ('MX', 'SX'):
             mpc = GenericMpc(sym_type=sym_type)
             x = mpc.variable('x', (2, 1))[0]
@@ -244,6 +242,92 @@ class TestGenericMpc(unittest.TestCase):
                 np.testing.assert_allclose(sol.vals[k], 0)
             o = sol.value(p + (x.T @ x + y.T @ y))
             np.testing.assert_allclose(sol.f, o)
+
+    def test_solve__computes_corretly__example_1a(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            y = mpc.variable('y')[0]
+            mpc.constraint('c1', x**2 + y**2, '==', 1)
+            mpc.minimize(-x - y)
+            mpc.init_solver(OPTS)
+            sol = mpc.solve()
+            np.testing.assert_allclose(-sol.f, np.sqrt(2))
+            for k in ('x', 'y'):
+                np.testing.assert_allclose(
+                    sol.vals[k], np.sqrt(2) / 2, atol=1e-9)
+            np.testing.assert_allclose(
+                sol.value(mpc.lam_g), 1 / np.sqrt(2), atol=1e-9)
+
+    def test_solve__computes_corretly__example_1b(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            y = mpc.variable('y')[0]
+            mpc.constraint('c1', x**2 + y**2, '==', 1)
+            mpc.minimize((x + y)**2)
+            mpc.init_solver(OPTS)
+            sol = mpc.solve(vals0={
+                'x': 0.5,
+                'y': np.sqrt(1 - 0.5**2)
+            })
+            np.testing.assert_allclose(sol.f, 0, atol=1e-9)
+            np.testing.assert_allclose(
+                abs(sol.vals['x']), np.sqrt(2) / 2, atol=1e-9)
+            np.testing.assert_allclose(
+                abs(sol.vals['y']), np.sqrt(2) / 2, atol=1e-9)
+            np.testing.assert_allclose(sol.value(mpc.lam_g), 0, atol=1e-9)
+
+    def test_solve__computes_corretly__example_2(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            y = mpc.variable('y')[0]
+            mpc.constraint('c1', x**2 + y**2, '==', 3)
+            mpc.minimize(x**2 * y)
+            mpc.init_solver(OPTS)
+            sol = mpc.solve(vals0={
+                'x': np.sqrt(3 - 0.8**2),
+                'y': -0.8
+            })
+            np.testing.assert_allclose(sol.f, -2, atol=1e-9)
+            np.testing.assert_allclose(
+                abs(sol.vals['x']), np.sqrt(2), atol=1e-9)
+            np.testing.assert_allclose(sol.vals['y'], -1, atol=1e-9)
+            np.testing.assert_allclose(
+                sol.value(sol.vals['x'] * (sol.vals['y'] + mpc.lam_g)), 0,
+                atol=1e-9)
+
+    def test_solve__computes_corretly__example_3(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
+        n = 50
+        log2 = lambda x: cs.log(x) / cs.log(2)
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            p = mpc.variable('p', (n, 1))[0]
+            mpc.constraint('c1', cs.sum1(p), '==', 1)
+            mpc.minimize(cs.sum1(p * log2(p)))
+            mpc.init_solver(OPTS)
+            sol = mpc.solve(vals0={'p': np.random.rand(n)})
+            np.testing.assert_allclose(sol.vals['p'], 1 / n, atol=1e-9)
+            np.testing.assert_allclose(
+                sol.value(-(1 / cs.log(2) + log2(p)) - mpc.lam_g), 0,
+                atol=1e-6)
+
+    def test_solve__computes_corretly__example_4(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            mpc.constraint('c1', x**2, '==', 1)
+            mpc.minimize(x**2)
+            mpc.init_solver(OPTS)
+            sol = mpc.solve(vals0={'x': 1 + 0.1 * np.random.rand()})
+            np.testing.assert_allclose(sol.f, 1, atol=1e-9)
+            np.testing.assert_allclose(sol.value(mpc.lam_g), -1, atol=1e-9)
 
 
 if __name__ == '__main__':

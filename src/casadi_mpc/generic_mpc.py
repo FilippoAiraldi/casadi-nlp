@@ -379,16 +379,17 @@ class GenericMpc:
 
     def solve(
         self,
-        pars: Union[DMStruct, Dict[str, npy.ndarray]],
+        pars: Union[DMStruct, Dict[str, npy.ndarray]] = None,
         vals0: Union[DMStruct, Dict[str, npy.ndarray]] = None
     ) -> Solution:
         '''Solves the MPC optimization problem.
 
         Parameters
         ----------
-        pars : DMStruct, dict[str, array_like]
+        pars : DMStruct, dict[str, array_like], optional
             Dictionary or structure containing, for each parameter in the MPC 
-            scheme, the corresponding numerical value.
+            scheme, the corresponding numerical value. Can be `None` if no 
+            parameters are present.
         vals0 : DMStruct, dict[str, array_like], optional
             Dictionary or structure containing, for each variable in the MPC
             scheme, the corresponding initial guess. By default, initial 
@@ -405,6 +406,8 @@ class GenericMpc:
             Raises if the solver is un-initialized (see `init_solver`); or if 
             not all the parameters are not provided with a numerical value.
         '''
+        if pars is None:
+            pars = {}
         if self.solver is None:
             raise RuntimeError('Solver uninitialized.')
         parsdiff = self._pars.keys() - pars.keys()
