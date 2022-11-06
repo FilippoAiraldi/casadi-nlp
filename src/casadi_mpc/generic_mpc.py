@@ -1,5 +1,5 @@
 from itertools import count
-from typing import Any, Dict, Optional, Tuple, Union
+from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 import casadi as cs
 import numpy as npy
 from casadi_mpc.solutions import Solution, subsevalf
@@ -25,7 +25,11 @@ class GenericMpc:
         '_solver', '_solver_opts', '_failures', '_debug'
     ]
 
-    def __init__(self, sym_type: str = 'SX', name: str = None) -> None:
+    def __init__(
+        self,
+        sym_type: Literal['SX', 'MX'] = 'SX',
+        name: str = None
+    ) -> None:
         '''Creates an MPC controller instance with a given name.
 
         Parameters
@@ -34,23 +38,12 @@ class GenericMpc:
             The CasADi symbolic variable type to use in the MPC, by default 
             'SX'.
         name : str, optional
-            _description_, by default None
-
-        Raises
-        ------
-        ValueError
-            Raises if `sym_type` is neither `'SX'` nor `'MX'`.
+            Name of the MPC scheme. If `None`, it is automatically assigned.
         '''
 
         self.id = next(self.__ids)
         self.name = f'MPC{self.id}' if name is None else name
-        if sym_type == 'SX':
-            self._CSXX = cs.SX
-        elif sym_type == 'MX':
-            self._CSXX = cs.MX
-        else:
-            raise ValueError('Expected symbolic type to be either SX or MX, '
-                             f'got {sym_type} instead.')
+        self._CSXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
 
         self._vars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
@@ -68,6 +61,11 @@ class GenericMpc:
         self._solver_opts: Dict[str, Any] = {}
         self._failures = 0
         self._debug = MpcDebug()
+
+    @property
+    def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
+        '''Gets the CasADi symbolic type used in this MPC scheme.'''
+        return self._CSXX
 
     @property
     def f(self) -> Union[None, cs.SX, cs.MX]:
@@ -176,8 +174,8 @@ class GenericMpc:
         return self._h.shape[0]
 
     def parameter(
-        self, 
-        name: str, 
+        self,
+        name: str,
         shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:
         '''Adds a parameter to the MPC scheme.

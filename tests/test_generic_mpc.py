@@ -10,6 +10,11 @@ def random_sym_type() -> str:
 
 
 class TestGenericMpc(unittest.TestCase):
+    def test_init__raises__with_invalid_sym_type(self):
+        with self.assertRaises(Exception):
+            GenericMpc(sym_type='a_random_sym_type')
+        
+
     def test_parameter__creates_correct_parameter(self):
         shape1 = (4, 3)
         shape2 = (2, 2)
