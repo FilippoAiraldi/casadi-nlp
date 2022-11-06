@@ -1,4 +1,5 @@
 import unittest
+from itertools import product
 import casadi as cs
 import numpy as np
 from casadi_mpc import GenericMpc
@@ -120,6 +121,74 @@ class TestGenericMpc(unittest.TestCase):
             mpc.minimize(f)
             self.assertTrue(cs.is_equal(mpc.f, f))
 
+    def test_constraint__raises__with_constraints_with_same_name(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            mpc.constraint('c1', x, '<=', 5)
+            with self.assertRaises(ValueError):
+                mpc.constraint('c1', x, '<=', 5)
+
+    def test_constraint__raises__with_unknown_operator(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            for op in ['=', '>', '<']:
+                with self.assertRaises(ValueError):
+                    mpc.constraint('c1', x, op, 5)
+
+    def test_constraint__raises__with_nonsymbolic_terms(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            with self.assertRaises(TypeError):
+                mpc.constraint('c1', 5, '==', 5)
+
+    def test_constraint__creates_constraint_correctly(self):
+        shape1 = (4, 3)
+        shape2 = (2, 2)
+        nc = np.prod(shape1) + np.prod(shape2)
+        for sym_type, op in product(['SX', 'MX'], ['==', '>=']):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x', shape1)[0]
+            y = mpc.variable('y', shape2)[0]
+            e1, lam1 = mpc.constraint('c1', x, op, 5)
+            e2, lam2 = mpc.constraint('c2', 5, op, y)
+            self.assertTrue(e1.shape == lam1.shape == shape1)
+            self.assertTrue(e2.shape == lam2.shape == shape2)
+            grp = 'g' if op == '==' else 'h'
+            self.assertEqual(getattr(mpc, f'n{grp}'), nc)
+
+            i = 0
+            describe = getattr(mpc.debug, f'{grp}_describe')
+            for name, shape in [('c1', shape1), ('c2', shape2)]:
+                for _ in range(np.prod(shape)):
+                    self.assertEqual(name, describe(i).name)
+                    self.assertEqual(shape, describe(i).shape)
+                    i += 1
+            with self.assertRaises(IndexError):
+                describe(nc + 1)
+
+            e = cs.vertcat(cs.vec(e1), cs.vec(e2))
+            lam = cs.vertcat(cs.vec(lam1), cs.vec(lam2))
+            if sym_type == 'SX':
+                # symbolically for SX
+                self.assertTrue(cs.is_equal(getattr(mpc, grp), e))
+                self.assertTrue(cs.is_equal(getattr(mpc, f'lam_{grp}'), lam))
+            else:
+                # only numerically for MX
+                x_ = np.random.randn(*shape1)
+                y_ = np.random.randn(*shape2)
+                np.testing.assert_allclose(
+                    subsevalf(getattr(mpc, grp), [x, y], [x_, y_]),
+                    subsevalf(e, [x, y], [x_, y_])
+                )
+                lam1_ = np.random.randn(*shape1)
+                lam2_ = np.random.randn(*shape2)
+                np.testing.assert_allclose(
+                    subsevalf(getattr(mpc, f'lam_{grp}'),
+                              [lam1, lam2], [lam1_, lam2_]),
+                    subsevalf(lam, [lam1, lam2], [lam1_, lam2_])
+                )
 
 if __name__ == '__main__':
     unittest.main()

@@ -180,6 +180,11 @@ class GenericMpc:
         '''Gets the variables of the MPC scheme.'''
         return dict2struct(self._vars)
 
+    @cached_property
+    def constraints(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the constraints of the MPC scheme.'''
+        return dict2struct(self._cons)
+
     @cached_property_reset(parameters)
     def parameter(
         self,
@@ -268,6 +273,79 @@ class GenericMpc:
         lam_ub = self._csXX.sym(f'lam_ub_{name}', *shape)
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
         return var, lam_lb, lam_ub
+
+    @cached_property_reset(constraints)
+    def constraint(
+        self,
+        name: str,
+        lhs: Union[cs.SX, cs.MX],
+        op: Literal['==', '>=', '<='],
+        rhs: Union[cs.SX, cs.MX],
+        simplify: bool = True
+    ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        '''Adds a constraint to the MPC problem, e.g., `lhs <= rhs`.
+
+        Parameters
+        ----------
+        name : str
+            Name of the new constraint. Must not be already in use.
+        lhs : casadi.SX, MX
+            Symbolic expression of the left-hand term of the constraint.
+        op: str, {'==' '>=', '<='}
+            Operator relating the two terms.
+        rhs : casadi.SX, MX
+            Symbolic expression of the right-hand term of the constraint.
+        simplify : bool, optional
+            Optionally simplies the constraint expression, but can be disabled.
+
+        Returns
+        -------
+        expr : casadi.SX, MX
+            The constraint expression in canonical form, i.e., `g(x,u) = 0` or
+            `h(x,u) <= 0`.
+        lam : casadi.SX, MX
+            The symbol corresponding to the constraint's multipliers.
+
+        Raises
+        ------
+        ValueError
+            Raises if there is already another constraint with the same name;
+            or if the operator is not recognized.
+        TypeError
+            Raises if the constraint is not symbolic.
+        '''
+        if name in self._cons:
+            raise ValueError(f'Constraint name \'{name}\' already exists.')
+        expr: Union[cs.SX, cs.MX] = lhs - rhs
+        if not isinstance(expr, (cs.SX, cs.MX)):
+            raise TypeError('Constraint must be symbolic.')
+        if simplify:
+            expr = cs.simplify(expr)
+
+        shape = expr.shape
+        if op == '==':
+            is_eq = True
+            lb = npy.zeros(npy.prod(shape))
+        elif op == '<=':
+            is_eq = False
+            lb = npy.full(npy.prod(shape), -npy.inf)
+        elif op == '>=':
+            is_eq = False
+            expr = -expr
+            lb = npy.full(npy.prod(shape), -npy.inf)
+        else:
+            raise ValueError(f'Unrecognized operator {op}.')
+
+        self._cons[name] = expr
+        group, con, lam = \
+            ('_g', '_lbg', '_lam_g') if is_eq else ('_h', '_lbh', '_lam_h')
+        self._debug.register(group[1:], name, shape)
+        lam_sym = self._csXX.sym(f'{lam[1:]}_{name}', *shape)
+        setattr(self, group, cs.vertcat(getattr(self, group), cs.vec(expr)))
+        setattr(self, con, npy.concatenate((getattr(self, con), lb)))
+        setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_sym)))
+        return expr, lam_sym
+
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
         '''Sets the objective function to be minimized.'''
         self._f = objective
