@@ -131,13 +131,13 @@ class GenericMpc:
     @property
     def solver(self) -> Optional[cs.Function]:
         '''Gets the MPC optimization solver. Can be `None`, if the solver is 
-        not set with method `set_solver`.'''
+        not set with method `init_solver`.'''
         return self._solver
 
     @property
     def solver_opts(self) -> Dict[str, Any]:
         '''Gets the MPC optimization solver options. The dict is empty, if the 
-        solver options are not set with method `set_solver`.'''
+        solver options are not set with method `init_solver`.'''
         return self._solver_opts
 
     @property
