@@ -2,6 +2,7 @@ from functools import cached_property, wraps
 from typing import Any, Callable, Dict, Union
 import casadi as cs
 from casadi.tools import struct_symSX, entry
+from casadi.tools.structure3 import DMStruct
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -63,24 +64,32 @@ def cached_property_reset(cproperty: cached_property) -> Callable:
 
 
 def dict2struct(
-    dict: Dict[str, Union[cs.SX, cs.MX]]
-) -> Union[struct_symSX, Dict[str, cs.MX]]:
-    '''Attempts to convert a dictionary of symbols to a struct. This is 
-    possible only if all the symbols are of type `SX`. If one or more is `MX`, 
-    a copy of `dict` is returned.
+    dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]]
+) -> Union[DMStruct, struct_symSX, Dict[str, cs.MX]]:
+    '''Attempts to convert a dictionary of CasADi matrices to a struct. The 
+    algorithm is inferred from the type of the first element of `dict`:
+     - if `DM`, then a numerical `DMStruct` is returned
+     - if `SX`, then a symbolical `struct_symSX` is returned
+     - if `MX` (or any other, for this matter), only a copy of `dict` is 
+       returned.
 
     Parameters
     ----------
-    dict : Dict[str, Union[cs.SX, cs.MX]]
+    dict : Dict[str, Union[cs.DM, cs.SX, cs.MX]]
         Dictionary of names and their corresponding symbolic variables.
 
     Returns
     -------
-    Union[struct_symSX, Dict[str, cs.MX]]
+    Union[DMStruct, struct_symSX, Dict[str, cs.MX]]
         Either a structure generated from `dict`, or a copy of `dict` itself.
     '''
-    return (
-        dict.copy()
-        if any(isinstance(v, cs.MX) for v in dict.values()) else
-        struct_symSX([entry(name, sym=p) for name, p in dict.items()])
-    )
+
+    o = next(iter(dict.values()))
+    if isinstance(o, cs.DM):
+        dummy = struct_symSX([
+            entry(name, shape=p.shape) for name, p in dict.items()])
+        return dummy(cs.vertcat(*map(cs.vec, dict.values())))
+    elif isinstance(o, cs.SX):
+        return struct_symSX([entry(name, sym=p) for name, p in dict.items()])
+    else:
+        return dict.copy()
