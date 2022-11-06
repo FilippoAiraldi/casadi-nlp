@@ -1,8 +1,7 @@
 from dataclasses import dataclass
 from typing import Any, Dict, Union, Iterable
 import casadi as cs
-from casadi.tools.structure3 import \
-    CasadiStructured, ssymStruct, msymStruct, DMStruct
+from casadi.tools.structure3 import CasadiStructured, ssymStruct, DMStruct
 
 
 # https://casadi.sourceforge.net/tutorials/tools/structure.pdf
@@ -14,7 +13,7 @@ class Solution:
     '''Class containing information on the solution of an MPC solver's run.'''
 
     f: float
-    vars: Union[ssymStruct, msymStruct]
+    vars: Union[ssymStruct, Dict[str, cs.MX]]
     vals: DMStruct
     stats: Dict[str, Any]
 
