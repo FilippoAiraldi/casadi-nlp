@@ -1,8 +1,9 @@
+from functools import partial
 from itertools import count
 from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 import casadi as cs
 import numpy as npy
-from casadi_mpc.solutions import Solution, subsevalf
+from casadi_mpc.solutions import Solution, subsevalf, DMStruct
 from casadi_mpc.debug import MpcDebug
 from casadi_mpc.util import \
     cached_property, cached_property_reset, struct_symSX, dict2struct
@@ -375,6 +376,80 @@ class GenericMpc:
         nlp = {'x': self._x, 'p': self._p, 'g': con, 'f': self._f}
         self._solver = cs.nlpsol(f'nlpsol_{self.name}', 'ipopt', nlp, opts)
         self._solver_opts = opts
+
+    def solve(
+        self,
+        pars: Union[DMStruct, Dict[str, npy.ndarray]],
+        vals0: Union[DMStruct, Dict[str, npy.ndarray]] = None
+    ) -> Solution:
+        '''Solves the MPC optimization problem.
+
+        Parameters
+        ----------
+        pars : DMStruct, dict[str, array_like]
+            Dictionary or structure containing, for each parameter in the MPC 
+            scheme, the corresponding numerical value.
+        vals0 : DMStruct, dict[str, array_like], optional
+            Dictionary or structure containing, for each variable in the MPC
+            scheme, the corresponding initial guess. By default, initial 
+            guesses are not passed to the solver.
+
+        Returns
+        -------
+        sol : Solution
+            A solution object containing all the information.
+
+        Raises
+        ------
+        RuntimeError
+            Raises if the solver is un-initialized (see `init_solver`); or if 
+            not all the parameters are not provided with a numerical value.
+        '''
+        if self.solver is None:
+            raise RuntimeError('Solver uninitialized.')
+        parsdiff = self._pars.keys() - pars.keys()
+        if len(parsdiff) != 0:
+            raise RuntimeError(
+                'Trying to solve the MPC with unspecified parameters: ' +
+                ', '.join(parsdiff) + '.')
+
+        p = subsevalf(self._p, self._pars, pars)
+        kwargs = {
+            'p': p,
+            'lbx': self._lbx,
+            'ubx': self._ubx,
+            'lbg': npy.concatenate((self._lbg, self._lbh)),
+            'ubg': 0,
+        }
+        if vals0 is not None:
+            kwargs['x0'] = subsevalf(self._x, self._vars, vals0)
+        sol: Dict[str, cs.DM] = self.solver(**kwargs)
+
+        # extract lam_x, lam_g and lam_h
+        lam_lbx = -cs.fmin(sol['lam_x'], 0)
+        lam_ubx = cs.fmax(sol['lam_x'], 0)
+        lam_g = sol['lam_g'][:self.ng, :]
+        lam_h = sol['lam_g'][self.ng:, :]
+
+        if self._csXX == cs.SX:
+            vars_: struct_symSX = self.variables
+            vals = vars_(sol['x'])
+        else:
+            vars_: Dict[str, cs.MX] = self.variables
+            vals = dict2struct({name: subsevalf(var, self._x, sol['x'])
+                                for name, var in vars_.items()})
+        old = cs.vertcat(
+            self._p, self._x, self._lam_g, self._lam_h,
+            self._lam_lbx, self._lam_ubx)
+        new = cs.vertcat(p, sol['x'], lam_g, lam_h, lam_lbx, lam_ubx)
+        get_value = partial(subsevalf, old=old, new=new)
+        return Solution(
+            f=float(sol['f']),
+            vars=vars_,
+            vals=vals,
+            stats=self.solver.stats().copy(),
+            _get_value=get_value
+        )
 
     def __str__(self) -> str:
         '''Returns the MPC name and a short description.'''

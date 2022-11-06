@@ -214,6 +214,37 @@ class TestGenericMpc(unittest.TestCase):
             mpc.init_solver(opts)
             self.assertDictEqual(opts, mpc.solver_opts)
 
+    def test_solve__raises__with_uninit_solver(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            with self.assertRaises(RuntimeError):
+                mpc.solve(None)
+
+    def test_solve__raises__with_free_parameters(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x')[0]
+            p = mpc.parameter('p')
+            mpc.f = p * (x**2)
+            with self.assertRaises(RuntimeError):
+                mpc.solve({})
+
+    def test_solve__computes_correctly__small_example_1(self):
+        for sym_type in ('MX', 'SX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x = mpc.variable('x', (2, 1))[0]
+            y = mpc.variable('y', (3, 1))[0]
+            p = mpc.parameter('p')
+            mpc.minimize(p + (x.T @ x + y.T @ y))
+            mpc.init_solver(OPTS)
+            sol = mpc.solve({'p': 3})
+            self.assertTrue(sol.success)
+            np.testing.assert_allclose(sol.f, 3)
+            for k in sol.vals.keys():
+                np.testing.assert_allclose(sol.vals[k], 0)
+            o = sol.value(p + (x.T @ x + y.T @ y))
+            np.testing.assert_allclose(sol.f, o)
+
 
 if __name__ == '__main__':
     unittest.main()
