@@ -52,6 +52,7 @@ class GenericMpc:
         self._lam_lbx, self._lam_ubx = self._CSXX(), self._CSXX()
         self._g, self._lam_g = self._CSXX(), self._CSXX()
         self._h, self._lam_h = self._CSXX(), self._CSXX()
+        self._lbg, self._lbh = npy.array([]), npy.array([])
 
         self._solver: cs.Function = None
         self._solver_opts: Dict[str, Any] = {}
@@ -218,7 +219,7 @@ class GenericMpc:
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npy.ndarray, cs.DM] = -npy.inf,
         ub: Union[npy.ndarray, cs.DM] = +npy.inf
-    ) -> Tuple[cs.SX, cs.SX, cs.SX]:
+    ) -> Union[Tuple[cs.SX, cs.SX, cs.SX], Tuple[cs.MX, cs.MX, cs.MX]]:
         '''
         Adds a variable to the MPC problem.
 
