@@ -206,12 +206,13 @@ class TestGenericMpc(unittest.TestCase):
                 )
 
     def test_set_solver__saves_options_correctly(self):
-        mpc = GenericMpc()
-        opts = OPTS.copy()
-        x = mpc.variable('x')[0]
-        mpc.minimize(x**2)
-        mpc.init_solver(opts)
-        self.assertDictEqual(opts, mpc.solver_opts)
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            opts = OPTS.copy()
+            x = mpc.variable('x')[0]
+            mpc.minimize(x**2)
+            mpc.init_solver(opts)
+            self.assertDictEqual(opts, mpc.solver_opts)
 
 
 if __name__ == '__main__':

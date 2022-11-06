@@ -70,6 +70,11 @@ class GenericMpc:
         previously set via the `minimize` method.'''
         return self._f
 
+    @f.setter
+    def f(self, objective: Union[cs.SX, cs.MX]) -> None:
+        '''Sets the objective of the MPC scheme.'''
+        return self.minimize(objective)
+
     @property
     def p(self) -> Union[cs.SX, cs.MX]:
         '''Gets the parameters of the MPC scheme.'''
