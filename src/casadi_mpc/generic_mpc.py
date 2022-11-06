@@ -184,8 +184,8 @@ class GenericMpc:
         ----------
         name : str
             Name of the new parameter. Must not be already in use.
-        shape : tuple[int, int]
-            Shape of the new parameter.
+        shape : tuple[int, int], optional
+            Shape of the new parameter. By default, a scalar.
 
         Returns
         -------
@@ -202,8 +202,63 @@ class GenericMpc:
         par = self._CSXX.sym(name, *shape)
         self._pars[name] = par
         self._p = cs.vertcat(self._p, cs.vec(par))
+        self._debug.register('p', name, shape)
         return par
 
+    def variable(
+        self, name: str,
+        shape: Tuple[int, int] = (1, 1),
+        lb: Union[npy.ndarray, cs.DM] = -npy.inf,
+        ub: Union[npy.ndarray, cs.DM] = +npy.inf
+    ) -> Tuple[cs.SX, cs.SX, cs.SX]:
+        '''
+        Adds a variable to the MPC problem.
+
+        Parameters
+        ----------
+        name : str
+            Name of the new variable. Must not be already in use.
+        shape : tuple[int, int], optional
+            Shape of the new variable. By default, a scalar.
+        lb, ub: array_like, optional
+            Lower and upper bounds of the new variable. By default, unbounded.
+            If provided, their dimension must be broadcastable.
+
+        Returns
+        -------
+        var : casadi.SX
+            The symbol of the new variable.
+        lam_lb : casadi.SX
+            The symbol corresponding to the new variable lower bound
+            constraint's multipliers.
+        lam_ub : casadi.SX
+            Same as above, for upper bound.
+
+        Raises
+        ------
+        ValueError
+            Raises if there is already another variable with the same name; or 
+            if any element of the lower bound is larger than the corresponding 
+            lower bound element.
+        '''
+        if name in self._vars:
+            raise ValueError(f'Variable name \'{name}\' already exists.')
+        lb, ub = npy.broadcast_to(lb, shape), npy.broadcast_to(ub, shape)
+        if npy.all(lb > ub):
+            raise ValueError('Improper variable bounds.')
+
+        var = self._CSXX.sym(name, *shape)
+        self._vars[name] = var
+        self._x = cs.vertcat(self._x, cs.vec(var))
+        self._lbx = npy.concatenate((self._lbx, lb.flatten('F')))
+        self._ubx = npy.concatenate((self._ubx, ub.flatten('F')))
+        self._debug.register('x', name, shape)
+
+        lam_lb = self._CSXX.sym(f'lam_lb_{name}', *shape)
+        self._lam_lbx = cs.vertcat(self._lam_lbx, cs.vec(lam_lb))
+        lam_ub = self._CSXX.sym(f'lam_ub_{name}', *shape)
+        self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
+        return var, lam_lb, lam_ub
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
         '''Sets the objective function to be minimized.'''
         self._f = objective

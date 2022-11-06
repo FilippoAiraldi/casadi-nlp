@@ -52,8 +52,59 @@ class TestGenericMpc(unittest.TestCase):
             mpc.parameter('p')
             with self.assertRaises(ValueError):
                 mpc.parameter('p')
+
+    def test_variable__creates_correct_variable(self):
+        shape1 = (4, 3)
+        shape2 = (2, 2)
+        lb1, ub1 = np.random.rand(*shape1) - 1, np.random.rand(*shape1) + 1
+        lb2, ub2 = np.random.rand(*shape2) - 1, np.random.rand(*shape2) + 1
+        nx = np.prod(shape1) + np.prod(shape2)
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            x1, lam1_lb, lam1_ub = mpc.variable('x1', shape1, lb=lb1, ub=ub1)
+            x2, lam2_lb, lam2_ub = mpc.variable('x2', shape2, lb=lb2, ub=ub2)
+            for o in (x1, lam1_lb, lam1_ub):
+                self.assertEqual(o.shape, shape1)
+            for o in (x2, lam2_lb, lam2_ub):
+                self.assertEqual(o.shape, shape2)
+            self.assertEqual(mpc.nx, nx)
+            x = cs.vertcat(cs.vec(x1), cs.vec(x2))
+            if sym_type == 'SX':
+                # symbolically for SX
+                self.assertTrue(cs.is_equal(mpc.x, x))
+            else:
+                # only numerically for MX
+                x1_ = np.random.randn(*x1.shape)
+                x2_ = np.random.randn(*x2.shape)
+                np.testing.assert_allclose(
+                    subsevalf(mpc.x, [x1, x2], [x1_, x2_]),
+                    subsevalf(x, [x1, x2], [x1_, x2_]),
+                )
+            lb = cs.vertcat(cs.vec(lb1), cs.vec(lb2))
+            ub = cs.vertcat(cs.vec(ub1), cs.vec(ub2))
+            np.testing.assert_allclose(mpc.lbx, lb.full().flat)
+            np.testing.assert_allclose(mpc.ubx, ub.full().flat)
+            i = 0
+            for name, shape in [('x1', shape1), ('x2', shape2)]:
+                for _ in range(np.prod(shape)):
+                    self.assertEqual(name, mpc.debug.x_describe(i).name)
+                    self.assertEqual(shape, mpc.debug.x_describe(i).shape)
+                    i += 1
+            with self.assertRaises(IndexError):
+                mpc.debug.x_describe(nx + 1)
+
+    def test_variable__raises__with_variables_with_same_name(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            mpc.variable('x')
             with self.assertRaises(ValueError):
-                mpc.parameter('p1')
+                mpc.variable('x')
+
+    def test_variable__raises__with_invalid_bounds(self):
+        for sym_type in ('SX', 'MX'):
+            mpc = GenericMpc(sym_type=sym_type)
+            with self.assertRaises(ValueError):
+                mpc.variable('x', lb=1, ub=0)
 
     def test_minimize__sets_objective_correctly(self):
         for sym_type in ('SX', 'MX'):
