@@ -3,17 +3,16 @@ from itertools import count
 from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
 import casadi as cs
 import numpy as npy
-from casadi_mpc.solutions import Solution, subsevalf, DMStruct
-from casadi_mpc.debug import MpcDebug
-from casadi_mpc.util import \
+from casadi_nlp.solutions import Solution, subsevalf, DMStruct
+from casadi_nlp.debug import NlpDebug
+from casadi_nlp.util import \
     cached_property, cached_property_reset, struct_symSX, dict2struct
 
 
-class GenericMpc:
+class Nlp:
     '''
-    The generic MPC class is a controller that solves an optimization problem
-    to yield the (possibly, sub-) optimal action, according to the prediction
-    model, in the current state.
+    The generic NLP class is a controller that solves a (possibly, nonlinear) 
+    optimization problem to yield a (possibly, sub-) optimal solution.
 
     This is a generic class in the sense that it does not solve a particular
     problem, but only offers the generic methods to build one (e.g., variables,
@@ -27,19 +26,19 @@ class GenericMpc:
         sym_type: Literal['SX', 'MX'] = 'SX',
         name: str = None
     ) -> None:
-        '''Creates an MPC controller instance with a given name.
+        '''Creates an NLP instance with a given name.
 
         Parameters
         ----------
         sym_type : 'SX' or 'MX', optional
-            The CasADi symbolic variable type to use in the MPC, by default 
+            The CasADi symbolic variable type to use in the NLP, by default 
             'SX'.
         name : str, optional
-            Name of the MPC scheme. If `None`, it is automatically assigned.
+            Name of the NLP scheme. If `None`, it is automatically assigned.
         '''
 
         self.id = next(self.__ids)
-        self.name = f'MPC{self.id}' if name is None else name
+        self.name = f'NLP{self.id}' if name is None else name
         self._csXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
 
         self._vars: Dict[str, Union[cs.SX, cs.MX]] = {}
@@ -58,137 +57,137 @@ class GenericMpc:
         self._solver: cs.Function = None
         self._solver_opts: Dict[str, Any] = {}
         self._failures = 0
-        self._debug = MpcDebug()
+        self._debug = NlpDebug()
 
     @property
     def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
-        '''Gets the CasADi symbolic type used in this MPC scheme.'''
+        '''Gets the CasADi symbolic type used in this NLP scheme.'''
         return self._csXX
 
     @property
     def f(self) -> Union[None, cs.SX, cs.MX]:
-        '''Gets the objective of the MPC scheme, which is `None` if not set 
+        '''Gets the objective of the NLP scheme, which is `None` if not set 
         previously set via the `minimize` method.'''
         return self._f
 
     @f.setter
     def f(self, objective: Union[cs.SX, cs.MX]) -> None:
-        '''Sets the objective of the MPC scheme.'''
+        '''Sets the objective of the NLP scheme.'''
         return self.minimize(objective)
 
     @property
     def p(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the parameters of the MPC scheme.'''
+        '''Gets the parameters of the NLP scheme.'''
         return self._p
 
     @property
     def x(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the primary variables of the MPC scheme in vector form.'''
+        '''Gets the primary variables of the NLP scheme in vector form.'''
         return self._x
 
     @property
     def lbx(self) -> npy.ndarray:
-        '''Gets the lower bound constraints of primary variables of the MPC 
+        '''Gets the lower bound constraints of primary variables of the NLP 
         scheme in vector form.'''
         return self._lbx
 
     @property
     def ubx(self) -> npy.ndarray:
-        '''Gets the upper bound constraints of primary variables of the MPC 
+        '''Gets the upper bound constraints of primary variables of the NLP 
         scheme in vector form.'''
         return self._ubx
 
     @property
     def lam_lbx(self) -> npy.ndarray:
         '''Gets the dual variables of the primary variables lower bound 
-        constraints of the MPC scheme in vector form.'''
+        constraints of the NLP scheme in vector form.'''
         return self._lam_lbx
 
     @property
     def lam_ubx(self) -> npy.ndarray:
         '''Gets the dual variables of the primary variables upper bound 
-        constraints of the MPC scheme in vector form.'''
+        constraints of the NLP scheme in vector form.'''
         return self._lam_ubx
 
     @property
     def g(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the equality constraint expressions of the MPC scheme in vector
+        '''Gets the equality constraint expressions of the NLP scheme in vector
         form.'''
         return self._g
 
     @property
     def h(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the inequality constraint expressions of the MPC scheme in 
+        '''Gets the inequality constraint expressions of the NLP scheme in 
         vector form.'''
         return self._h
 
     @property
     def lam_g(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the dual variables of the equality constraints of the MPC 
+        '''Gets the dual variables of the equality constraints of the NLP 
         scheme in vector form.'''
         return self._lam_g
 
     @property
     def lam_h(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the dual variables of the inequality constraints of the MPC 
+        '''Gets the dual variables of the inequality constraints of the NLP 
         scheme in vector form.'''
         return self._lam_h
 
     @property
     def solver(self) -> Optional[cs.Function]:
-        '''Gets the MPC optimization solver. Can be `None`, if the solver is 
+        '''Gets the NLP optimization solver. Can be `None`, if the solver is 
         not set with method `init_solver`.'''
         return self._solver
 
     @property
     def solver_opts(self) -> Dict[str, Any]:
-        '''Gets the MPC optimization solver options. The dict is empty, if the 
+        '''Gets the NLP optimization solver options. The dict is empty, if the 
         solver options are not set with method `init_solver`.'''
         return self._solver_opts
 
     @property
     def failures(self) -> int:
-        '''Gets the cumulative number of failures of the MPC solver.'''
+        '''Gets the cumulative number of failures of the NLP solver.'''
         return self._failures
 
     @property
-    def debug(self) -> MpcDebug:
-        '''Gets debug information on the MPC scheme.'''
+    def debug(self) -> NlpDebug:
+        '''Gets debug information on the NLP scheme.'''
         return self._debug
 
     @property
     def nx(self) -> int:
-        '''Number of variables in the MPC scheme.'''
+        '''Number of variables in the NLP scheme.'''
         return self._x.shape[0]
 
     @property
     def np(self) -> int:
-        '''Number of parameters in the MPC scheme.'''
+        '''Number of parameters in the NLP scheme.'''
         return self._p.shape[0]
 
     @property
     def ng(self) -> int:
-        '''Number of equality constraints in the MPC scheme.'''
+        '''Number of equality constraints in the NLP scheme.'''
         return self._g.shape[0]
 
     @property
     def nh(self) -> int:
-        '''Number of inequality constraints in the MPC scheme.'''
+        '''Number of inequality constraints in the NLP scheme.'''
         return self._h.shape[0]
 
     @cached_property
     def parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
-        '''Gets the parameters of the MPC scheme.'''
+        '''Gets the parameters of the NLP scheme.'''
         return dict2struct(self._pars)
 
     @cached_property
     def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
-        '''Gets the variables of the MPC scheme.'''
+        '''Gets the variables of the NLP scheme.'''
         return dict2struct(self._vars)
 
     @cached_property
     def constraints(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
-        '''Gets the constraints of the MPC scheme.'''
+        '''Gets the constraints of the NLP scheme.'''
         return dict2struct(self._cons)
 
     @cached_property_reset(parameters)
@@ -197,7 +196,7 @@ class GenericMpc:
         name: str,
         shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:
-        '''Adds a parameter to the MPC scheme.
+        '''Adds a parameter to the NLP scheme.
 
         Parameters
         ----------
@@ -232,7 +231,7 @@ class GenericMpc:
         ub: Union[npy.ndarray, cs.DM] = +npy.inf
     ) -> Union[Tuple[cs.SX, cs.SX, cs.SX], Tuple[cs.MX, cs.MX, cs.MX]]:
         '''
-        Adds a variable to the MPC problem.
+        Adds a variable to the NLP problem.
 
         Parameters
         ----------
@@ -289,7 +288,7 @@ class GenericMpc:
         rhs: Union[cs.SX, cs.MX],
         simplify: bool = True
     ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Adds a constraint to the MPC problem, e.g., `lhs <= rhs`.
+        '''Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
 
         Parameters
         ----------
@@ -358,13 +357,13 @@ class GenericMpc:
         Parameters
         ----------
         objective : Union[cs.SX, cs.MX]
-            A Symbolic variable dependent only on the MPC variables and 
+            A Symbolic variable dependent only on the NLP variables and 
             parameters that needs to be minimized. 
         '''
         self._f = objective
 
     def init_solver(self, opts: Dict[str, Any]) -> None:
-        '''Initializes the IPOPT solver for this MPC with the given options.
+        '''Initializes the IPOPT solver for this NLP with the given options.
 
         Parameters
         ----------
@@ -382,16 +381,16 @@ class GenericMpc:
         pars: Union[DMStruct, Dict[str, npy.ndarray]] = None,
         vals0: Union[DMStruct, Dict[str, npy.ndarray]] = None
     ) -> Solution:
-        '''Solves the MPC optimization problem.
+        '''Solves the NLP optimization problem.
 
         Parameters
         ----------
         pars : DMStruct, dict[str, array_like], optional
-            Dictionary or structure containing, for each parameter in the MPC 
+            Dictionary or structure containing, for each parameter in the NLP 
             scheme, the corresponding numerical value. Can be `None` if no 
             parameters are present.
         vals0 : DMStruct, dict[str, array_like], optional
-            Dictionary or structure containing, for each variable in the MPC
+            Dictionary or structure containing, for each variable in the NLP
             scheme, the corresponding initial guess. By default, initial 
             guesses are not passed to the solver.
 
@@ -413,7 +412,7 @@ class GenericMpc:
         parsdiff = self._pars.keys() - pars.keys()
         if len(parsdiff) != 0:
             raise RuntimeError(
-                'Trying to solve the MPC with unspecified parameters: ' +
+                'Trying to solve the NLP with unspecified parameters: ' +
                 ', '.join(parsdiff) + '.')
 
         p = subsevalf(self._p, self._pars, pars)
@@ -455,7 +454,7 @@ class GenericMpc:
         )
 
     def __str__(self) -> str:
-        '''Returns the MPC name and a short description.'''
+        '''Returns the NLP name and a short description.'''
         msg = 'not initialized' if self.solver is None else 'initialized'
         C = len(self._cons)
         return f'{type(self).__name__} {{\n' \
@@ -466,5 +465,5 @@ class GenericMpc:
                f'  CasADi solver {msg}.\n}}'
 
     def __repr__(self) -> str:
-        '''Returns the string representation of the MPC instance.'''
+        '''Returns the string representation of the NLP instance.'''
         return f'{type(self).__name__}: {self.name}'

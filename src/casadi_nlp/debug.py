@@ -6,8 +6,8 @@ from numpy import prod
 
 
 @dataclass(frozen=True)
-class MpcDebugEntry:
-    '''Class representing a single entry of debug information for the MPC.'''
+class NlpDebugEntry:
+    '''Class representing a single entry of debug information for the NLP.'''
 
     name: str
     type: str
@@ -29,9 +29,9 @@ class MpcDebugEntry:
         return f'{self.__class__.__name__}({self.__str__()})'
 
 
-class MpcDebug:
+class NlpDebug:
     '''
-    MPC debug class for information about variables and constraints. In 
+    NLP debug class for information about variables and constraints. In 
     particular, it records information on
      - the decision variable `x`
      - the equality constraints `g`
@@ -52,7 +52,7 @@ class MpcDebug:
         for s in self.__slots__:
             self.__setattr__(s, [])
 
-    def p_describe(self, index: int) -> MpcDebugEntry:
+    def p_describe(self, index: int) -> NlpDebugEntry:
         '''Returns debug information on the parameter at the given `index`.
 
         Parameters
@@ -62,7 +62,7 @@ class MpcDebug:
 
         Returns
         -------
-        MpcDebugEntry
+        NlpDebugEntry
             A class instance containing debug information on the parameter p
             at the given index.
 
@@ -73,7 +73,7 @@ class MpcDebug:
         '''
         return self.__describe(self._p_info, index)
 
-    def x_describe(self, index: int) -> MpcDebugEntry:
+    def x_describe(self, index: int) -> NlpDebugEntry:
         '''Returns debug information on the variable at the given `index`.
 
         Parameters
@@ -83,7 +83,7 @@ class MpcDebug:
 
         Returns
         -------
-        MpcDebugEntry
+        NlpDebugEntry
             A class instance containing debug information on the variable x
             at the given index.
 
@@ -94,7 +94,7 @@ class MpcDebug:
         '''
         return self.__describe(self._x_info, index)
 
-    def g_describe(self, index: int) -> MpcDebugEntry:
+    def g_describe(self, index: int) -> NlpDebugEntry:
         '''Returns debug information on the constraint at the given `index`.
 
         Parameters
@@ -104,7 +104,7 @@ class MpcDebug:
 
         Returns
         -------
-        MpcDebugEntry
+        NlpDebugEntry
             A class instance containing debug information on the constraint g
             at the given index.
 
@@ -115,7 +115,7 @@ class MpcDebug:
         '''
         return self.__describe(self._g_info, index)
 
-    def h_describe(self, index: int) -> MpcDebugEntry:
+    def h_describe(self, index: int) -> NlpDebugEntry:
         '''Returns debug information on the constraint at the given `index`.
 
         Parameters
@@ -125,7 +125,7 @@ class MpcDebug:
 
         Returns
         -------
-        MpcDebugEntry
+        NlpDebugEntry
             A class instance containing debug information on the constraint h
             at the given index.
 
@@ -156,12 +156,12 @@ class MpcDebug:
             Raises in case the given group is invalid.
         '''
         trackback = getframeinfo(stack()[2][0])
-        info: List[Tuple[range, MpcDebugEntry]] = getattr(self,
-                                                          f'_{group}_info')
+        info: List[Tuple[range, NlpDebugEntry]] = \
+            getattr(self, f'_{group}_info')
         last = info[-1][0].stop if info else 0
         info.append((
             range(last, last + prod(shape)),
-            MpcDebugEntry(
+            NlpDebugEntry(
                 name=name,
                 type=self.types[group],
                 shape=shape,
@@ -175,9 +175,9 @@ class MpcDebug:
 
     def __describe(
         self,
-        info: List[Tuple[range, MpcDebugEntry]],
+        info: List[Tuple[range, NlpDebugEntry]],
         index: int
-    ) -> MpcDebugEntry:
+    ) -> NlpDebugEntry:
         for range_, description in info:
             if index in range_:
                 return description

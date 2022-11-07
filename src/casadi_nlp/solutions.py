@@ -10,7 +10,7 @@ from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 @dataclass(frozen=True)
 class Solution:
-    '''Class containing information on the solution of an MPC solver's run.'''
+    '''Class containing information on the solution of an NLP solver's run.'''
 
     f: float
     vars: Union[CasadiStructured, Dict[str, cs.SX], Dict[str, cs.MX]]
@@ -25,7 +25,7 @@ class Solution:
 
     @property
     def success(self) -> bool:
-        '''Gets whether the MPC was run successfully.'''
+        '''Gets whether the run was run successfully.'''
         return self.stats['success']
 
     def value(
@@ -42,7 +42,7 @@ class Solution:
             The symbolic expression to be evaluated at the solution's values.
         eval : bool, optional
             Evaluates numerically the new expression. By default, `True`. See 
-            `casadi_mpc.solutions.subsevalf` for more details.
+            `casadi_nlp.solutions.subsevalf` for more details.
 
         Returns
         -------

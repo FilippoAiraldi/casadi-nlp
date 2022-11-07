@@ -3,18 +3,19 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "casadi_mpc"
+name = "casadi_nlp"
 version = "0.0.1"
 authors = [
   { name="Filippo Airaldi", email="filippoairaldi@gmail.com" },
 ]
-description = "Model Predictive Control with CasADi"
+description = "Nonlinear Progamming with CasADi"
 readme = "README.md"
 requires-python = ">=3.8"
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Mathematics"
 ]
 dependencies = [
     "numpy >= 1.21.6",
@@ -22,5 +23,5 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/FilippoAiraldi/casadi-mpc"
-"Bug Tracker" = "https://github.com/FilippoAiraldi/casadi-mpc/issues"
+"Homepage" = "https://github.com/FilippoAiraldi/casadi-nlp"
+"Bug Tracker" = "https://github.com/FilippoAiraldi/casadi-nlp/issues"
