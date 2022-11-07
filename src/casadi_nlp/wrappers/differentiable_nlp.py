@@ -15,9 +15,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     References
     ----------
-    [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time 
-        optimization of parametric nonlinear programming problems. In M. 
-        Grotschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of 
+    [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
+        optimization of parametric nonlinear programming problems. In M.
+        Grotschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of
         Large Scale Systems, 3–16. Springer, Berlin, Heidelberg.
     '''
 
@@ -39,8 +39,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
             `True`.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
-            represents the barrier function of the interior-point solver. By 
-            default `False`, so that no additional variable is added. See 
+            represents the barrier function of the interior-point solver. By
+            default `False`, so that no additional variable is added. See
             property `kkt_matrix` for more details.
         '''
         super().__init__(nlp)
@@ -49,7 +49,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `lbx` and their multipliers. If 
+        '''Gets the inequalities due to `lbx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `lbx == -inf`; otherwise, returns all lower bound constraints.'''
         if self.remove_reduntant_x_bounds:
@@ -61,7 +61,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `ubx` and their multipliers. If 
+        '''Gets the inequalities due to `ubx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `ubx == +inf`; otherwise, returns all upper bound constraints.'''
         if self.remove_reduntant_x_bounds:
