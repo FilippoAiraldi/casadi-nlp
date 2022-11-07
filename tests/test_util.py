@@ -4,7 +4,8 @@ from functools import cached_property
 import casadi as cs
 from casadi_nlp.util import (
     is_casadi_object, cached_property_reset,
-    dict2struct, struct_symSX, DMStruct
+    dict2struct, struct_symSX, DMStruct,
+    np_random
 )
 import numpy as np
 
@@ -79,6 +80,19 @@ class TestUtil(unittest.TestCase):
         s = dict2struct(d)
         self.assertIsInstance(s, Dict)
         self.assertDictEqual(d, s)
+
+    def test_np_random__raises__with_invalid_seed(self):
+        with self.assertRaises(ValueError):
+            np_random(-1)
+            
+    def test_np_random__initializes_rng_with_correct_seed(self):
+        for seed in (69, None):
+            rng, actual_seed = np_random(seed)
+            self.assertIsInstance(rng, np.random.Generator)
+            if seed is not None:
+                self.assertEqual(seed, actual_seed)
+            else:
+                self.assertIsInstance(actual_seed, int)
 
 
 if __name__ == '__main__':

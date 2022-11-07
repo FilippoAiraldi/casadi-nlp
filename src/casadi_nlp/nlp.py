@@ -5,8 +5,11 @@ import casadi as cs
 import numpy as npy
 from casadi_nlp.solutions import Solution, subsevalf, DMStruct
 from casadi_nlp.debug import NlpDebug
-from casadi_nlp.util import \
-    cached_property, cached_property_reset, struct_symSX, dict2struct
+from casadi_nlp.util import (
+    cached_property, cached_property_reset, 
+    struct_symSX, dict2struct,
+    np_random
+)
 
 
 class Nlp:
@@ -24,7 +27,8 @@ class Nlp:
     def __init__(
         self,
         sym_type: Literal['SX', 'MX'] = 'SX',
-        name: str = None
+        name: str = None,
+        seed: int = None
     ) -> None:
         '''Creates an NLP instance with a given name.
 
@@ -35,6 +39,8 @@ class Nlp:
             'SX'.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
+        seed : int, optional
+            Random number generator seed.
         '''
 
         self.id = next(self.__ids)
@@ -45,7 +51,7 @@ class Nlp:
         self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._cons: Dict[str, Union[cs.SX, cs.MX]] = {}
 
-        self._f: Union[cs.SX, cs.MX] = None  # objective
+        self._f: Union[cs.SX, cs.MX] = None
         self._p = self._csXX()
         self._x = self._csXX()
         self._lbx, self._ubx = npy.array([]), npy.array([])
@@ -58,6 +64,26 @@ class Nlp:
         self._solver_opts: Dict[str, Any] = {}
         self._failures = 0
         self._debug = NlpDebug()
+        self._seed = seed
+        self._np_random: Optional[npy.random.Generator] = None
+
+    @property
+    def unwrapped(self) -> 'Nlp':
+        '''Returns the base non-wrapped NLP.'''
+        return self
+
+    @property
+    def np_random(self) -> npy.random.Generator:
+        '''Returns the nlp's random engine that, if not set, will be 
+        initialised with the nlp's seed.'''
+        if self._np_random is None:
+            self._np_random, _ = np_random(self._seed)
+        return self._np_random
+
+    @np_random.setter
+    def np_random(self, value: npy.random.Generator):
+        '''Sets the nlp's random engine.'''
+        self._np_random = value
 
     @property
     def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
