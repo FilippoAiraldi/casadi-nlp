@@ -5,13 +5,7 @@ from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.util import cached_property, cached_property_reset
 
 
-PRIMAL_DUAL_ORDER = {
-    'x': lambda nlp: (nlp._x,),
-    'g': lambda nlp: (nlp._lam_g,),
-    'h': lambda nlp: (nlp._lam_h,),
-    'h_lbx': lambda nlp: (nlp.h_lbx[1],),
-    'h_ubx': lambda nlp: (nlp.h_ubx[1],),
-}
+PRIMAL_DUAL_ORDER = ['x', 'g', 'h', 'h_lbx', 'h_ubx']
 
 
 class DifferentiableNlp(Wrapper[NlpType]):
@@ -73,7 +67,24 @@ class DifferentiableNlp(Wrapper[NlpType]):
     @cached_property
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
         '''Gets the collection of primal-dual variables.'''
-        return cs.vertcat(*(f(self)[0] for f in PRIMAL_DUAL_ORDER.values()))
+        args = []
+        for o in PRIMAL_DUAL_ORDER:
+            if o == 'x':
+                args.append(self.nlp._x)
+            elif o == 'g':
+                args.append(self.nlp._lam_g)
+            elif o == 'h':
+                args.append(self.nlp._lam_h)
+            elif o == 'h_lbx':
+                args.append(self.h_lbx[1])
+            elif o == 'h_ubx':
+                args.append(self.h_ubx[1])
+            else:
+                raise RuntimeError(
+                    'Found unexpected primal-dual type. Code should never '
+                    'reach this statement. Contact the developer, unless you '
+                    'explicitly modified the `PRIMAL_DUAL_ORDER` list.')
+        return cs.vertcat(*args)
 
     @cached_property_reset(h_lbx, h_ubx, lagrangian, primal_dual_variables)
     def variable(self, *args, **kwargs):
