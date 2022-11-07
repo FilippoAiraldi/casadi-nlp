@@ -2,8 +2,8 @@ import unittest
 from itertools import product
 import casadi as cs
 import numpy as np
-from casadi_mpc import GenericMpc
-from casadi_mpc.solutions import subsevalf
+from casadi_nlp import Nlp
+from casadi_nlp.solutions import subsevalf
 
 
 OPTS = {
@@ -22,14 +22,14 @@ OPTS = {
 class TestGenericMpc(unittest.TestCase):
     def test_init__raises__with_invalid_sym_type(self):
         with self.assertRaises(Exception):
-            GenericMpc(sym_type='a_random_sym_type')
+            Nlp(sym_type='a_random_sym_type')
 
     def test_parameter__creates_correct_parameter(self):
         shape1 = (4, 3)
         shape2 = (2, 2)
         _np = np.prod(shape1) + np.prod(shape2)
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             p1 = mpc.parameter('p1', shape1)
             p2 = mpc.parameter('p2', shape2)
             self.assertEqual(p1.shape, shape1)
@@ -63,7 +63,7 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_parameter__raises__with_parameters_with_same_name(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             mpc.parameter('p')
             with self.assertRaises(ValueError):
                 mpc.parameter('p')
@@ -75,7 +75,7 @@ class TestGenericMpc(unittest.TestCase):
         lb2, ub2 = np.random.rand(*shape2) - 1, np.random.rand(*shape2) + 1
         nx = np.prod(shape1) + np.prod(shape2)
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x1, lam1_lb, lam1_ub = mpc.variable('x1', shape1, lb=lb1, ub=ub1)
             x2, lam2_lb, lam2_ub = mpc.variable('x2', shape2, lb=lb2, ub=ub2)
             for o in (x1, lam1_lb, lam1_ub):
@@ -115,14 +115,14 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_variable__raises__with_variables_with_same_name(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             mpc.variable('x')
             with self.assertRaises(ValueError):
                 mpc.variable('x')
 
     def test_variable__raises__with_invalid_bounds(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             with self.assertRaises(ValueError):
                 mpc.variable('x', lb=1, ub=0)
 
@@ -130,13 +130,13 @@ class TestGenericMpc(unittest.TestCase):
         for sym_type in ('SX', 'MX'):
             x = getattr(cs, sym_type).sym('x', (5, 1))
             f = x.T @ x
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             mpc.minimize(f)
             self.assertTrue(cs.is_equal(mpc.f, f))
 
     def test_constraint__raises__with_constraints_with_same_name(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             mpc.constraint('c1', x, '<=', 5)
             with self.assertRaises(ValueError):
@@ -144,7 +144,7 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_constraint__raises__with_unknown_operator(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             for op in ['=', '>', '<']:
                 with self.assertRaises(ValueError):
@@ -152,7 +152,7 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_constraint__raises__with_nonsymbolic_terms(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             with self.assertRaises(TypeError):
                 mpc.constraint('c1', 5, '==', 5)
 
@@ -161,7 +161,7 @@ class TestGenericMpc(unittest.TestCase):
         shape2 = (2, 2)
         nc = np.prod(shape1) + np.prod(shape2)
         for sym_type, op in product(['SX', 'MX'], ['==', '>=']):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x', shape1)[0]
             y = mpc.variable('y', shape2)[0]
             e1, lam1 = mpc.constraint('c1', x, op, 5)
@@ -205,7 +205,7 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_set_solver__saves_options_correctly(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             opts = OPTS.copy()
             x = mpc.variable('x')[0]
             mpc.minimize(x**2)
@@ -214,13 +214,13 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_solve__raises__with_uninit_solver(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             with self.assertRaises(RuntimeError):
                 mpc.solve(None)
 
     def test_solve__raises__with_free_parameters(self):
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             p = mpc.parameter('p')
             mpc.f = p * (x**2)
@@ -229,7 +229,7 @@ class TestGenericMpc(unittest.TestCase):
 
     def test_solve__computes_correctly__example_0(self):
         for sym_type in ('MX', 'SX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x', (2, 1))[0]
             y = mpc.variable('y', (3, 1))[0]
             p = mpc.parameter('p')
@@ -246,7 +246,7 @@ class TestGenericMpc(unittest.TestCase):
     def test_solve__computes_corretly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             y = mpc.variable('y')[0]
             mpc.constraint('c1', x**2 + y**2, '==', 1)
@@ -263,7 +263,7 @@ class TestGenericMpc(unittest.TestCase):
     def test_solve__computes_corretly__example_1b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             y = mpc.variable('y')[0]
             mpc.constraint('c1', x**2 + y**2, '==', 1)
@@ -283,7 +283,7 @@ class TestGenericMpc(unittest.TestCase):
     def test_solve__computes_corretly__example_2(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             y = mpc.variable('y')[0]
             mpc.constraint('c1', x**2 + y**2, '==', 3)
@@ -306,7 +306,7 @@ class TestGenericMpc(unittest.TestCase):
         n = 50
         log2 = lambda x: cs.log(x) / cs.log(2)
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             p = mpc.variable('p', (n, 1))[0]
             mpc.constraint('c1', cs.sum1(p), '==', 1)
             mpc.minimize(cs.sum1(p * log2(p)))
@@ -320,7 +320,7 @@ class TestGenericMpc(unittest.TestCase):
     def test_solve__computes_corretly__example_4(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
         for sym_type in ('SX', 'MX'):
-            mpc = GenericMpc(sym_type=sym_type)
+            mpc = Nlp(sym_type=sym_type)
             x = mpc.variable('x')[0]
             mpc.constraint('c1', x**2, '==', 1)
             mpc.minimize(x**2)

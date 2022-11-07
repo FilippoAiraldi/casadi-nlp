@@ -2,7 +2,7 @@ from typing import Dict
 import unittest
 from functools import cached_property
 import casadi as cs
-from casadi_mpc.util import (
+from casadi_nlp.util import (
     is_casadi_object, cached_property_reset,
     dict2struct, struct_symSX, DMStruct
 )

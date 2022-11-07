@@ -2,8 +2,8 @@ import unittest
 import casadi as cs
 import numpy as np
 from scipy.stats import norm
-import casadi_mpc.math as csmath
-from casadi_mpc.solutions import subsevalf
+import casadi_nlp.math as csmath
+from casadi_nlp.solutions import subsevalf
 
 
 class TestMath(unittest.TestCase):
