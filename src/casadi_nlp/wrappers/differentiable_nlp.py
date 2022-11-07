@@ -50,7 +50,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         self,
         nlp: NlpType,
         simplify_x_bounds: bool = True,
-        include_barrier_term: bool = False
+        include_barrier_term: bool = True
     ) -> None:
         '''Instantiates the wrapper.
 
@@ -81,6 +81,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
             idx = np.where(self.nlp._lbx != -np.inf)[0]
         else:
             idx = np.arange(self.nlp.nx)
+        if idx.size == 0:
+            return self.nlp._csXX(), self.nlp._csXX()
         h = self.nlp._lbx[idx, None] - self.nlp._x[idx]
         return h, self.nlp._lam_lbx[idx]
 
@@ -93,6 +95,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
             idx = np.where(self.nlp._ubx != np.inf)[0]
         else:
             idx = np.arange(self.nlp.nx)
+        if idx.size == 0:
+            return self.nlp._csXX(), self.nlp._csXX()
         h = self.nlp._x[idx] - self.nlp._ubx[idx, None]
         return h, self.nlp._lam_ubx[idx]
 
