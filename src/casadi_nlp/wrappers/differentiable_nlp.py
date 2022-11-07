@@ -24,16 +24,34 @@ class DifferentiableNlp(Wrapper[NlpType]):
     def __init__(
         self,
         nlp: NlpType,
-        simplify_x_bounds: bool = True
+        simplify_x_bounds: bool = True,
+        include_barrier_term: bool = False
     ) -> None:
+        '''Instantiates the wrapper.
+
+        Parameters
+        ----------
+        nlp : NlpType
+            The NLP problem to be wrapped.
+        simplify_x_bounds : bool, optional
+            If `True`, then redundant entries in `lbx` and `ubx` are removed;
+            see properties `h_lbx` and `h_ubx` for more details. By default,
+            `True`.
+        include_barrier_term : bool, optional
+            If `True`, includes in the KKT matrix a new symbolic variable that
+            represents the barrier function of the interior-point solver. By 
+            default `False`, so that no additional variable is added. See 
+            property `kkt_matrix` for more details.
+        '''
         super().__init__(nlp)
         self.remove_reduntant_x_bounds = simplify_x_bounds
+        self.include_barrier_term = include_barrier_term
 
     @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `lbx` and their multipliers. Removes 
-        redundant entries, i.e., `lbx == -inf`.
-        '''
+        '''Gets the inequalities due to `lbx` and their multipliers. If 
+        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
+        `lbx == -inf`; otherwise, returns all lower bound constraints.'''
         if self.remove_reduntant_x_bounds:
             idx = np.where(self.nlp._lbx != -np.inf)[0]
         else:
@@ -43,9 +61,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `ubx` and their multipliers. Removes 
-        redundant entries, i.e., `lubx == +inf`.
-        '''
+        '''Gets the inequalities due to `ubx` and their multipliers. If 
+        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
+        `ubx == +inf`; otherwise, returns all upper bound constraints.'''
         if self.remove_reduntant_x_bounds:
             idx = np.where(self.nlp._ubx != np.inf)[0]
         else:
@@ -68,7 +86,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
         '''Gets the collection of primal-dual variables.'''
         args = []
-        for o in PRIMAL_DUAL_ORDER:
+        for o in _PRIMAL_DUAL_ORDER:
             if o == 'x':
                 args.append(self.nlp._x)
             elif o == 'g':
