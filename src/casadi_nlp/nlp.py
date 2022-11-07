@@ -81,7 +81,7 @@ class Nlp:
         return self._np_random
 
     @np_random.setter
-    def np_random(self, value: npy.random.Generator):
+    def np_random(self, value: npy.random.Generator) -> None:
         '''Sets the nlp's random engine.'''
         self._np_random = value
 
