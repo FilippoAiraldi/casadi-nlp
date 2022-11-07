@@ -131,7 +131,7 @@ class TestNlp(unittest.TestCase):
             nlp = Nlp(sym_type=sym_type)
             x = nlp.variable('x', (5, 1))[0]
             with self.assertRaises(ValueError):
-                nlp.f = x
+                nlp.minimize(x)
 
     def test_minimize__sets_objective_correctly(self):
         for sym_type in ('SX', 'MX'):
@@ -230,7 +230,7 @@ class TestNlp(unittest.TestCase):
             nlp = Nlp(sym_type=sym_type)
             x = nlp.variable('x')[0]
             p = nlp.parameter('p')
-            nlp.f = p * (x**2)
+            nlp.minimize(p * (x**2))
             with self.assertRaises(RuntimeError):
                 nlp.solve({})
 
