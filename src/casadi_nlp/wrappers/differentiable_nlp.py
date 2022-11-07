@@ -17,26 +17,35 @@ class DifferentiableNlp(Wrapper[NlpType]):
         Grotschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of 
         Large Scale Systems, 3–16. Springer, Berlin, Heidelberg.
     '''
-
+    
     @cached_property
-    def essential_x_bounds(self) -> Tuple[np.ndarray, np.ndarray]:
-        '''Gets the indices of `lbx` and `ubx` that are not redundant, i.e., 
-        `i` where `lbx[i] != -inf` and `ubx[i] != +inf`.
+    def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        '''Gets the inequalities due to `lbx` and their multipliers. Removes 
+        redundant entries, i.e., `lbx == -inf`.
         '''
-        return (np.where(self.nlp._lbx != -np.inf)[0], 
-                np.where(self.nlp._ubx != np.inf)[0])
-
+        idx = np.where(self.nlp._lbx != -np.inf)[0]
+        h = self.nlp._lbx[idx, None] - self.nlp._x[idx]
+        return h, self.nlp._lam_lbx[idx]
+    
+    @cached_property
+    def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        '''Gets the inequalities due to `ubx` and their multipliers. Removes 
+        redundant entries, i.e., `lubx == +inf`.
+        '''
+        idx = np.where(self.nlp._ubx != np.inf)[0]
+        h = self.nlp._x[idx] - self.nlp._ubx[idx, None]
+        return h, self.nlp._lam_ubx[idx]
+    
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
         '''Gets the Lagrangian of the NLP problem.'''
-        idx_lbx, idx_ubx = self.essential_x_bounds
-        h_lbx = self.nlp._lbx[idx_lbx, None] - self.nlp._x[idx_lbx]
-        h_ubx = self.nlp._x[idx_ubx] - self.nlp._ubx[idx_ubx, None]
+        h_lbx, lam_h_lbx = self.h_lbx
+        h_ubx, lam_h_ubx = self.h_ubx
         return (self.nlp._f +
                 cs.dot(self.nlp._lam_g, self.nlp._g) +
                 cs.dot(self.nlp._lam_h, self.nlp._h) +
-                cs.dot(self.nlp._lam_lbx[idx_lbx], h_lbx) +
-                cs.dot(self.nlp._lam_ubx[idx_ubx], h_ubx))
+                cs.dot(lam_h_lbx, h_lbx) +
+                cs.dot(lam_h_ubx, h_ubx))
 
     @cached_property_reset(essential_x_bounds, lagrangian)
     def variable(self, *args, **kwargs):

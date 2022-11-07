@@ -12,23 +12,41 @@ class TestWrapper(unittest.TestCase):
         self.assertIs(nlp, nlp.unwrapped)
         wrapped = Wrapper[Nlp](nlp)
         self.assertIs(nlp, wrapped.unwrapped)
-        
-        
+
+
 class TestDifferentiableNlp(unittest.TestCase):
-    def test_essential_x_bounds__returns_correct_indices(self):
-        nlp = DifferentiableNlp(Nlp())
+    def test_h_lbx_ubx__returns_correct_indices(self):
+        nlp = DifferentiableNlp(Nlp(sym_type='SX'))
         
-        for var, bnds, expected_lbx_i, expected_ubx_i in [
-            ('x', {}, [], []),
-            ('y', {'lb': 0}, [2, 3], []),
-            ('z', {'ub': 1}, [2, 3], [4, 5]),
-            ('w', {'lb': 0, 'ub': 1}, [2, 3, 6, 7], [4, 5, 6, 7]),
-        ]:
-            nlp.variable(var, (2, 1), **bnds)
-            lbx_i, ubx_i = nlp.essential_x_bounds
-            np.testing.assert_allclose(lbx_i, expected_lbx_i)
-            np.testing.assert_allclose(ubx_i, expected_ubx_i)
-            
+        nlp.variable('x1', (2, 1))
+        (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
+        self.assertTrue(
+            all(o.is_empty() for o in [h_lbx, lam_lbx, h_ubx, lam_ubx]))
+        
+        x2, lbx2, _ = nlp.variable('x2', (2, 1), lb=0)
+        (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
+        self.assertTrue(all(o.is_empty() for o in [h_ubx, lam_ubx]))
+        np.testing.assert_allclose(cs.evalf(h_lbx - (-x2)), 0)
+        np.testing.assert_allclose(cs.evalf(lam_lbx - lbx2), 0)
+        
+        x3, _, ubx3 = nlp.variable('x3', (2, 1), ub=1)
+        (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
+        np.testing.assert_allclose(cs.evalf(h_lbx - (-x2)), 0)
+        np.testing.assert_allclose(cs.evalf(lam_lbx - lbx2), 0)
+        np.testing.assert_allclose(cs.evalf(h_ubx - (x3 - 1)), 0)
+        np.testing.assert_allclose(cs.evalf(lam_ubx - ubx3), 0)
+
+        x4, lbx4, ubx4 = nlp.variable('x4', (2, 1), lb=0, ub=1)
+        (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
+        np.testing.assert_allclose(cs.evalf(
+            h_lbx - cs.vertcat(-x2, -x4)), 0)
+        np.testing.assert_allclose(
+            cs.evalf(lam_lbx - cs.vertcat(lbx2, lbx4)), 0)
+        np.testing.assert_allclose(cs.evalf(
+            h_ubx - cs.vertcat(x3 - 1, x4 - 1)), 0)
+        np.testing.assert_allclose(
+            cs.evalf(lam_ubx - cs.vertcat(ubx3, ubx4)), 0)
+
     def test_lagrangian__is_correct__example_1a_b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
@@ -64,11 +82,11 @@ class TestDifferentiableNlp(unittest.TestCase):
             lam_lbx_ = np.random.randn(*lam_lbx.shape)
             lam_g_ = np.random.randn(*lam_g.shape)
             np.testing.assert_allclose(
-                subsevalf(nlp.lagrangian, 
+                subsevalf(nlp.lagrangian,
                           [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_]),
                 subsevalf(L, [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_])
             )
-            
+
     def test_lagrangian__is_correct__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
         for sym_type in ('SX', 'MX'):
@@ -84,11 +102,12 @@ class TestDifferentiableNlp(unittest.TestCase):
             lam_h_ = np.random.randn(*lam_h.shape)
             np.testing.assert_allclose(
                 subsevalf(nlp.lagrangian,
-                          [x, lam_lbx, lam_ubx, lam_h], 
+                          [x, lam_lbx, lam_ubx, lam_h],
                           [x_, lam_lbx_, lam_ubx_, lam_h_]),
-                subsevalf(L, [x, lam_lbx, lam_ubx, lam_h], 
+                subsevalf(L, [x, lam_lbx, lam_ubx, lam_h],
                           [x_, lam_lbx_, lam_ubx_, lam_h_])
             )
-    
+
+
 if __name__ == '__main__':
     unittest.main()
