@@ -75,11 +75,14 @@ class TestSolutions(unittest.TestCase):
                 stats={}, _get_value=get_value)
             np.testing.assert_allclose(expected_val, S.value(expr))
 
-    def test_solution__reports_success_properly(self):
+    def test_solution__reports_success_and_barrier_properly(self):
+        mu = np.abs(np.random.randn(10)).tolist()
         for flag in (True, False):
-            S = Solution(f=None, vars=None, vals=None, stats={'success': flag},
+            S = Solution(f=None, vars=None, vals=None, 
+                         stats={'success': flag, 'iterations': {'mu': mu}},
                          _get_value=lambda x: x)
             self.assertEqual(S.success, flag)
+            self.assertEqual(S.barrier_parameter, mu[-1])
 
 
 if __name__ == '__main__':

@@ -28,6 +28,11 @@ class Solution:
         '''Gets whether the run was run successfully.'''
         return self.stats['success']
 
+    @property
+    def barrier_parameter(self) -> float:
+        '''Gets the IPOPT barrier parameter at the optimal solution'''
+        return self.stats['iterations']['mu'][-1]
+
     def value(
         self,
         x: Union[cs.SX, cs.MX],
