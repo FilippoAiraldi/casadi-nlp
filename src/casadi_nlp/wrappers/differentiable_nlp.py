@@ -5,7 +5,32 @@ from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.util import cached_property, cached_property_reset
 
 
-PRIMAL_DUAL_ORDER = ['x', 'g', 'h', 'h_lbx', 'h_ubx']
+'''Dict that dictates the order for operations related to primal-dual
+variables. Each entry is a type of variable, and contains functions
+    1) for grouping them in vector (see `primal_dual_variables`)
+    2) for forming the kkt conditions (see `kkt`)'''
+_PRIMAL_DUAL_ORDER = {
+    'x': (
+        lambda wpr: wpr.nlp._x,
+        lambda wpr: cs.jacobian(wpr.lagrangian, wpr.nlp._x).T
+    ),
+    'g': (
+        lambda wpr: wpr.nlp._lam_g,
+        lambda wpr: wpr.nlp._g
+    ),
+    'h': (
+        lambda wpr: wpr.nlp._lam_h,
+        lambda wpr: wpr.nlp._lam_h * wpr.nlp._h
+    ),
+    'h_lbx': (
+        lambda wpr: wpr.h_lbx[1],
+        lambda wpr: wpr.h_lbx[0] * wpr.h_lbx[1],
+    ),
+    'h_ubx': (
+        lambda wpr: wpr.h_ubx[1],
+        lambda wpr: wpr.h_ubx[0] * wpr.h_ubx[1],
+    )
+}
 
 
 class DifferentiableNlp(Wrapper[NlpType]):
@@ -85,33 +110,51 @@ class DifferentiableNlp(Wrapper[NlpType]):
     @cached_property
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
         '''Gets the collection of primal-dual variables.'''
-        args = []
-        for o in _PRIMAL_DUAL_ORDER:
-            if o == 'x':
-                args.append(self.nlp._x)
-            elif o == 'g':
-                args.append(self.nlp._lam_g)
-            elif o == 'h':
-                args.append(self.nlp._lam_h)
-            elif o == 'h_lbx':
-                args.append(self.h_lbx[1])
-            elif o == 'h_ubx':
-                args.append(self.h_ubx[1])
-            else:
-                raise RuntimeError(
-                    'Found unexpected primal-dual type. Code should never '
-                    'reach this statement. Contact the developer, unless you '
-                    'explicitly modified the `PRIMAL_DUAL_ORDER` list.')
-        return cs.vertcat(*args)
+        return cs.vertcat(*(f[0](self) for f in _PRIMAL_DUAL_ORDER.values()))
 
-    @cached_property_reset(h_lbx, h_ubx, lagrangian, primal_dual_variables)
+    @cached_property
+    def kkt(self) -> Union[cs.SX, Tuple[cs.SX, cs.SX],
+                           cs.MX, Tuple[cs.MX, cs.MX]]:
+        '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
+        ```
+                        |      dLdx     |
+                    K = |       G       |
+                        | diag(lam_h)*H |
+        ```
+        where `dLdx` is the gradient of the lagrangian w.r.t. the primal
+        variables `x`, `G` collects the equality constraints, `H` collects
+        the inequality constraints and `lam_h` its corresponding dual
+        variables.
+
+        If `include_barrier_term=True`, the inequalities include an additional
+        barrier term `tau`, so that
+        ```
+                        diag(lam_h)*H + tau
+        ```
+        which is also returned (3-element tuple). Otherwise, only a 2-element
+        tuple is returned.
+        '''
+        tau = self.nlp._csXX.sym('tau')
+
+        def process(name, fcn):
+            kkt_entry = fcn(self)
+            if self.include_barrier_term and name == 'h':
+                kkt_entry += tau
+            return kkt_entry
+
+        kkt = cs.vertcat(
+            *(process(n, f[1]) for n, f in _PRIMAL_DUAL_ORDER.items()))
+        return (kkt, tau) if self.include_barrier_term else kkt
+
+    @cached_property_reset(
+        h_lbx, h_ubx, lagrangian, primal_dual_variables, kkt)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cached_property_reset(lagrangian, primal_dual_variables)
+    @cached_property_reset(lagrangian, primal_dual_variables, kkt)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cached_property_reset(lagrangian)
+    @cached_property_reset(lagrangian, kkt)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
