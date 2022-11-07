@@ -9,7 +9,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
     '''
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
     its derivates.
-    
+
     References
     ----------
     [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time 
@@ -17,25 +17,39 @@ class DifferentiableNlp(Wrapper[NlpType]):
         Grotschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of 
         Large Scale Systems, 3–16. Springer, Berlin, Heidelberg.
     '''
-    
+
+    def __init__(
+        self,
+        nlp: NlpType,
+        simplify_x_bounds: bool = True
+    ) -> None:
+        super().__init__(nlp)
+        self.remove_reduntant_x_bounds = simplify_x_bounds
+
     @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the inequalities due to `lbx` and their multipliers. Removes 
         redundant entries, i.e., `lbx == -inf`.
         '''
-        idx = np.where(self.nlp._lbx != -np.inf)[0]
+        if self.remove_reduntant_x_bounds:
+            idx = np.where(self.nlp._lbx != -np.inf)[0]
+        else:
+            idx = np.arange(self.nlp.nx)
         h = self.nlp._lbx[idx, None] - self.nlp._x[idx]
         return h, self.nlp._lam_lbx[idx]
-    
+
     @cached_property
     def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the inequalities due to `ubx` and their multipliers. Removes 
         redundant entries, i.e., `lubx == +inf`.
         '''
-        idx = np.where(self.nlp._ubx != np.inf)[0]
+        if self.remove_reduntant_x_bounds:
+            idx = np.where(self.nlp._ubx != np.inf)[0]
+        else:
+            idx = np.arange(self.nlp.nx)
         h = self.nlp._x[idx] - self.nlp._ubx[idx, None]
         return h, self.nlp._lam_ubx[idx]
-    
+
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
         '''Gets the Lagrangian of the NLP problem.'''
