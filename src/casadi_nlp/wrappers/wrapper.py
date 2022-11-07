@@ -34,8 +34,8 @@ class Wrapper(Generic[NlpType]):
 
     def __str__(self) -> str:
         '''Returns the wrapped NLP string.'''
-        return f'<{type(self).__name__}: {self.nlp.__str__()}>'
+        return f'<{self.__class__.__name__}: {self.nlp.__str__()}>'
 
     def __repr__(self) -> str:
         '''Returns the wrapped NLP representation.'''
-        return f'<{type(self).__name__}: {self.nlp.__repr__()}>'
+        return f'<{self.__class__.__name__}: {self.nlp.__repr__()}>'
