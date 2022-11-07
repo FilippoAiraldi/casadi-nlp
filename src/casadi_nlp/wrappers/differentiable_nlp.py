@@ -36,7 +36,7 @@ _PRIMAL_DUAL_ORDER = {
 class DifferentiableNlp(Wrapper[NlpType]):
     '''
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
-    its derivates.
+    its derivates. See [1] for nonlinear programming sensitivity analysis.
 
     References
     ----------
