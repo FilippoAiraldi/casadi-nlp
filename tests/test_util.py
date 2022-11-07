@@ -12,14 +12,20 @@ import numpy as np
 
 class DummyWithCachedProperty:
     def __init__(self) -> None:
-        self.counter = 0
+        self.counter1 = 0
+        self.counter2 = 0
 
     @cached_property
     def a_cached_property(self) -> int:
-        self.counter += 1
-        return self.counter
+        self.counter1 += 1
+        return self.counter1
+    
+    @cached_property
+    def another_cached_property(self) -> int:
+        self.counter2 += 1
+        return self.counter2
 
-    @cached_property_reset(a_cached_property)
+    @cached_property_reset(a_cached_property, another_cached_property)
     def clear_cache(self) -> None:
         return
 
@@ -33,14 +39,22 @@ class TestUtil(unittest.TestCase):
         dummy = DummyWithCachedProperty()
         dummy.a_cached_property
         dummy.a_cached_property
-        self.assertEqual(dummy.counter, 1)
+        dummy.another_cached_property
+        dummy.another_cached_property
+        self.assertEqual(dummy.counter1, 1)
+        self.assertEqual(dummy.counter2, 1)
         dummy.clear_cache()
         dummy.a_cached_property
-        self.assertEqual(dummy.counter, 2)
+        dummy.another_cached_property
+        self.assertEqual(dummy.counter1, 2)
+        self.assertEqual(dummy.counter2, 2)
         dummy.clear_cache()
         dummy.a_cached_property
         dummy.a_cached_property
-        self.assertEqual(dummy.counter, 3)
+        dummy.another_cached_property
+        dummy.another_cached_property
+        self.assertEqual(dummy.counter1, 3)
+        self.assertEqual(dummy.counter2, 3)
 
     def test_is_casadi_object__guesses_correctly(self):
         for o, flag in [

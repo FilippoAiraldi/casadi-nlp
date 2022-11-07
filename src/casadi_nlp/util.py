@@ -28,11 +28,16 @@ def is_casadi_object(obj: Any) -> bool:
     return module == cs.__name__
 
 
-def cached_property_reset(cproperty: cached_property) -> Callable:
+def cached_property_reset(*properties: cached_property) -> Callable:
     '''Decorator that allows to enhance a method with the ability, when called,
-    to clear the cached of a target property. This is especially useful to 
+    to clear the cached of some target properties. This is especially useful to 
     reset the cache of a given cached property when a method makes changes to 
     the underlying data, thus compromising the cached results.
+
+    Parameters
+    ----------
+    properties : cached_property
+        The cached properties to be reset in this decorator.
 
     Returns
     -------
@@ -42,23 +47,23 @@ def cached_property_reset(cproperty: cached_property) -> Callable:
     Raises
     ------
     TypeError
-        Raises if the given property is not an instance of 
+        Raises if the given properties are not instances of 
         `functools.cached_property`.
     '''
 
-    if not isinstance(cproperty, cached_property):
-        raise TypeError(
-            'The specified property must be an instance of '
-            f'`functools.cached_property`; got {type(cproperty)} instead.')
+    if any(not isinstance(p, cached_property) for p in properties):
+        raise TypeError('The specified properties must be an instance of '
+                        '`functools.cached_property`')
 
     # use a double decorator as it is a trick to allow passing arguments to it
     def actual_decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             self = args[0]
-            n = cproperty.attrname
-            if n is not None and n in self.__dict__:
-                del self.__dict__[n]
+            for property in properties:
+                n = property.attrname
+                if n is not None and n in self.__dict__:
+                    del self.__dict__[n]
             return func(*args, **kwargs)
         return wrapper
     return actual_decorator
