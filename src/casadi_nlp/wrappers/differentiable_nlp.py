@@ -5,6 +5,15 @@ from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.util import cached_property, cached_property_reset
 
 
+PRIMAL_DUAL_ORDER = {
+    'x': lambda nlp: (nlp._x,),
+    'g': lambda nlp: (nlp._lam_g,),
+    'h': lambda nlp: (nlp._lam_h,),
+    'h_lbx': lambda nlp: (nlp.h_lbx[1],),
+    'h_ubx': lambda nlp: (nlp.h_ubx[1],),
+}
+
+
 class DifferentiableNlp(Wrapper[NlpType]):
     '''
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
@@ -61,14 +70,19 @@ class DifferentiableNlp(Wrapper[NlpType]):
                 cs.dot(lam_h_lbx, h_lbx) +
                 cs.dot(lam_h_ubx, h_ubx))
 
-    @cached_property_reset(essential_x_bounds, lagrangian)
+    @cached_property
+    def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the collection of primal-dual variables.'''
+        return cs.vertcat(*(f(self)[0] for f in PRIMAL_DUAL_ORDER.values()))
+
+    @cached_property_reset(h_lbx, h_ubx, lagrangian, primal_dual_variables)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
-    
-    @cached_property_reset(lagrangian)
+
+    @cached_property_reset(lagrangian, primal_dual_variables)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
-    
+
     @cached_property_reset(lagrangian)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
