@@ -124,7 +124,12 @@ class TestGenericMpc(unittest.TestCase):
         for sym_type in ('SX', 'MX'):
             mpc = Nlp(sym_type=sym_type)
             with self.assertRaises(ValueError):
-                mpc.variable('x', lb=1, ub=0)
+    def test_minimize__raises__with_nonscalar_objective(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', (5, 1))[0]
+            with self.assertRaises(ValueError):
+                nlp.f = x
 
     def test_minimize__sets_objective_correctly(self):
         for sym_type in ('SX', 'MX'):

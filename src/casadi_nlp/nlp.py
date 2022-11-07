@@ -359,7 +359,14 @@ class Nlp:
         objective : Union[cs.SX, cs.MX]
             A Symbolic variable dependent only on the NLP variables and 
             parameters that needs to be minimized. 
+            
+        Raises
+        ------
+        ValueError
+            Raises if the objective is not scalar.
         '''
+        if objective.shape != (1, 1):
+            raise ValueError('Objective must be scalar.')
         self._f = objective
 
     def init_solver(self, opts: Dict[str, Any]) -> None:
