@@ -140,7 +140,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
         def process(name, fcn):
             kkt_entry = fcn(self)
-            if self.include_barrier_term and name == 'h':
+            if self.include_barrier_term and name[0] == 'h':
                 kkt_entry += tau
             return kkt_entry
 
