@@ -64,9 +64,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
             `True`.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
-            represents the barrier function of the interior-point solver. By
-            default `False`, so that no additional variable is added. See
-            property `kkt_matrix` for more details.
+            represents the barrier function of the interior-point solver. 
+            Otherwise, no additional variable is added. See property `kkt` for 
+            more details. By default `True`.
         '''
         super().__init__(nlp)
         self.remove_reduntant_x_bounds = simplify_x_bounds
@@ -117,8 +117,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         return cs.vertcat(*(f[0](self) for f in _PRIMAL_DUAL_ORDER.values()))
 
     @cached_property
-    def kkt(self) -> Union[cs.SX, Tuple[cs.SX, cs.SX],
-                           cs.MX, Tuple[cs.MX, cs.MX]]:
+    def kkt(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
                         |      dLdx     |
@@ -135,8 +134,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         ```
                         diag(lam_h)*H + tau
         ```
-        which is also returned (3-element tuple). Otherwise, only a 2-element
-        tuple is returned.
+        which is also returned as the second element of the tuple.
         '''
         tau = self.nlp._csXX.sym('tau')
 
@@ -148,7 +146,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
         kkt = cs.vertcat(
             *(process(n, f[1]) for n, f in _PRIMAL_DUAL_ORDER.items()))
-        return (kkt, tau) if self.include_barrier_term else kkt
+        return kkt, tau
 
     @cached_property_reset(
         h_lbx, h_ubx, lagrangian, primal_dual_variables, kkt)
