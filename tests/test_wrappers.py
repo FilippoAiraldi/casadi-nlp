@@ -1,9 +1,10 @@
-from casadi_nlp.solutions import subsevalf
-from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
-from casadi_nlp import Nlp
 import unittest
+from itertools import product
 import casadi as cs
 import numpy as np
+from casadi_nlp import Nlp
+from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
+from casadi_nlp.solutions import subsevalf
 np.set_printoptions(precision=3)
 
 
@@ -92,6 +93,19 @@ class TestDifferentiableNlp(unittest.TestCase):
                           [x_, lam_lbx_, lam_ubx_, lam_h_])
             )
 
+    def test_kkt__returns_tau_correctly(self):
+        for sym_type, flag in product(('MX', 'SX'), (True, False)):
+            nlp = DifferentiableNlp(
+                Nlp(sym_type=sym_type), include_barrier_term=flag)
+            x = nlp.variable('x')[0]
+            nlp.constraint('c', x, '<=', 1)
+            _, tau = nlp.kkt
+            if flag:
+                self.assertIsInstance(tau, nlp._csXX)
+            else:
+                self.assertIsNone(tau)
+            
+            
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):

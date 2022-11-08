@@ -1,37 +1,10 @@
 from typing import Tuple, Union, Optional
 import casadi as cs
 import numpy as np
+from casadi_nlp.nlp import _DUAL_VARIABLES_ORDER
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.solutions import Solution
 from casadi_nlp.util import cached_property, cache_clearer
-
-
-'''Dict that dictates the order for operations related to primal-dual
-variables. Each entry is a type of variable, and contains functions
-    1) for grouping them in vector (see `primal_dual_variables`)
-    2) for forming the kkt conditions (see `kkt`)'''
-_PRIMAL_DUAL_ORDER = {
-    'x': (
-        lambda wpr: wpr.nlp._x,
-        lambda wpr: cs.jacobian(wpr.lagrangian, wpr.nlp._x).T
-    ),
-    'g': (
-        lambda wpr: wpr.nlp._lam_g,
-        lambda wpr: wpr.nlp._g
-    ),
-    'h': (
-        lambda wpr: wpr.nlp._lam_h,
-        lambda wpr: wpr.nlp._lam_h * wpr.nlp._h
-    ),
-    'h_lbx': (
-        lambda wpr: wpr.h_lbx[1],
-        lambda wpr: wpr.h_lbx[0] * wpr.h_lbx[1],
-    ),
-    'h_ubx': (
-        lambda wpr: wpr.h_ubx[1],
-        lambda wpr: wpr.h_ubx[0] * wpr.h_ubx[1],
-    )
-}
 
 
 class DifferentiableNlp(Wrapper[NlpType]):
@@ -79,7 +52,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
                 cs.dot(lam_h_ubx, h_ubx))
 
     @cached_property
-    def kkt(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+    def kkt(
+        self
+    ) -> Union[Tuple[cs.SX, Optional[cs.SX]], Tuple[cs.MX, Optional[cs.MX]]]:
         '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
                         |      dLdx     |
@@ -96,22 +71,25 @@ class DifferentiableNlp(Wrapper[NlpType]):
         ```
                         diag(lam_h)*H + tau
         ```
-        which is also returned as the second element of the tuple.
+        which is also returned as the second element of the tuple. Otherwise,
+        `tau` is `None`.
 
         Note: The order of the KKT conditions can be adjusted via the
         `_PRIMAL_DUAL_ORDER` dict.
         '''
-        tau = self.nlp._csXX.sym('tau')
-
-        def process(name, fcn):
-            kkt_entry = fcn(self)
-            if self.include_barrier_term and name[0] == 'h':
-                kkt_entry += tau
-            return kkt_entry
-
+        tau = self.nlp._csXX.sym('tau') if self.include_barrier_term else 0
+        items = {
+            'g': self.nlp._g,
+            'h': (self.nlp._lam_h * self.nlp._h) + tau,
+            'h_lbx': (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + tau,
+            'h_ubx': ((self.nlp.h_ubx[0] * self.nlp.h_ubx[1])) + tau
+        }
         kkt = cs.vertcat(
-            *(process(n, f[1]) for n, f in _PRIMAL_DUAL_ORDER.items()))
-        return kkt, tau
+            cs.jacobian(self.lagrangian, self.nlp._x).T,
+            *(items.pop(v) for v in _DUAL_VARIABLES_ORDER)
+        )
+        assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
+        return kkt, (tau if self.include_barrier_term else None)
 
     def parametric_sensitivity(
         self,
