@@ -240,9 +240,9 @@ class Nlp:
             'h_lbx': self._lam_lbx,
             'h_ubx': self._lam_ubx
         }
-        args = [items.pop(v) for v in _DUAL_VARIABLES_ORDER]
+        dual = cs.vertcat(*(items.pop(v) for v in _DUAL_VARIABLES_ORDER))
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
-        return cs.vertcat(*args)
+        return dual
 
     @property
     def primal_dual_vars(self) -> Union[cs.SX, cs.MX]:
