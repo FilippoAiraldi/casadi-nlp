@@ -2,6 +2,7 @@ from typing import Tuple, Union
 import casadi as cs
 import numpy as np
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
+from casadi_nlp.solutions import Solution
 from casadi_nlp.util import cached_property, cached_property_reset
 
 
@@ -154,6 +155,49 @@ class DifferentiableNlp(Wrapper[NlpType]):
             *(process(n, f[1]) for n, f in _PRIMAL_DUAL_ORDER.items()))
         return kkt, tau
 
+    def parametric_sensitivity(
+        self, 
+        solution: Solution = None
+    ) -> Union[np.ndarray, cs.SX, cs.MX]:
+        '''Performs the (symbolic or numerical) sensitivity of the NLP solution
+        w.r.t. its parametrization, according to [1].
+
+        Parameters
+        ----------
+        solution : Solution, optional
+            If a solution is passed, then the sensitivity is numerically 
+            computed for that solution; otherwise, the sensitivity is carried
+            out symbolically (however, this is much more computationally 
+            intensive).
+
+        Returns
+        -------
+        Union[np.ndarray, cs.SX, cs.MX]
+            The NLP parametric sensitivity in the form of an numerical array, 
+            if a solution is passed, or a symbolic vector.
+
+        Raises
+        ------
+        numpy.linalg.LinAlgError
+            Raises if the KKT conditions lead to a singular matrix. 
+
+        References
+        ----------
+        [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and 
+            real-time optimization of parametric nonlinear programming 
+            problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.), 
+            Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
+            Heidelberg.
+        '''
+        K = self.kkt[0]
+        dKdy = cs.jacobian(K, self.primal_dual_variables)
+        dKdp = cs.jacobian(K, self.nlp._p)
+        return (
+            (-cs.inv(dKdy) @ dKdp)
+            if solution is None else
+            (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
+        )
+    
     @cached_property_reset(
         h_lbx, h_ubx, lagrangian, dual_variables, primal_dual_variables, kkt)
     def variable(self, *args, **kwargs):
