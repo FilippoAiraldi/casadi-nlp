@@ -112,14 +112,6 @@ class TestNlp(unittest.TestCase):
 
             self.assertTrue(cs.is_equal(nlp.variables['x1'], x1))
             self.assertTrue(cs.is_equal(nlp.variables['x2'], x2))
-            self.assertTrue(cs.is_equal(
-                nlp.dual_variables['lam_lb_x1'], lam1_lb))
-            self.assertTrue(cs.is_equal(
-                nlp.dual_variables['lam_ub_x1'], lam1_ub))
-            self.assertTrue(cs.is_equal(
-                nlp.dual_variables['lam_lb_x2'], lam2_lb))
-            self.assertTrue(cs.is_equal(
-                nlp.dual_variables['lam_ub_x2'], lam2_ub))
 
     def test_variable__raises__with_variables_with_same_name(self):
         for sym_type in ('SX', 'MX'):
@@ -172,50 +164,88 @@ class TestNlp(unittest.TestCase):
                 nlp.constraint('c1', 5, '==', 5)
 
     def test_constraint__creates_constraint_correctly(self):
-        shape1 = (4, 3)
-        shape2 = (2, 2)
+        shape1, shape2 = (4, 3), (2, 2)
         nc = np.prod(shape1) + np.prod(shape2)
-        for sym_type, op in product(['SX', 'MX'], ['==', '>=']):
+        for sym_type, ops in product(
+                ['SX', 'MX'], [('==', '=='), ('==', '>='), ('>=', '>=')]):
             nlp = Nlp(sym_type=sym_type)
             x = nlp.variable('x', shape1)[0]
             y = nlp.variable('y', shape2)[0]
-            e1, lam1 = nlp.constraint('c1', x, op, 5)
-            e2, lam2 = nlp.constraint('c2', 5, op, y)
-            self.assertTrue(e1.shape == lam1.shape == shape1)
-            self.assertTrue(e2.shape == lam2.shape == shape2)
-            grp = 'g' if op == '==' else 'h'
-            self.assertEqual(getattr(nlp, f'n{grp}'), nc)
+            c1, lam_c1 = nlp.constraint('c1', x, ops[0], 5)
+            c2, lam_c2 = nlp.constraint('c2', 5, ops[1], y)
 
-            i = 0
-            describe = getattr(nlp.debug, f'{grp}_describe')
-            for name, shape in [('c1', shape1), ('c2', shape2)]:
-                for _ in range(np.prod(shape)):
+            self.assertTrue(c1.shape == lam_c1.shape == shape1)
+            self.assertTrue(c2.shape == lam_c2.shape == shape2)
+            self.assertEqual(nlp.ng + nlp.nh, nc)
+
+            i, prev_op = 0, ops[0]
+            for c, name, op in zip((c1, c2), ('c1', 'c2'), ops):
+                grp = 'g' if op == '==' else 'h'
+                if op != prev_op:
+                    i = 0
+                describe = getattr(nlp.debug, f'{grp}_describe')
+                for _ in range(np.prod(c.shape)):
                     self.assertEqual(name, describe(i).name)
-                    self.assertEqual(shape, describe(i).shape)
+                    self.assertEqual(c.shape, describe(i).shape)
                     i += 1
-            with self.assertRaises(IndexError):
-                describe(nc + 1)
+                with self.assertRaises(IndexError):
+                    describe(nc + 1)
 
-            e = cs.vertcat(cs.vec(e1), cs.vec(e2))
-            lam = cs.vertcat(cs.vec(lam1), cs.vec(lam2))
+            c = cs.vertcat(cs.vec(c1), cs.vec(c2))
+            lam = cs.vertcat(cs.vec(lam_c1), cs.vec(lam_c2))
+            expected_c = cs.vertcat(nlp.g, nlp.h)
+            expected_lam = cs.vertcat(nlp.lam_g, nlp.lam_h)
             if sym_type == 'SX':
                 # symbolically for SX
-                self.assertTrue(cs.is_equal(getattr(nlp, grp), e))
-                self.assertTrue(cs.is_equal(getattr(nlp, f'lam_{grp}'), lam))
+                self.assertTrue(cs.is_equal(expected_c, c))
+                self.assertTrue(cs.is_equal(expected_lam, lam))
             else:
                 # only numerically for MX
                 x_ = np.random.randn(*shape1)
                 y_ = np.random.randn(*shape2)
                 np.testing.assert_allclose(
-                    subsevalf(getattr(nlp, grp), [x, y], [x_, y_]),
-                    subsevalf(e, [x, y], [x_, y_])
+                    subsevalf(expected_c, [x, y], [x_, y_]),
+                    subsevalf(c, [x, y], [x_, y_])
                 )
                 lam1_ = np.random.randn(*shape1)
                 lam2_ = np.random.randn(*shape2)
                 np.testing.assert_allclose(
-                    subsevalf(getattr(nlp, f'lam_{grp}'),
-                              [lam1, lam2], [lam1_, lam2_]),
-                    subsevalf(lam, [lam1, lam2], [lam1_, lam2_])
+                    subsevalf(expected_lam, [lam_c1, lam_c2], [lam1_, lam2_]),
+                    subsevalf(lam, [lam_c1, lam_c2], [lam1_, lam2_])
+                )
+
+    def test_dual__returns_dual_variables_correctly(self):
+        shape1, shape2 = (4, 3), (2, 2)
+        for sym_type, ops in product(
+                ['SX', 'MX'], [('==', '=='), ('==', '>='), ('>=', '>=')]):
+            nlp = Nlp(sym_type=sym_type)
+            x, lam_lb_x, lam_ub_x = nlp.variable('x', shape1)
+            y, lam_lb_y, lam_ub_y = nlp.variable('y', shape2)
+            _, lam_c1 = nlp.constraint('c1', x, ops[0], 5)
+            _, lam_c2 = nlp.constraint('c2', 5, ops[1], y)
+
+            dv = nlp.dual_variables
+            c1_name = f'lam_{"g" if ops[0] == "==" else "h"}_c1'
+            c2_name = f'lam_{"g" if ops[1] == "==" else "h"}_c2'
+            self.assertTrue(cs.is_equal(dv['lam_lb_x'], lam_lb_x))
+            self.assertTrue(cs.is_equal(dv['lam_ub_x'], lam_ub_x))
+            self.assertTrue(cs.is_equal(dv['lam_lb_y'], lam_lb_y))
+            self.assertTrue(cs.is_equal(dv['lam_ub_y'], lam_ub_y))
+            self.assertTrue(cs.is_equal(dv[c1_name], lam_c1))
+            self.assertTrue(cs.is_equal(dv[c2_name], lam_c2))
+
+            lams = [lam_c1, lam_c2, lam_lb_x, lam_lb_y, lam_ub_x, lam_ub_y]
+            actual_lam = cs.vertcat(*(cs.vec(o) for o in lams))
+            expected_lam = nlp.lam
+            if sym_type == 'SX':
+                # symbolically for SX
+                self.assertTrue(cs.is_equal(actual_lam, expected_lam))
+            else:
+                # only numerically for MX
+                lams_ = [np.random.randn(*o.shape) for o in lams]
+                np.testing.assert_allclose(
+                    subsevalf(actual_lam, lams, lams_),
+                    subsevalf(expected_lam, lams, lams_),
                 )
 
     def test_h_lbx_ubx__returns_correct_indices(self):

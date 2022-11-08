@@ -12,6 +12,10 @@ from casadi_nlp.util import (
 )
 
 
+'''This dictates the order for operations related to dual variables.'''
+_DUAL_VARIABLES_ORDER = ('g', 'h', 'h_lbx', 'h_ubx')
+
+
 class Nlp:
     '''
     The generic NLP class is a controller that solves a (possibly, nonlinear)
@@ -225,6 +229,19 @@ class Nlp:
         return dict2struct(self._cons)
 
     @cached_property
+    def lam(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the dual variables of the NLP scheme in vector form.'''
+        items = {
+            'g': self._lam_g,
+            'h': self._lam_h,
+            'h_lbx': self._lam_lbx,
+            'h_ubx': self._lam_ubx
+        }
+        args = [items.pop(v) for v in _DUAL_VARIABLES_ORDER]
+        assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
+        return cs.vertcat(*args)
+
+    @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the inequalities due to `lbx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
@@ -285,7 +302,7 @@ class Nlp:
         self._debug.register('p', name, shape)
         return par
 
-    @cached_property_reset(variables, dual_variables, h_lbx, h_ubx)
+    @cached_property_reset(variables, dual_variables, h_lbx, h_ubx, lam)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),
