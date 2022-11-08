@@ -5,7 +5,7 @@ import numpy as np
 from casadi_nlp import Nlp
 from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
 from casadi_nlp.solutions import subsevalf
-np.set_printoptions(precision=3)
+from casadi_nlp.math import log
 
 
 OPTS = {
@@ -54,13 +54,12 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_lagrangian__is_correct__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
-        log2 = lambda x: cs.log(x) / cs.log(2)
         lbx = 1 / n * 1e-6
         for sym_type in ('SX', 'MX'):
             nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
             p, lam_lbx, _ = nlp.variable('p', (n, 1), lb=lbx)
             c1, lam_g = nlp.constraint('c1', cs.sum1(p), '==', 1)
-            f = cs.sum1(p * log2(p))
+            f = cs.sum1(p * log(p, 2))
             nlp.minimize(f)
             L = f + lam_g * c1 + lam_lbx.T @ (lbx - p)
             p_ = np.random.rand(*p.shape)
@@ -154,12 +153,11 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
-        log2 = lambda x: cs.log(x) / cs.log(2)
         for sym_type in ('SX', 'MX'):
             nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
             p = nlp.variable('p', (n, 1), lb=1 / n * 1e-6)[0]
             nlp.constraint('c1', cs.sum1(p), '==', 1)
-            nlp.minimize(cs.sum1(p * log2(p)))
+            nlp.minimize(cs.sum1(p * log(p, 2)))
             nlp.init_solver(OPTS)
             sol = nlp.solve(vals0={'p': np.random.rand(n)})
             kkt, tau = nlp.kkt

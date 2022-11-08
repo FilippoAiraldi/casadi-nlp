@@ -4,6 +4,7 @@ import casadi as cs
 import numpy as np
 from casadi_nlp import Nlp
 from casadi_nlp.solutions import subsevalf
+from casadi_nlp.math import log
 
 
 OPTS = {
@@ -217,10 +218,10 @@ class TestNlp(unittest.TestCase):
     def test_dual__returns_dual_variables_correctly(self):
         shape1, shape2 = (4, 3), (2, 2)
         for sym_type, flag, ops in product(
-                ['SX', 'MX'], 
-                [True, False],
-                [('==', '=='), ('==', '>='), ('>=', '>=')]
-            ):
+            ['SX', 'MX'],
+            [True, False],
+            [('==', '=='), ('==', '>='), ('>=', '>=')]
+        ):
             nlp = Nlp(sym_type=sym_type, remove_reduntant_x_bounds=flag)
             x, lam_lb_x, lam_ub_x = nlp.variable('x', shape1)
             y, lam_lb_y, lam_ub_y = nlp.variable('y', shape2, ub=10)
@@ -444,17 +445,16 @@ class TestNlp(unittest.TestCase):
     def test_solve__computes_corretly__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
-        log2 = lambda x: cs.log(x) / cs.log(2)
         for sym_type in ('SX', 'MX'):
             nlp = Nlp(sym_type=sym_type)
             p = nlp.variable('p', (n, 1), lb=1 / n * 1e-6)[0]
             nlp.constraint('c1', cs.sum1(p), '==', 1)
-            nlp.minimize(cs.sum1(p * log2(p)))
+            nlp.minimize(cs.sum1(p * log(p, 2)))
             nlp.init_solver(OPTS)
             sol = nlp.solve(vals0={'p': np.random.rand(n)})
             np.testing.assert_allclose(sol.vals['p'], 1 / n, atol=1e-9)
             np.testing.assert_allclose(
-                sol.value(-(1 / cs.log(2) + log2(p)) - nlp.lam_g), 0,
+                sol.value(-(1 / cs.log(2) + log(p, 2)) - nlp.lam_g), 0,
                 atol=1e-6)
 
     def test_solve__computes_corretly__example_4(self):

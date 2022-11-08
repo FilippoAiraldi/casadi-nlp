@@ -70,7 +70,7 @@ class TestUtil(unittest.TestCase):
         dummy.prop2
         self.assertEqual(dummy.counter1, 3)
         self.assertEqual(dummy.counter2, 3)
-        
+
     def test_CacheClearer__accepts_new_caches_to_clear(self):
         dummy = DummyWithCachedProperty2()
         dummy.prop1
