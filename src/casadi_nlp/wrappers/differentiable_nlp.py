@@ -50,7 +50,6 @@ class DifferentiableNlp(Wrapper[NlpType]):
     def __init__(
         self,
         nlp: NlpType,
-        simplify_x_bounds: bool = True,
         include_barrier_term: bool = True
     ) -> None:
         '''Instantiates the wrapper.
@@ -66,7 +65,6 @@ class DifferentiableNlp(Wrapper[NlpType]):
             more details. By default `True`.
         '''
         super().__init__(nlp)
-        self.remove_reduntant_x_bounds = simplify_x_bounds
         self.include_barrier_term = include_barrier_term
 
     @cached_property
