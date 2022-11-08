@@ -224,6 +224,52 @@ class TestDifferentiableNlp(unittest.TestCase):
             for S in (S1, S2):
                 np.testing.assert_allclose(S, [2, -2, -1, 0], atol=1e-5)
 
+    def test_kkt__computes_sensitivity_correctly__example_8(self):
+        #  Example 4.5 from [1]
+        #
+        # References
+        # ----------
+        # [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and
+        #     real-time optimization of parametric nonlinear programming
+        #     problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
+        #     Online Optimization of Large Scale Systems, 3–16. Springer,
+        #     Berlin, Heidelberg.
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            z = nlp.variable('z', (2, 1))[0]
+            p = nlp.parameter('p')
+            nlp.minimize(cs.sumsqr(z + [1, -2]))
+            _, lam1 = nlp.constraint('c1', -z[0] + p, '<=', 0)
+            _, lam2 = nlp.constraint('c2', 2 * z[0] + z[1], '<=', 6)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(pars={'p': 1})
+
+            np.testing.assert_allclose(sol.f, 4)
+            np.testing.assert_allclose(sol.vals['z'], [[1], [2]], rtol=1e-7)
+            np.testing.assert_allclose(sol.value(lam1), 4, atol=1e-7)
+            np.testing.assert_allclose(sol.value(lam2), 0, atol=1e-7)
+
+            kkt, tau = nlp.kkt
+            kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
+
+            S1 = nlp.parametric_sensitivity()
+            S2 = nlp.parametric_sensitivity(solution=sol)
+            for S in (S1, S2):
+                np.testing.assert_allclose(
+                    sol.value(S).full().flat, [1, 0, 2, 0], atol=1e-5)
+
+            Lp = nlp.jacobians['L-p']
+            Lpp = nlp.hessians['L-pp']
+            Lpz = nlp.hessians['L-px']
+            Lzz = nlp.hessians['L-xx']
+            np.testing.assert_allclose(sol.value(Lp), 4, atol=1e-7)
+
+            for S in (S1, S2):
+                dzdp = S[:nlp.nx]
+                d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
+                np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
+
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
         for sym_type in ('SX', 'MX'):

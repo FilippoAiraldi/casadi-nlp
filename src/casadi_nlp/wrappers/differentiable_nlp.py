@@ -92,24 +92,41 @@ class DifferentiableNlp(Wrapper[NlpType]):
         return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property
-    def derivatives(self) -> Dict[str, Union[cs.SX, cs.MX]]:
+    def jacobians(self) -> Dict[str, Union[cs.SX, cs.MX]]:
         '''Computes various partial derivatives, which are then grouped in a
-        dict with the following entries derivaties
-            - dLdp: lagrangian w.r.t. parameters
-            - dKdp: kkt conditions w.r.t. parameters
-            - dKdy: kkt conditions w.r.t. primal-dual variables
-            - dgdx: equality constraints w.r.t. primal variables
-            - dhdx: inequality constraints w.r.t. primal variables
+        dict with the following entries
+            - `L-p`: lagrangian w.r.t. parameters
+            - `K-p`: kkt conditions w.r.t. parameters
+            - `K-y`: kkt conditions w.r.t. primal-dual variables
+            - `g-x`: equality constraints w.r.t. primal variables
+            - `h-x`: inequality constraints w.r.t. primal variables
         '''
         # in case of MX, jacobians throw if the MX are indexed (no more
         # symbolical according to the exception)
         K = self.kkt[0]
         return {
-            'dLdp': cs.jacobian(K, self.nlp._p),
-            'dKdp': cs.jacobian(K, self.nlp._p),
-            'dKdy': cs.jacobian(K, self.nlp.primal_dual_vars),
-            'dgdx': cs.jacobian(self.nlp._g, self.nlp._x),
-            'dhdx': cs.jacobian(self.nlp._h, self.nlp._x),
+            'L-p': cs.jacobian(self.lagrangian, self.nlp._p),
+            'K-p': cs.jacobian(K, self.nlp._p),
+            'K-y': cs.jacobian(K, self.nlp.primal_dual_vars),
+            'g-x': cs.jacobian(self.nlp._g, self.nlp._x),
+            'h-x': cs.jacobian(self.nlp._h, self.nlp._x),
+        }
+
+    @cached_property
+    def hessians(self) -> Dict[str, Union[cs.SX, cs.MX]]:
+        '''Computes various partial hessians, which are then grouped in a
+        dict with the following entries
+            - `L-pp`: lagrangian w.r.t. parameters (twice)
+            - `L-xx`: lagrangian w.r.t. primal variables (twice)
+            - `L-px`: lagrangian w.r.t. parameters and then primal variables
+        '''
+        L = self.lagrangian
+        Lpp, Lp = cs.hessian(L, self.nlp._p)
+        Lpx = cs.jacobian(Lp, self.nlp._x)
+        return {
+            'L-pp': Lpp,
+            'L-xx': cs.hessian(L, self.nlp._x)[0],
+            'L-px': Lpx,
         }
 
     @property
@@ -130,7 +147,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
             2) lower and upper bound inequality constraints are not included in
                `h` since they are by nature linear independent.
         '''
-        return cs.vertcat(self.derivatives['dgdx'], self.derivatives['dhdx'])
+        return cs.vertcat(self.jacobians['g-x'], self.jacobians['h-x'])
 
     def parametric_sensitivity(
         self,
@@ -166,26 +183,26 @@ class DifferentiableNlp(Wrapper[NlpType]):
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
-        dKdy = self.derivatives['dKdy']
-        dKdp = self.derivatives['dKdp']
+        dKdy = self.jacobians['K-y']
+        dKdp = self.jacobians['K-p']
         return (
             (-cs.inv(dKdy) @ dKdp)
             if solution is None else
             (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
         )
 
-    @cache_clearer(derivatives)
+    @cache_clearer(jacobians, hessians)
     def parameter(self, *args, **kwargs):
         return self.nlp.parameter(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, derivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, derivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, derivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
