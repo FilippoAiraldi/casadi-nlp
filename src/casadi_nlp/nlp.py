@@ -237,8 +237,8 @@ class Nlp:
         items = {
             'g': self._lam_g,
             'h': self._lam_h,
-            'h_lbx': self._lam_lbx,
-            'h_ubx': self._lam_ubx
+            'h_lbx': self.h_lbx[1],
+            'h_ubx': self.h_ubx[1]
         }
         dual = cs.vertcat(*(items.pop(v) for v in _DUAL_VARIABLES_ORDER))
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
