@@ -99,6 +99,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                 Nlp(sym_type=sym_type), include_barrier_term=flag)
             x = nlp.variable('x')[0]
             nlp.constraint('c', x, '<=', 1)
+            nlp.minimize(x)
             _, tau = nlp.kkt
             if flag:
                 self.assertIsInstance(tau, nlp._csXX)
