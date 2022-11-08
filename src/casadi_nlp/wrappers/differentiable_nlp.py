@@ -103,7 +103,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the Lagrangian of the NLP problem.'''
+        '''Gets the Lagrangian of the NLP problem (usually, `L`).'''
         h_lbx, lam_h_lbx = self.h_lbx
         h_ubx, lam_h_ubx = self.h_ubx
         return (self.nlp._f +
@@ -114,7 +114,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of dual variables.
+        '''Gets the collection of dual variables (usually, `lam`).
 
         Note: The order of the dual variables can be adjusted via the
         `_PRIMAL_DUAL_ORDER` dict.'''
@@ -123,7 +123,11 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of primal-dual variables.
+        '''Gets the collection of primal-dual variables (usually, `y`).
+        ```
+                    y = [x', lam']'
+        ```
+        where `x` are the primal variables, and `lam` the dual variables.
 
         Note: The order of the primal-dual variables can be adjusted via the
         `_PRIMAL_DUAL_ORDER` dict.'''
