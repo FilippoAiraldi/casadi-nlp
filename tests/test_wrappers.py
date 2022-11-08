@@ -208,7 +208,7 @@ class TestDifferentiableNlp(unittest.TestCase):
             z = nlp.variable('z', (2, 1))[0]
             p = nlp.parameter('p')
             nlp.minimize(-((0.5 + p) * cs.sqrt(z[0]) + (0.5 - p) * z[1]))
-            c, lam = nlp.constraint('c1', cs.sum1(z), '<=', 1)
+            _, lam = nlp.constraint('c1', cs.sum1(z), '<=', 1)
             nlp.constraint('c2', z[0], '>=', 0.1)
             nlp.init_solver(OPTS)
             sol = nlp.solve(pars={'p': 0}, vals0={'z': [0.1, 0.9]})
@@ -220,12 +220,11 @@ class TestDifferentiableNlp(unittest.TestCase):
             kkt, tau = nlp.kkt
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
-            np.testing.assert_allclose(sol.value(cs.jacobian(c, z)), [[1, 1]])
 
             S1 = sol.value(nlp.parametric_sensitivity()).full().flatten()
             S2 = nlp.parametric_sensitivity(solution=sol).flatten()
-            np.testing.assert_allclose(S1, [2, -2, -1, 0], atol=1e-5)
-            np.testing.assert_allclose(S2, [2, -2, -1, 0], atol=1e-5)
+            for S in (S1, S2):
+                np.testing.assert_allclose(S, [2, -2, -1, 0], atol=1e-5)
 
 
 if __name__ == '__main__':
