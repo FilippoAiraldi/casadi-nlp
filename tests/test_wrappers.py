@@ -164,6 +164,90 @@ class TestDifferentiableNlp(unittest.TestCase):
             cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
                        cs.vec(lam_lbx), cs.vec(lam_ubx))
         ))
+        
+    def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
+        for sym_type in ('MX', 'SX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x')[0]
+            y = nlp.variable('y')[0]
+            nlp.constraint('c1', x**2 + y**2, '==', 1)
+            nlp.minimize(-x - y)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve()
+            kkt, _ = nlp.kkt
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+
+    def test_kkt__computes_kkt_conditions_correctly__example_1b(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x')[0]
+            y = nlp.variable('y')[0]
+            nlp.constraint('c1', x**2 + y**2, '==', 1)
+            nlp.minimize((x + y)**2)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(vals0={
+                'x': 0.5,
+                'y': np.sqrt(1 - 0.5**2)
+            })
+            kkt, _ = nlp.kkt
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+
+    def test_kkt__computes_kkt_conditions_correctly__example_2(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x')[0]
+            y = nlp.variable('y')[0]
+            nlp.constraint('c1', x**2 + y**2, '==', 3)
+            nlp.minimize(x**2 * y)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(vals0={
+                'x': np.sqrt(3 - 0.8**2),
+                'y': -0.8
+            })
+            kkt, _ = nlp.kkt
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+
+    def test_kkt__computes_kkt_conditions_correctly__example_3(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
+        n = 50
+        log2 = lambda x: cs.log(x) / cs.log(2)
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            p = nlp.variable('p', (n, 1), lb=1 / n * 1e-6)[0]
+            nlp.constraint('c1', cs.sum1(p), '==', 1)
+            nlp.minimize(cs.sum1(p * log2(p)))
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(vals0={'p': np.random.rand(n)})
+            kkt, _ = nlp.kkt
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+            
+    def test_kkt__computes_kkt_conditions_correctly__example_4(self):
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x')[0]
+            nlp.constraint('c1', x**2, '==', 1)
+            nlp.minimize(x**2)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(vals0={'x': 1 + 0.1 * np.random.rand()})
+            kkt, _ = nlp.kkt
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+
+    def test_kkt__computes_kkt_conditions_correctly__example_5(self):
+        # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x', (2, 1), lb=0)[0]
+            nlp.constraint('c1', x[0] + x[1]**2, '<=', 2)
+            nlp.minimize(- x[0] * x[1])
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(vals0={'x': [1, 1]})
+            kkt, tau = nlp.kkt
+            kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
 
 
 if __name__ == '__main__':
