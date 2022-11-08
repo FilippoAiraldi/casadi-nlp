@@ -28,11 +28,11 @@ def is_casadi_object(obj: Any) -> bool:
     return module == cs.__name__
 
 
-def cached_property_reset(*properties: cached_property) -> Callable:
-    '''Decorator that allows to enhance a method with the ability, when called,
-    to clear the cached of some target properties. This is especially useful to
-    reset the cache of a given cached property when a method makes changes to
-    the underlying data, thus compromising the cached results.
+def cache_clearer(*properties: cached_property) -> Callable:
+    '''Decorator that allows to enhance a method with the ability, when
+    called, to clear the cached of some target properties. This is especially
+    useful to reset the cache of a given cached property when another method
+    makes changes to the underlying data, thus compromising the cached results.
 
     Parameters
     ----------
@@ -50,7 +50,8 @@ def cached_property_reset(*properties: cached_property) -> Callable:
         Raises if the given properties are not instances of
         `functools.cached_property`.
     '''
-
+    # for now, the class handles only cached_properties, but it can be extended
+    # to reset also other types of caches.
     if any(not isinstance(p, cached_property) for p in properties):
         raise TypeError('The specified properties must be an instance of '
                         '`functools.cached_property`')

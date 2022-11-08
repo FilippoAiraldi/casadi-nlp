@@ -3,7 +3,7 @@ import casadi as cs
 import numpy as np
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.solutions import Solution
-from casadi_nlp.util import cached_property, cached_property_reset
+from casadi_nlp.util import cached_property, cache_clearer
 
 
 '''Dict that dictates the order for operations related to primal-dual
@@ -159,14 +159,14 @@ class DifferentiableNlp(Wrapper[NlpType]):
             (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
         )
 
-    @cached_property_reset(lagrangian, kkt)
+    @cache_clearer(lagrangian, kkt)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cached_property_reset(lagrangian, kkt)
+    @cache_clearer(lagrangian, kkt)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cached_property_reset(lagrangian, kkt)
+    @cache_clearer(lagrangian, kkt)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)

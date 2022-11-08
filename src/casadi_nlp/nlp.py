@@ -6,7 +6,7 @@ import numpy as npy
 from casadi_nlp.solutions import Solution, subsevalf, DMStruct
 from casadi_nlp.debug import NlpDebug
 from casadi_nlp.util import (
-    cached_property, cached_property_reset,
+    cached_property, cache_clearer,
     struct_symSX, dict2struct,
     np_random
 )
@@ -285,7 +285,7 @@ class Nlp:
         h = self._x[idx] - self._ubx[idx, None]
         return h, self._lam_ubx[idx]
 
-    @cached_property_reset(parameters)
+    @cache_clearer(parameters)
     def parameter(
         self,
         name: str,
@@ -318,7 +318,7 @@ class Nlp:
         self._debug.register('p', name, shape)
         return par
 
-    @cached_property_reset(variables, dual_variables, h_lbx, h_ubx, lam)
+    @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),
@@ -379,7 +379,7 @@ class Nlp:
 
         return var, lam_lb, lam_ub
 
-    @cached_property_reset(constraints, dual_variables, lam)
+    @cache_clearer(constraints, dual_variables, lam)
     def constraint(
         self,
         name: str,

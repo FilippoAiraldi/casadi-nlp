@@ -3,7 +3,7 @@ import unittest
 from functools import cached_property
 import casadi as cs
 from casadi_nlp.util import (
-    is_casadi_object, cached_property_reset,
+    is_casadi_object, cache_clearer,
     dict2struct, struct_symSX, DMStruct,
     np_random
 )
@@ -16,45 +16,79 @@ class DummyWithCachedProperty:
         self.counter2 = 0
 
     @cached_property
-    def a_cached_property(self) -> int:
+    def prop1(self) -> int:
         self.counter1 += 1
         return self.counter1
 
     @cached_property
-    def another_cached_property(self) -> int:
+    def prop2(self) -> int:
         self.counter2 += 1
         return self.counter2
 
-    @cached_property_reset(a_cached_property, another_cached_property)
+    @cache_clearer(prop1, prop2)
     def clear_cache(self) -> None:
         return
 
 
-class TestUtil(unittest.TestCase):
-    def test_cached_property_reset__raises__with_invalid_type(self):
-        with self.assertRaises(TypeError):
-            cached_property_reset(5)
+class DummyWithCachedProperty2(DummyWithCachedProperty):
+    def __init__(self) -> None:
+        super().__init__()
+        self.counter3 = 0
 
-    def test_cached_property_reset__clears_property_cache(self):
+    @cached_property
+    def prop3(self) -> int:
+        self.counter3 += 1
+        return self.counter3
+
+    @cache_clearer(prop3)
+    def clear_cache(self) -> None:
+        return super().clear_cache()
+
+
+class TestUtil(unittest.TestCase):
+    def test_CacheClearer__raises__with_invalid_type(self):
+        with self.assertRaises(TypeError):
+            cache_clearer(5)
+
+    def test_CacheClearer__clears_property_cache(self):
         dummy = DummyWithCachedProperty()
-        dummy.a_cached_property
-        dummy.a_cached_property
-        dummy.another_cached_property
-        dummy.another_cached_property
+        dummy.prop1
+        dummy.prop1
+        dummy.prop2
+        dummy.prop2
         self.assertEqual(dummy.counter1, 1)
         self.assertEqual(dummy.counter2, 1)
         dummy.clear_cache()
-        dummy.a_cached_property
-        dummy.another_cached_property
+        dummy.prop1
+        dummy.prop2
         self.assertEqual(dummy.counter1, 2)
         self.assertEqual(dummy.counter2, 2)
         dummy.clear_cache()
-        dummy.a_cached_property
-        dummy.a_cached_property
-        dummy.another_cached_property
-        dummy.another_cached_property
+        dummy.prop1
+        dummy.prop1
+        dummy.prop2
+        dummy.prop2
         self.assertEqual(dummy.counter1, 3)
         self.assertEqual(dummy.counter2, 3)
+        
+    def test_CacheClearer__accepts_new_caches_to_clear(self):
+        dummy = DummyWithCachedProperty2()
+        dummy.prop1
+        dummy.prop1
+        dummy.prop2
+        dummy.prop2
+        dummy.prop3
+        dummy.prop3
+        self.assertEqual(dummy.counter1, 1)
+        self.assertEqual(dummy.counter2, 1)
+        self.assertEqual(dummy.counter3, 1)
+        dummy.clear_cache()
+        dummy.prop1
+        dummy.prop2
+        dummy.prop3
+        self.assertEqual(dummy.counter1, 2)
+        self.assertEqual(dummy.counter2, 2)
+        self.assertEqual(dummy.counter3, 2)
 
     def test_is_casadi_object__guesses_correctly(self):
         for o, flag in [
