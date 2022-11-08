@@ -114,13 +114,19 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     @cached_property
     def dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of dual variables.'''
+        '''Gets the collection of dual variables.
+
+        Note: The order of the dual variables can be adjusted via the
+        `_PRIMAL_DUAL_ORDER` dict.'''
         return cs.vertcat(*(f[0](self) for n, f in _PRIMAL_DUAL_ORDER.items()
                             if n != 'x'))
 
     @cached_property
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of primal-dual variables.'''
+        '''Gets the collection of primal-dual variables.
+
+        Note: The order of the primal-dual variables can be adjusted via the
+        `_PRIMAL_DUAL_ORDER` dict.'''
         return cs.vertcat(*(f[0](self) for f in _PRIMAL_DUAL_ORDER.values()))
 
     @cached_property
@@ -142,6 +148,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
                         diag(lam_h)*H + tau
         ```
         which is also returned as the second element of the tuple.
+
+        Note: The order of the KKT conditions can be adjusted via the
+        `_PRIMAL_DUAL_ORDER` dict.
         '''
         tau = self.nlp._csXX.sym('tau')
 
@@ -190,6 +199,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
             Heidelberg.
         '''
         K = self.kkt[0]
+        # next line throws with MX if one of the variables is indexed
         dKdy = cs.jacobian(K, self.primal_dual_variables)
         dKdp = cs.jacobian(K, self.nlp._p)
         return (
