@@ -216,11 +216,14 @@ class TestNlp(unittest.TestCase):
 
     def test_dual__returns_dual_variables_correctly(self):
         shape1, shape2 = (4, 3), (2, 2)
-        for sym_type, ops in product(
-                ['SX', 'MX'], [('==', '=='), ('==', '>='), ('>=', '>=')]):
-            nlp = Nlp(sym_type=sym_type)
+        for sym_type, flag, ops in product(
+                ['SX', 'MX'], 
+                [True, False],
+                [('==', '=='), ('==', '>='), ('>=', '>=')]
+            ):
+            nlp = Nlp(sym_type=sym_type, remove_reduntant_x_bounds=flag)
             x, lam_lb_x, lam_ub_x = nlp.variable('x', shape1)
-            y, lam_lb_y, lam_ub_y = nlp.variable('y', shape2)
+            y, lam_lb_y, lam_ub_y = nlp.variable('y', shape2, ub=10)
             _, lam_c1 = nlp.constraint('c1', x, ops[0], 5)
             _, lam_c2 = nlp.constraint('c2', 5, ops[1], y)
 
@@ -234,7 +237,10 @@ class TestNlp(unittest.TestCase):
             self.assertTrue(cs.is_equal(dv[c1_name], lam_c1))
             self.assertTrue(cs.is_equal(dv[c2_name], lam_c2))
 
-            lams = [lam_c1, lam_c2, lam_lb_x, lam_lb_y, lam_ub_x, lam_ub_y]
+            if flag:
+                lams = [lam_c1, lam_c2, lam_ub_y]
+            else:
+                lams = [lam_c1, lam_c2, lam_lb_x, lam_lb_y, lam_ub_x, lam_ub_y]
             actual_lam = cs.vertcat(*(cs.vec(o) for o in lams))
             expected_lam = nlp.lam
             if sym_type == 'SX':

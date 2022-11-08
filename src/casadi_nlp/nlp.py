@@ -262,28 +262,24 @@ class Nlp:
         '''Gets the inequalities due to `lbx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `lbx == -inf`; otherwise, returns all lower bound constraints.'''
-        if self.remove_reduntant_x_bounds:
-            idx = npy.where(self._lbx != -npy.inf)[0]
-        else:
-            idx = npy.arange(self.nx)
-        if idx.size == 0:
+        if not self.remove_reduntant_x_bounds:
+            return self._lbx[:, None] - self._x, self._lam_lbx
+        I = npy.where(self._lbx != -npy.inf)[0]
+        if I.size == 0:
             return self._csXX(), self._csXX()
-        h = self._lbx[idx, None] - self._x[idx]
-        return h, self._lam_lbx[idx]
+        return self._lbx[I, None] - self._x[I], self._lam_lbx[I]
 
     @cached_property
     def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the inequalities due to `ubx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `ubx == +inf`; otherwise, returns all upper bound constraints.'''
-        if self.remove_reduntant_x_bounds:
-            idx = npy.where(self._ubx != npy.inf)[0]
-        else:
-            idx = npy.arange(self.nx)
-        if idx.size == 0:
+        if not self.remove_reduntant_x_bounds:
+            return self._x - self._ubx[:, None], self._lam_ubx
+        I = npy.where(self._ubx != npy.inf)[0]
+        if I.size == 0:
             return self._csXX(), self._csXX()
-        h = self._x[idx] - self._ubx[idx, None]
-        return h, self._lam_ubx[idx]
+        return self._x[I] - self._ubx[I, None], self._lam_ubx[I]
 
     @cache_clearer(parameters)
     def parameter(
