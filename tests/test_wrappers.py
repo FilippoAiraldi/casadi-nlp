@@ -105,7 +105,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                 self.assertIsInstance(tau, nlp._csXX)
             else:
                 self.assertIsNone(tau)
-                
+
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):
@@ -223,6 +223,34 @@ class TestDifferentiableNlp(unittest.TestCase):
             S2 = nlp.parametric_sensitivity(solution=sol).flatten()
             for S in (S1, S2):
                 np.testing.assert_allclose(S, [2, -2, -1, 0], atol=1e-5)
+
+    def test_licq__computes_qualification_correctly__example_1(self):
+        # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x', (2, 1))[0]
+            nlp.constraint('c1', cs.sum1(x), '<=', 1)
+            nlp.constraint('c2', cs.sumsqr(x), '<=', 1)
+            nlp.minimize(x[0]**2 + (x[1] - 1)**2)  # any objective
+
+            x_ = cs.DM([[0], [1]])
+            d = subsevalf(nlp.licq, x, x_).full()
+            np.testing.assert_allclose(d, [[1, 1], [0, 2]])
+            self.assertEqual(np.linalg.matrix_rank(d), d.shape[0])
+
+    def test_licq__computes_qualification_correctly__example_2(self):
+        # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#MFCQ_ohne_LICQ
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            x = nlp.variable('x', (2, 1))[0]
+            nlp.constraint('c1', x[1], '>=', 0)
+            nlp.constraint('c2', x[0]**4 - x[1], '<=', 1)
+            nlp.minimize(x[0]**2 + x[1]**2)  # any objective
+
+            x_ = cs.DM([[0], [0]])
+            d = subsevalf(nlp.licq, x, x_).full()
+            np.testing.assert_allclose(d, [[0, -1], [0, -1]])
+            self.assertNotEqual(np.linalg.matrix_rank(d), d.shape[0])
 
 
 if __name__ == '__main__':

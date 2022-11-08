@@ -58,9 +58,9 @@ class DifferentiableNlp(Wrapper[NlpType]):
     ) -> Union[Tuple[cs.SX, Optional[cs.SX]], Tuple[cs.MX, Optional[cs.MX]]]:
         '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
-                        |      dLdx     |
-                    K = |       G       |
-                        | diag(lam_h)*H |
+                            |      dLdx     |
+                        K = |       G       |
+                            | diag(lam_h)*H |
         ```
         where `dLdx` is the gradient of the lagrangian w.r.t. the primal
         variables `x`, `G` collects the equality constraints, `H` collects
@@ -70,7 +70,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         If `include_barrier_term=True`, the inequalities include an additional
         barrier term `tau`, so that
         ```
-                        diag(lam_h)*H + tau
+                            diag(lam_h)*H + tau
         ```
         which is also returned as the second element of the tuple. Otherwise,
         `tau` is `None`.
@@ -94,10 +94,12 @@ class DifferentiableNlp(Wrapper[NlpType]):
     @cached_property
     def derivatives(self) -> Dict[str, Union[cs.SX, cs.MX]]:
         '''Computes various partial derivatives, which are then grouped in a
-        dict with the following entries
-            - dLdp: derivative of the lagrangian w.r.t. parameters
-            - dKdp: derivative of the kkt conditions w.r.t. parameters
-            - dKdy: derivative of the kkt conditions w.r.t. primal-dual vars
+        dict with the following entries derivaties
+            - dLdp: lagrangian w.r.t. parameters
+            - dKdp: kkt conditions w.r.t. parameters
+            - dKdy: kkt conditions w.r.t. primal-dual variables
+            - dgdx: equality constraints w.r.t. primal variables
+            - dhdx: inequality constraints w.r.t. primal variables
         '''
         # in case of MX, jacobians throw if the MX are indexed (no more
         # symbolical according to the exception)
@@ -106,7 +108,29 @@ class DifferentiableNlp(Wrapper[NlpType]):
             'dLdp': cs.jacobian(K, self.nlp._p),
             'dKdp': cs.jacobian(K, self.nlp._p),
             'dKdy': cs.jacobian(K, self.nlp.primal_dual_vars),
+            'dgdx': cs.jacobian(self.nlp._g, self.nlp._x),
+            'dhdx': cs.jacobian(self.nlp._h, self.nlp._x),
         }
+
+    @property
+    def licq(self) -> Union[np.ndarray, cs.SX, cs.MX]:
+        '''Gets the symbolic matrix for LICQ, defined as
+        ```
+                    LICQ = [ dgdx^T, dhdx^T ]^T
+        ```
+        If the matrix is linear independent, then the NLP satisfies the Linear
+        Independence Constraint Qualification.
+
+        Note:
+            1) the LICQ are computed for only the active inenquality
+               constraints. Since this is a symbolic representation, all are
+               included, and it's up to the user to eliminate
+               the inactive.
+
+            2) lower and upper bound inequality constraints are not included in
+               `h` since they are by nature linear independent.
+        '''
+        return cs.vertcat(self.derivatives['dgdx'], self.derivatives['dhdx'])
 
     def parametric_sensitivity(
         self,
