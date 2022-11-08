@@ -1,9 +1,27 @@
 import unittest
 import casadi as cs
 import numpy as np
+np.set_printoptions(precision=3)
 from casadi_nlp import Nlp
 from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
 from casadi_nlp.solutions import subsevalf
+
+
+OPTS = {
+    'expand': True, 'print_time': False,
+    'ipopt': {
+        'max_iter': 500,
+        'tol': 1e-5,
+        'barrier_tol_factor': 1,
+        'mu_strategy': 'adaptive',
+        'mu_min': 1e-3,        
+        'sb': 'yes',
+        # for debugging
+        'print_level': 0,
+        'print_user_options': 'no',
+        'print_options_documentation': 'no'
+    }
+}
 
 
 class TestWrapper(unittest.TestCase):
