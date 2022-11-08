@@ -31,7 +31,7 @@ class NlpDebugEntry:
 
 class NlpDebug:
     '''
-    NLP debug class for information about variables and constraints. In 
+    NLP debug class for information about variables and constraints. In
     particular, it records information on
      - the decision variable `x`
      - the equality constraints `g`
@@ -137,7 +137,7 @@ class NlpDebug:
         return self.__describe(self._h_info, index)
 
     def register(self, group: str, name: str, shape: Tuple[int, ...]) -> None:
-        '''Registers debug information on new object name under the specific 
+        '''Registers debug information on new object name under the specific
         group.
 
         Parameters

@@ -30,8 +30,8 @@ def is_casadi_object(obj: Any) -> bool:
 
 def cached_property_reset(*properties: cached_property) -> Callable:
     '''Decorator that allows to enhance a method with the ability, when called,
-    to clear the cached of some target properties. This is especially useful to 
-    reset the cache of a given cached property when a method makes changes to 
+    to clear the cached of some target properties. This is especially useful to
+    reset the cache of a given cached property when a method makes changes to
     the underlying data, thus compromising the cached results.
 
     Parameters
@@ -47,7 +47,7 @@ def cached_property_reset(*properties: cached_property) -> Callable:
     Raises
     ------
     TypeError
-        Raises if the given properties are not instances of 
+        Raises if the given properties are not instances of
         `functools.cached_property`.
     '''
 
@@ -72,11 +72,11 @@ def cached_property_reset(*properties: cached_property) -> Callable:
 def dict2struct(
     dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]]
 ) -> Union[DMStruct, struct_symSX, Dict[str, cs.MX]]:
-    '''Attempts to convert a dictionary of CasADi matrices to a struct. The 
+    '''Attempts to convert a dictionary of CasADi matrices to a struct. The
     algorithm is inferred from the type of the first element of `dict`:
      - if `DM`, then a numerical `DMStruct` is returned
      - if `SX`, then a symbolical `struct_symSX` is returned
-     - if `MX` (or any other, for this matter), only a copy of `dict` is 
+     - if `MX` (or any other, for this matter), only a copy of `dict` is
        returned.
 
     Parameters
@@ -101,10 +101,13 @@ def dict2struct(
         return dict.copy()
 
 
-def np_random(seed: int = None) -> Tuple[np.random.Generator, Optional[int]]:
-    # https://github.com/openai/gym/blob/6a04d49722724677610e36c1f92908e72f51da0c/gym/utils/seeding.py
-    '''Generates a random number generator from the seed and returns the 
+def np_random(
+    seed: Optional[int] = None
+) -> Tuple[np.random.Generator, int]:
+    '''Generates a random number generator from the seed and returns the
     Generator and seed.
+
+    Full credit to [OpenAI implementation](https://github.com/openai/gym/blob/6a04d49722724677610e36c1f92908e72f51da0c/gym/utils/seeding.py).
 
     Parameters
     ----------

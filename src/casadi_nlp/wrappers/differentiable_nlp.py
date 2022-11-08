@@ -1,4 +1,4 @@
-from typing import Tuple, Union
+from typing import Tuple, Union, Optional
 import casadi as cs
 import numpy as np
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
@@ -65,8 +65,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
             `True`.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
-            represents the barrier function of the interior-point solver. 
-            Otherwise, no additional variable is added. See property `kkt` for 
+            represents the barrier function of the interior-point solver.
+            Otherwise, no additional variable is added. See property `kkt` for
             more details. By default `True`.
         '''
         super().__init__(nlp)
@@ -115,7 +115,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
     @cached_property
     def dual_variables(self) -> Union[cs.SX, cs.MX]:
         '''Gets the collection of dual variables.'''
-        return cs.vertcat(*(f[0](self) for n, f in _PRIMAL_DUAL_ORDER.items() 
+        return cs.vertcat(*(f[0](self) for n, f in _PRIMAL_DUAL_ORDER.items()
                             if n != 'x'))
 
     @cached_property
@@ -156,8 +156,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
         return kkt, tau
 
     def parametric_sensitivity(
-        self, 
-        solution: Solution = None
+        self,
+        solution: Optional[Solution] = None
     ) -> Union[np.ndarray, cs.SX, cs.MX]:
         '''Performs the (symbolic or numerical) sensitivity of the NLP solution
         w.r.t. its parametrization, according to [1].
@@ -165,27 +165,27 @@ class DifferentiableNlp(Wrapper[NlpType]):
         Parameters
         ----------
         solution : Solution, optional
-            If a solution is passed, then the sensitivity is numerically 
+            If a solution is passed, then the sensitivity is numerically
             computed for that solution; otherwise, the sensitivity is carried
-            out symbolically (however, this is much more computationally 
+            out symbolically (however, this is much more computationally
             intensive).
 
         Returns
         -------
         Union[np.ndarray, cs.SX, cs.MX]
-            The NLP parametric sensitivity in the form of an numerical array, 
+            The NLP parametric sensitivity in the form of an numerical array,
             if a solution is passed, or a symbolic vector.
 
         Raises
         ------
         numpy.linalg.LinAlgError
-            Raises if the KKT conditions lead to a singular matrix. 
+            Raises if the KKT conditions lead to a singular matrix.
 
         References
         ----------
-        [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and 
-            real-time optimization of parametric nonlinear programming 
-            problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.), 
+        [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and
+            real-time optimization of parametric nonlinear programming
+            problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
@@ -197,7 +197,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
             if solution is None else
             (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
         )
-    
+
     @cached_property_reset(
         h_lbx, h_ubx, lagrangian, dual_variables, primal_dual_variables, kkt)
     def variable(self, *args, **kwargs):

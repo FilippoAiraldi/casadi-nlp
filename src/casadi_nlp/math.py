@@ -1,5 +1,5 @@
 import math
-from typing import Union
+from typing import Union, Optional
 import casadi as cs
 
 
@@ -8,18 +8,18 @@ SQRT2 = math.sqrt(2)
 
 def prod(
     x: Union[cs.SX, cs.MX, cs.DM],
-    axis: int = None
+    axis: Optional[int] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Computes the product of all the elements in `x` (CasADi version of 
-    `numpy.prod`). 
+    '''Computes the product of all the elements in `x` (CasADi version of
+    `numpy.prod`).
 
     Parameters
     ----------
     x : Union[cs.SX, cs.MX, cs.DM]
         The variable whose entries must be multiplied together.
     axis : {0, 1, None}
-        Axis or along which a product is performed. The default, `axis=None`, 
-        will calculate the product of all the elements in the matrix. If axis 
+        Axis or along which a product is performed. The default, `axis=None`,
+        will calculate the product of all the elements in the matrix. If axis
         is negative it counts from the last to the first axis.
 
     Returns
@@ -42,7 +42,7 @@ def quad_form(
     A: Union[cs.SX, cs.MX, cs.DM],
     x: Union[cs.SX, cs.MX, cs.DM]
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Calculates quadratic form `x.T*A*x`. 
+    '''Calculates quadratic form `x.T*A*x`.
 
     Parameters
     ----------
@@ -61,7 +61,7 @@ def quad_form(
     ------
     RuntimeError
         Raises if
-         - `A` is not squared 
+         - `A` is not squared
          - `A` and `x` cannot be multiplied together
          - `x` is not a vector.
     '''
@@ -72,8 +72,8 @@ def quad_form(
 
 def norm_cdf(
     x: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
-    scale: Union[cs.SX, cs.MX, cs.DM] = 1
+    loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
+    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1)
 ) -> Union[cs.SX, cs.MX, cs.DM]:
     '''Computes the cdf of a normal distribution. See `scipy.stats.norm.cdf`.
 
@@ -96,10 +96,10 @@ def norm_cdf(
 
 def norm_ppf(
     p: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
-    scale: Union[cs.SX, cs.MX, cs.DM] = 1
+    loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
+    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1)
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Computes the quantile (invese of cdf) of a normal distribution. See 
+    '''Computes the quantile (invese of cdf) of a normal distribution. See
     `scipy.stats.norm.ppf`.
 
     Parameters

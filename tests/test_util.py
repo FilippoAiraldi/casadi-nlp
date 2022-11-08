@@ -19,7 +19,7 @@ class DummyWithCachedProperty:
     def a_cached_property(self) -> int:
         self.counter1 += 1
         return self.counter1
-    
+
     @cached_property
     def another_cached_property(self) -> int:
         self.counter2 += 1
@@ -98,7 +98,7 @@ class TestUtil(unittest.TestCase):
     def test_np_random__raises__with_invalid_seed(self):
         with self.assertRaises(ValueError):
             np_random(-1)
-            
+
     def test_np_random__initializes_rng_with_correct_seed(self):
         for seed in (69, None):
             rng, actual_seed = np_random(seed)

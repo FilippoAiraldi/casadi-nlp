@@ -46,7 +46,7 @@ class Solution:
         x : Union[cs.SX, cs.MX]
             The symbolic expression to be evaluated at the solution's values.
         eval : bool, optional
-            Evaluates numerically the new expression. By default, `True`. See 
+            Evaluates numerically the new expression. By default, `True`. See
             `casadi_nlp.solutions.subsevalf` for more details.
 
         Returns
@@ -57,7 +57,7 @@ class Solution:
         Raises
         ------
         RuntimeError
-            Raises if `eval=True` but there are symbolic variables that are 
+            Raises if `eval=True` but there are symbolic variables that are
             still free since they are outside the solution's variables.
         '''
         return self._get_value(x, eval=eval)
@@ -86,8 +86,8 @@ def subsevalf(
     old : casadi.SX, MX (or struct, dict, iterable of)
         Old variable to be substituted.
     new : numpy.array or casadi.SX, MX, DM (or struct, dict, iterable of)
-        New variable that substitutes the old one. If a collection, it is 
-        assumed the type is the same of `old` (so, old and new should share 
+        New variable that substitutes the old one. If a collection, it is
+        assumed the type is the same of `old` (so, old and new should share
         collection type).
     eval : bool, optional
         Evaluates numerically the new expression. By default, `True`.
@@ -95,7 +95,7 @@ def subsevalf(
     Returns
     -------
     new_expr : casadi.SX, MX, DM
-        New expression after substitution (SX, MX) and, possibly, evaluation 
+        New expression after substitution (SX, MX) and, possibly, evaluation
         (DM).
 
     Raises
@@ -103,8 +103,8 @@ def subsevalf(
     TypeError
         Raises if the `old` and `new` are neither SX, MX, dict, Iterable.
     RuntimeError
-        Raises if `eval=True` but there are symbolic variables that are still 
-        free, i.e., the expression cannot be evaluated numerically since it is 
+        Raises if `eval=True` but there are symbolic variables that are still
+        free, i.e., the expression cannot be evaluated numerically since it is
         still (partially) symbolic.
     '''
     if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):

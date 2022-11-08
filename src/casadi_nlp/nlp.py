@@ -6,7 +6,7 @@ import numpy as npy
 from casadi_nlp.solutions import Solution, subsevalf, DMStruct
 from casadi_nlp.debug import NlpDebug
 from casadi_nlp.util import (
-    cached_property, cached_property_reset, 
+    cached_property, cached_property_reset,
     struct_symSX, dict2struct,
     np_random
 )
@@ -14,7 +14,7 @@ from casadi_nlp.util import (
 
 class Nlp:
     '''
-    The generic NLP class is a controller that solves a (possibly, nonlinear) 
+    The generic NLP class is a controller that solves a (possibly, nonlinear)
     optimization problem to yield a (possibly, sub-) optimal solution.
 
     This is a generic class in the sense that it does not solve a particular
@@ -27,15 +27,15 @@ class Nlp:
     def __init__(
         self,
         sym_type: Literal['SX', 'MX'] = 'SX',
-        name: str = None,
-        seed: int = None
+        name: Optional[str] = None,
+        seed: Optional[int] = None
     ) -> None:
         '''Creates an NLP instance with a given name.
 
         Parameters
         ----------
         sym_type : 'SX' or 'MX', optional
-            The CasADi symbolic variable type to use in the NLP, by default 
+            The CasADi symbolic variable type to use in the NLP, by default
             'SX'.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
@@ -51,7 +51,7 @@ class Nlp:
         self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._cons: Dict[str, Union[cs.SX, cs.MX]] = {}
 
-        self._f: Union[cs.SX, cs.MX] = None
+        self._f: Optional[Union[cs.SX, cs.MX]] = None
         self._p = self._csXX()
         self._x = self._csXX()
         self._lbx, self._ubx = npy.array([]), npy.array([])
@@ -60,7 +60,7 @@ class Nlp:
         self._h, self._lam_h = self._csXX(), self._csXX()
         self._lbg, self._lbh = npy.array([]), npy.array([])
 
-        self._solver: cs.Function = None
+        self._solver: Optional[cs.Function] = None
         self._solver_opts: Dict[str, Any] = {}
         self._failures = 0
         self._debug = NlpDebug()
@@ -74,7 +74,7 @@ class Nlp:
 
     @property
     def np_random(self) -> npy.random.Generator:
-        '''Returns the nlp's random engine that, if not set, will be 
+        '''Returns the nlp's random engine that, if not set, will be
         initialised with the nlp's seed.'''
         if self._np_random is None:
             self._np_random, _ = np_random(self._seed)
@@ -92,7 +92,7 @@ class Nlp:
 
     @property
     def f(self) -> Union[None, cs.SX, cs.MX]:
-        '''Gets the objective of the NLP scheme, which is `None` if not set 
+        '''Gets the objective of the NLP scheme, which is `None` if not set
         previously set via the `minimize` method.'''
         return self._f
 
@@ -108,25 +108,25 @@ class Nlp:
 
     @property
     def lbx(self) -> npy.ndarray:
-        '''Gets the lower bound constraints of primary variables of the NLP 
+        '''Gets the lower bound constraints of primary variables of the NLP
         scheme in vector form.'''
         return self._lbx
 
     @property
     def ubx(self) -> npy.ndarray:
-        '''Gets the upper bound constraints of primary variables of the NLP 
+        '''Gets the upper bound constraints of primary variables of the NLP
         scheme in vector form.'''
         return self._ubx
 
     @property
-    def lam_lbx(self) -> npy.ndarray:
-        '''Gets the dual variables of the primary variables lower bound 
+    def lam_lbx(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the dual variables of the primary variables lower bound
         constraints of the NLP scheme in vector form.'''
         return self._lam_lbx
 
     @property
-    def lam_ubx(self) -> npy.ndarray:
-        '''Gets the dual variables of the primary variables upper bound 
+    def lam_ubx(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the dual variables of the primary variables upper bound
         constraints of the NLP scheme in vector form.'''
         return self._lam_ubx
 
@@ -138,31 +138,31 @@ class Nlp:
 
     @property
     def h(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the inequality constraint expressions of the NLP scheme in 
+        '''Gets the inequality constraint expressions of the NLP scheme in
         vector form.'''
         return self._h
 
     @property
     def lam_g(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the dual variables of the equality constraints of the NLP 
+        '''Gets the dual variables of the equality constraints of the NLP
         scheme in vector form.'''
         return self._lam_g
 
     @property
     def lam_h(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the dual variables of the inequality constraints of the NLP 
+        '''Gets the dual variables of the inequality constraints of the NLP
         scheme in vector form.'''
         return self._lam_h
 
     @property
     def solver(self) -> Optional[cs.Function]:
-        '''Gets the NLP optimization solver. Can be `None`, if the solver is 
+        '''Gets the NLP optimization solver. Can be `None`, if the solver is
         not set with method `init_solver`.'''
         return self._solver
 
     @property
     def solver_opts(self) -> Dict[str, Any]:
-        '''Gets the NLP optimization solver options. The dict is empty, if the 
+        '''Gets the NLP optimization solver options. The dict is empty, if the
         solver options are not set with method `init_solver`.'''
         return self._solver_opts
 
@@ -277,8 +277,8 @@ class Nlp:
         Raises
         ------
         ValueError
-            Raises if there is already another variable with the same name; or 
-            if any element of the lower bound is larger than the corresponding 
+            Raises if there is already another variable with the same name; or
+            if any element of the lower bound is larger than the corresponding
             lower bound element.
         '''
         if name in self._vars:
@@ -304,9 +304,9 @@ class Nlp:
     def constraint(
         self,
         name: str,
-        lhs: Union[cs.SX, cs.MX],
+        lhs: Union[npy.ndarray, cs.DM, cs.SX, cs.MX],
         op: Literal['==', '>=', '<='],
-        rhs: Union[cs.SX, cs.MX],
+        rhs: Union[npy.ndarray, cs.DM, cs.SX, cs.MX],
         simplify: bool = True
     ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
@@ -315,11 +315,11 @@ class Nlp:
         ----------
         name : str
             Name of the new constraint. Must not be already in use.
-        lhs : casadi.SX, MX
+        lhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the left-hand term of the constraint.
         op: str, {'==' '>=', '<='}
             Operator relating the two terms.
-        rhs : casadi.SX, MX
+        rhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the right-hand term of the constraint.
         simplify : bool, optional
             Optionally simplies the constraint expression, but can be disabled.
@@ -378,9 +378,9 @@ class Nlp:
         Parameters
         ----------
         objective : Union[cs.SX, cs.MX]
-            A Symbolic variable dependent only on the NLP variables and 
-            parameters that needs to be minimized. 
-            
+            A Symbolic variable dependent only on the NLP variables and
+            parameters that needs to be minimized.
+
         Raises
         ------
         ValueError
@@ -406,20 +406,20 @@ class Nlp:
 
     def solve(
         self,
-        pars: Union[DMStruct, Dict[str, npy.ndarray]] = None,
-        vals0: Union[DMStruct, Dict[str, npy.ndarray]] = None
+        pars: Union[None, DMStruct, Dict[str, npy.ndarray]] = None,
+        vals0: Union[None, DMStruct, Dict[str, npy.ndarray]] = None
     ) -> Solution:
         '''Solves the NLP optimization problem.
 
         Parameters
         ----------
         pars : DMStruct, dict[str, array_like], optional
-            Dictionary or structure containing, for each parameter in the NLP 
-            scheme, the corresponding numerical value. Can be `None` if no 
+            Dictionary or structure containing, for each parameter in the NLP
+            scheme, the corresponding numerical value. Can be `None` if no
             parameters are present.
         vals0 : DMStruct, dict[str, array_like], optional
             Dictionary or structure containing, for each variable in the NLP
-            scheme, the corresponding initial guess. By default, initial 
+            scheme, the corresponding initial guess. By default, initial
             guesses are not passed to the solver.
 
         Returns
@@ -430,7 +430,7 @@ class Nlp:
         Raises
         ------
         RuntimeError
-            Raises if the solver is un-initialized (see `init_solver`); or if 
+            Raises if the solver is un-initialized (see `init_solver`); or if
             not all the parameters are not provided with a numerical value.
         '''
         if pars is None:

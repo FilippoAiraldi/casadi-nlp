@@ -7,8 +7,8 @@ NlpType = TypeVar('NlpType', bound=Nlp)
 
 class Wrapper(Generic[NlpType]):
     '''
-    Wraps an NLP to allow a modular transformation of its methods. This class 
-    is the base class for all wrappers. The subclass could override some 
+    Wraps an NLP to allow a modular transformation of its methods. This class
+    is the base class for all wrappers. The subclass could override some
     methods to change the behavior of the original environment without touching
     the original code.
     '''

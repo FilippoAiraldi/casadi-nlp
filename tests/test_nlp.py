@@ -380,5 +380,6 @@ class TestNlp(unittest.TestCase):
                 np.testing.assert_allclose(val2, val3, atol=1e-9)
                 np.testing.assert_allclose(val3, val4, atol=1e-9)
 
+
 if __name__ == '__main__':
     unittest.main()
