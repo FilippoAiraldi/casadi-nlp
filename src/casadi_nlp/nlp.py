@@ -27,6 +27,7 @@ class Nlp:
     def __init__(
         self,
         sym_type: Literal['SX', 'MX'] = 'SX',
+        remove_reduntant_x_bounds: bool = True,
         name: Optional[str] = None,
         seed: Optional[int] = None
     ) -> None:
@@ -37,6 +38,10 @@ class Nlp:
         sym_type : 'SX' or 'MX', optional
             The CasADi symbolic variable type to use in the NLP, by default
             'SX'.
+        remove_reduntant_x_bounds : bool, optional
+            If `True`, then redundant entries in `lbx` and `ubx` are removed
+            when properties `h_lbx` and `h_ubx` are called. See these two 
+            properties for more details. By default, `True`.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
         seed : int, optional
@@ -67,6 +72,8 @@ class Nlp:
         self._debug = NlpDebug()
         self._seed = seed
         self._np_random: Optional[npy.random.Generator] = None
+        
+        self.remove_reduntant_x_bounds = remove_reduntant_x_bounds
 
     @property
     def unwrapped(self) -> 'Nlp':
@@ -217,6 +224,34 @@ class Nlp:
         '''Gets the constraints of the NLP scheme.'''
         return dict2struct(self._cons)
 
+    @cached_property
+    def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        '''Gets the inequalities due to `lbx` and their multipliers. If
+        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
+        `lbx == -inf`; otherwise, returns all lower bound constraints.'''
+        if self.remove_reduntant_x_bounds:
+            idx = npy.where(self._lbx != -npy.inf)[0]
+        else:
+            idx = npy.arange(self.nx)
+        if idx.size == 0:
+            return self._csXX(), self._csXX()
+        h = self._lbx[idx, None] - self._x[idx]
+        return h, self._lam_lbx[idx]
+
+    @cached_property
+    def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        '''Gets the inequalities due to `ubx` and their multipliers. If
+        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
+        `ubx == +inf`; otherwise, returns all upper bound constraints.'''
+        if self.remove_reduntant_x_bounds:
+            idx = npy.where(self._ubx != npy.inf)[0]
+        else:
+            idx = npy.arange(self.nx)
+        if idx.size == 0:
+            return self._csXX(), self._csXX()
+        h = self._x[idx] - self._ubx[idx, None]
+        return h, self._lam_ubx[idx]
+
     @cached_property_reset(parameters)
     def parameter(
         self,
@@ -250,7 +285,7 @@ class Nlp:
         self._debug.register('p', name, shape)
         return par
 
-    @cached_property_reset(variables, dual_variables)
+    @cached_property_reset(variables, dual_variables, h_lbx, h_ubx)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),

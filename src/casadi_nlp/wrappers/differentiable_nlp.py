@@ -59,10 +59,6 @@ class DifferentiableNlp(Wrapper[NlpType]):
         ----------
         nlp : NlpType
             The NLP problem to be wrapped.
-        simplify_x_bounds : bool, optional
-            If `True`, then redundant entries in `lbx` and `ubx` are removed;
-            see properties `h_lbx` and `h_ubx` for more details. By default,
-            `True`.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
             represents the barrier function of the interior-point solver.
@@ -74,38 +70,10 @@ class DifferentiableNlp(Wrapper[NlpType]):
         self.include_barrier_term = include_barrier_term
 
     @cached_property
-    def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `lbx` and their multipliers. If
-        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
-        `lbx == -inf`; otherwise, returns all lower bound constraints.'''
-        if self.remove_reduntant_x_bounds:
-            idx = np.where(self.nlp._lbx != -np.inf)[0]
-        else:
-            idx = np.arange(self.nlp.nx)
-        if idx.size == 0:
-            return self.nlp._csXX(), self.nlp._csXX()
-        h = self.nlp._lbx[idx, None] - self.nlp._x[idx]
-        return h, self.nlp._lam_lbx[idx]
-
-    @cached_property
-    def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        '''Gets the inequalities due to `ubx` and their multipliers. If
-        `simplify_x_bounds=True`, it removes redundant entries, i.e., where
-        `ubx == +inf`; otherwise, returns all upper bound constraints.'''
-        if self.remove_reduntant_x_bounds:
-            idx = np.where(self.nlp._ubx != np.inf)[0]
-        else:
-            idx = np.arange(self.nlp.nx)
-        if idx.size == 0:
-            return self.nlp._csXX(), self.nlp._csXX()
-        h = self.nlp._x[idx] - self.nlp._ubx[idx, None]
-        return h, self.nlp._lam_ubx[idx]
-
-    @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
         '''Gets the Lagrangian of the NLP problem (usually, `L`).'''
-        h_lbx, lam_h_lbx = self.h_lbx
-        h_ubx, lam_h_ubx = self.h_ubx
+        h_lbx, lam_h_lbx = self.nlp.h_lbx
+        h_ubx, lam_h_ubx = self.nlp.h_ubx
         return (self.nlp._f +
                 cs.dot(self.nlp._lam_g, self.nlp._g) +
                 cs.dot(self.nlp._lam_h, self.nlp._h) +
@@ -213,7 +181,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         )
 
     @cached_property_reset(
-        h_lbx, h_ubx, lagrangian, dual_variables, primal_dual_variables, kkt)
+        lagrangian, dual_variables, primal_dual_variables, kkt)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
