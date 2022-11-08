@@ -1,4 +1,4 @@
-from typing import Tuple, Union, Optional
+from typing import Dict, Tuple, Union, Optional
 import casadi as cs
 import numpy as np
 from casadi_nlp.nlp import _DUAL_VARIABLES_ORDER
@@ -91,6 +91,23 @@ class DifferentiableNlp(Wrapper[NlpType]):
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
         return kkt, (tau if self.include_barrier_term else None)
 
+    @cached_property
+    def derivatives(self) -> Dict[str, Union[cs.SX, cs.MX]]:
+        '''Computes various partial derivatives, which are then grouped in a
+        dict with the following entries
+            - dLdp: derivative of the lagrangian w.r.t. parameters
+            - dKdp: derivative of the kkt conditions w.r.t. parameters
+            - dKdy: derivative of the kkt conditions w.r.t. primal-dual vars
+        '''
+        # in case of MX, jacobians throw if the MX are indexed (no more 
+        # symbolical according to the exception)
+        K = self.kkt[0]
+        return {
+            'dLdp': cs.jacobian(K, self.nlp._p),
+            'dKdp': cs.jacobian(K, self.nlp._p),
+            'dKdy': cs.jacobian(K, self.nlp.primal_dual_vars),
+        }
+
     def parametric_sensitivity(
         self,
         solution: Optional[Solution] = None
@@ -125,24 +142,26 @@ class DifferentiableNlp(Wrapper[NlpType]):
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
-        K = self.kkt[0]
-        # next line throws with MX if one of the variables is indexed
-        dKdy = cs.jacobian(K, self.nlp.primal_dual_vars)
-        dKdp = cs.jacobian(K, self.nlp._p)
+        dKdy = self.derivatives['dKdy']
+        dKdp = self.derivatives['dKdp']
         return (
             (-cs.inv(dKdy) @ dKdp)
             if solution is None else
             (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
         )
 
-    @cache_clearer(lagrangian, kkt)
+    @cache_clearer(derivatives)
+    def parameter(self, *args, **kwargs):
+        return self.nlp.parameter(*args, **kwargs)
+
+    @cache_clearer(lagrangian, kkt, derivatives)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt)
+    @cache_clearer(lagrangian, kkt, derivatives)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt)
+    @cache_clearer(lagrangian, kkt, derivatives)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
