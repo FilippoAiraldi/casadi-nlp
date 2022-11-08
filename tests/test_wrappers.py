@@ -1,20 +1,18 @@
+from casadi_nlp.solutions import subsevalf
+from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
+from casadi_nlp import Nlp
 import unittest
 import casadi as cs
 import numpy as np
 np.set_printoptions(precision=3)
-from casadi_nlp import Nlp
-from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
-from casadi_nlp.solutions import subsevalf
 
 
 OPTS = {
     'expand': True, 'print_time': False,
     'ipopt': {
         'max_iter': 500,
-        'tol': 1e-5,
-        'barrier_tol_factor': 1,
-        'mu_strategy': 'adaptive',
-        'mu_min': 1e-3,        
+        'tol': 1e-7,
+        'barrier_tol_factor': 5,
         'sb': 'yes',
         # for debugging
         'print_level': 0,
@@ -40,7 +38,7 @@ class TestDifferentiableNlp(unittest.TestCase):
             x1, lam_lbx1, lam_ubx1 = nlp.variable('x1', (2, 1))
             (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
             if flag:
-                self.assertTrue(all(o.is_empty() 
+                self.assertTrue(all(o.is_empty()
                                 for o in [h_lbx, lam_lbx, h_ubx, lam_ubx]))
             else:
                 np.testing.assert_allclose(cs.evalf(h_lbx - (-np.inf - x1)), 0)
@@ -63,7 +61,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                     h_ubx - cs.vertcat(x1 - np.inf, x2 - np.inf)), 0)
                 np.testing.assert_allclose(cs.evalf(
                     lam_ubx - cs.vertcat(lam_ubx1, lam_ubx2)), 0)
-            
+
             x3, lam_lbx3, lam_ubx3 = nlp.variable('x3', (2, 1), ub=1)
             (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
             if flag:
@@ -174,7 +172,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         _, lam_h = nlp.constraint('c2', x[0, :] + x[1, :]**2, '<=', 2)
         self.assertTrue(cs.is_equal(
             nlp.dual_variables,
-            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h), 
+            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h),
                        cs.vec(lam_lbx), cs.vec(lam_ubx))
         ))
         self.assertTrue(cs.is_equal(
@@ -182,7 +180,7 @@ class TestDifferentiableNlp(unittest.TestCase):
             cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
                        cs.vec(lam_lbx), cs.vec(lam_ubx))
         ))
-        
+
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):
@@ -241,7 +239,7 @@ class TestDifferentiableNlp(unittest.TestCase):
             sol = nlp.solve(vals0={'p': np.random.rand(n)})
             kkt, _ = nlp.kkt
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
-            
+
     def test_kkt__computes_kkt_conditions_correctly__example_4(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
         for sym_type in ('SX', 'MX'):
@@ -266,6 +264,40 @@ class TestDifferentiableNlp(unittest.TestCase):
             kkt, tau = nlp.kkt
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
+
+    def test_kkt__computes_sensitivity_correctly__example_7(self):
+        #  Example 4.2 from [1]
+        #
+        # References
+        # ----------
+        # [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and
+        #     real-time optimization of parametric nonlinear programming
+        #     problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
+        #     Online Optimization of Large Scale Systems, 3–16. Springer,
+        #     Berlin, Heidelberg.
+        for sym_type in ('SX', 'MX'):
+            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            z = nlp.variable('z', (2, 1))[0]
+            p = nlp.parameter('p')
+            nlp.minimize(-((0.5 + p) * cs.sqrt(z[0]) + (0.5 - p) * z[1]))
+            c, lam = nlp.constraint('c1', cs.sum1(z), '<=', 1)
+            nlp.constraint('c2', z[0], '>=', 0.1)
+            nlp.init_solver(OPTS)
+            sol = nlp.solve(pars={'p': 0}, vals0={'z': [0.1, 0.9]})
+
+            np.testing.assert_allclose(
+                sol.vals['z'], [[0.25], [0.75]], rtol=1e-5)
+            np.testing.assert_allclose(sol.value(lam), 0.5)
+
+            kkt, tau = nlp.kkt
+            kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
+            np.testing.assert_allclose(sol.value(cs.jacobian(c, z)), [[1, 1]])
+
+            S1 = sol.value(nlp.parametric_sensitivity()).full().flatten()
+            S2 = nlp.parametric_sensitivity(solution=sol).flatten()
+            np.testing.assert_allclose(S1, [2, -2, -1, 0], atol=1e-5)
+            np.testing.assert_allclose(S2, [2, -2, -1, 0], atol=1e-5)
 
 
 if __name__ == '__main__':
