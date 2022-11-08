@@ -40,7 +40,7 @@ class Nlp:
             'SX'.
         remove_reduntant_x_bounds : bool, optional
             If `True`, then redundant entries in `lbx` and `ubx` are removed
-            when properties `h_lbx` and `h_ubx` are called. See these two 
+            when properties `h_lbx` and `h_ubx` are called. See these two
             properties for more details. By default, `True`.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
@@ -72,7 +72,7 @@ class Nlp:
         self._debug = NlpDebug()
         self._seed = seed
         self._np_random: Optional[npy.random.Generator] = None
-        
+
         self.remove_reduntant_x_bounds = remove_reduntant_x_bounds
 
     @property
