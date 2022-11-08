@@ -105,8 +105,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                 self.assertIsInstance(tau, nlp._csXX)
             else:
                 self.assertIsNone(tau)
-            
-            
+                
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):

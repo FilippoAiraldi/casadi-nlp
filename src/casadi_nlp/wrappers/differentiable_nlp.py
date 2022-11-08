@@ -39,6 +39,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         '''
         super().__init__(nlp)
         self.include_barrier_term = include_barrier_term
+        self._tau = self.nlp._csXX.sym('tau') if include_barrier_term else 0
 
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
@@ -77,19 +78,18 @@ class DifferentiableNlp(Wrapper[NlpType]):
         Note: The order of the KKT conditions can be adjusted via the
         `_PRIMAL_DUAL_ORDER` dict.
         '''
-        tau = self.nlp._csXX.sym('tau') if self.include_barrier_term else 0
         items = {
             'g': self.nlp._g,
-            'h': (self.nlp._lam_h * self.nlp._h) + tau,
-            'h_lbx': (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + tau,
-            'h_ubx': ((self.nlp.h_ubx[0] * self.nlp.h_ubx[1])) + tau
+            'h': (self.nlp._lam_h * self.nlp._h) + self._tau,
+            'h_lbx': (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
+            'h_ubx': (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau
         }
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp._x).T,
             *(items.pop(v) for v in _DUAL_VARIABLES_ORDER)
         )
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
-        return kkt, (tau if self.include_barrier_term else None)
+        return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property
     def derivatives(self) -> Dict[str, Union[cs.SX, cs.MX]]:
@@ -99,7 +99,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
             - dKdp: derivative of the kkt conditions w.r.t. parameters
             - dKdy: derivative of the kkt conditions w.r.t. primal-dual vars
         '''
-        # in case of MX, jacobians throw if the MX are indexed (no more 
+        # in case of MX, jacobians throw if the MX are indexed (no more
         # symbolical according to the exception)
         K = self.kkt[0]
         return {
