@@ -1,4 +1,5 @@
 import unittest
+import math
 import casadi as cs
 import numpy as np
 from scipy.stats import norm
@@ -7,6 +8,12 @@ from casadi_nlp.solutions import subsevalf
 
 
 class TestMath(unittest.TestCase):
+    def test_log(self):
+        base = np.random.rand() * 10
+        x = np.random.rand() * 10
+        self.assertEqual(csmath.log(x), math.log(x))
+        self.assertEqual(csmath.log(x, base), math.log(x, base))
+
     def test_prod(self):
         shape = (4, 5)
         for ax in (-2, -1, 0, 1, None):

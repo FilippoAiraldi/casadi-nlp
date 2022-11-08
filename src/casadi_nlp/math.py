@@ -6,6 +6,29 @@ import casadi as cs
 SQRT2 = math.sqrt(2)
 
 
+def log(
+    x: Union[cs.SX, cs.MX, cs.DM],
+    base: Union[None, cs.SX, cs.MX, cs.DM] = None
+) -> Union[cs.SX, cs.MX, cs.DM]:
+    '''Logarithm. With one argument, return the natural logarithm of `x` (to
+    base `e`). With two arguments, return the logarithm of x to the given base,
+    calculated as `log(x) / log(base)`.
+
+    Parameters
+    ----------
+    x : Union[cs.SX, cs.MX, cs.DM]
+        Value to compute the logarithm of.
+    base : Union[None, cs.SX, cs.MX, cs.DM], optional
+        Base of the logarithm, by default None
+
+    Returns
+    -------
+    Union[cs.SX, cs.MX, cs.DM]
+        The logarithm. of `x` with base `base`.
+    '''
+    return cs.log(x) if base is None else cs.log(x) / cs.log(base)
+
+
 def prod(
     x: Union[cs.SX, cs.MX, cs.DM],
     axis: Optional[int] = None
