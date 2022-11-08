@@ -1,8 +1,8 @@
 from functools import cached_property, wraps
-from typing import Any, Callable, Dict, Tuple, Union, Optional
+from typing import Any, Callable, Dict, Tuple, Union, Optional, Literal
 import numpy as np
 import casadi as cs
-from casadi.tools import struct_symSX, entry
+from casadi.tools import struct_symSX, struct_SX, entry
 from casadi.tools.structure3 import DMStruct
 
 
@@ -71,8 +71,9 @@ def cache_clearer(*properties: cached_property) -> Callable:
 
 
 def dict2struct(
-    dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]]
-) -> Union[DMStruct, struct_symSX, Dict[str, cs.MX]]:
+    dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]],
+    entry_type: Literal['sym', 'expr'] = 'sym'
+) -> Union[DMStruct, struct_symSX, struct_SX, Dict[str, cs.MX]]:
     '''Attempts to convert a dictionary of CasADi matrices to a struct. The
     algorithm is inferred from the type of the first element of `dict`:
      - if `DM`, then a numerical `DMStruct` is returned
@@ -84,10 +85,12 @@ def dict2struct(
     ----------
     dict : Dict[str, Union[cs.DM, cs.SX, cs.MX]]
         Dictionary of names and their corresponding symbolic variables.
+    entry_type : 'sym', 'expr'
+        SX struct entry type. By default, `'sym'`.
 
     Returns
     -------
-    Union[DMStruct, struct_symSX, Dict[str, cs.MX]]
+    Union[DMStruct, struct_symSX, struct_SX, Dict[str, cs.MX]]
         Either a structure generated from `dict`, or a copy of `dict` itself.
     '''
 
@@ -97,7 +100,9 @@ def dict2struct(
             entry(name, shape=p.shape) for name, p in dict.items()])
         return dummy(cs.vertcat(*map(cs.vec, dict.values())))
     elif isinstance(o, cs.SX):
-        return struct_symSX([entry(name, sym=p) for name, p in dict.items()])
+        struct = struct_symSX if entry_type == 'sym' else struct_SX
+        return struct([
+            entry(name, **{entry_type: p}) for name, p in dict.items()])
     else:
         return dict.copy()
 

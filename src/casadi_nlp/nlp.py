@@ -226,7 +226,7 @@ class Nlp:
     @cached_property
     def constraints(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the constraints of the NLP scheme.'''
-        return dict2struct(self._cons)
+        return dict2struct(self._cons, entry_type='expr')
 
     @cached_property
     def lam(self) -> Union[cs.SX, cs.MX]:
