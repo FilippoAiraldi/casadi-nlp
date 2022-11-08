@@ -248,6 +248,22 @@ class TestNlp(unittest.TestCase):
                     subsevalf(expected_lam, lams, lams_),
                 )
 
+    def test_primal_dual_variables__returns_correctly(self):
+        nlp = Nlp(sym_type='SX')
+        x, lam_lbx, lam_ubx = nlp.variable('x', (2, 3), lb=0, ub=1)
+        _, lam_g = nlp.constraint('c1', x[:, 0], '==', 2)
+        _, lam_h = nlp.constraint('c2', x[0, :] + x[1, :]**2, '<=', 2)
+        self.assertTrue(cs.is_equal(
+            nlp.lam,
+            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h),
+                       cs.vec(lam_lbx), cs.vec(lam_ubx))
+        ))
+        self.assertTrue(cs.is_equal(
+            nlp.primal_dual_vars,
+            cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
+                       cs.vec(lam_lbx), cs.vec(lam_ubx))
+        ))
+
     def test_h_lbx_ubx__returns_correct_indices(self):
         for flag in (True, False):
             nlp = Nlp(sym_type='SX', remove_reduntant_x_bounds=flag)

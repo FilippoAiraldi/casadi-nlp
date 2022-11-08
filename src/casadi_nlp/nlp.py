@@ -230,7 +230,10 @@ class Nlp:
 
     @cached_property
     def lam(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the dual variables of the NLP scheme in vector form.'''
+        '''Gets the dual variables of the NLP scheme in vector form.
+
+        Note: The order of the dual variables can be adjusted via
+        `_DUAL_VARIABLES_ORDER`.'''
         items = {
             'g': self._lam_g,
             'h': self._lam_h,
@@ -240,6 +243,19 @@ class Nlp:
         args = [items.pop(v) for v in _DUAL_VARIABLES_ORDER]
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
         return cs.vertcat(*args)
+
+    @property
+    def primal_dual_vars(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the collection of primal-dual variables (usually, denoted as
+        `y`)
+        ```
+                    y = [x^T, lam^T]^T
+        ```
+        where `x` are the primal variables, and `lam` the dual variables.
+
+        Note: The order of the dual variables can be adjusted via
+        `_DUAL_VARIABLES_ORDER`.'''
+        return cs.vertcat(self._x, self.lam)
 
     @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:

@@ -81,27 +81,6 @@ class DifferentiableNlp(Wrapper[NlpType]):
                 cs.dot(lam_h_ubx, h_ubx))
 
     @cached_property
-    def dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of dual variables (usually, `lam`).
-
-        Note: The order of the dual variables can be adjusted via the
-        `_PRIMAL_DUAL_ORDER` dict.'''
-        return cs.vertcat(*(f[0](self) for n, f in _PRIMAL_DUAL_ORDER.items()
-                            if n != 'x'))
-
-    @cached_property
-    def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of primal-dual variables (usually, `y`).
-        ```
-                    y = [x', lam']'
-        ```
-        where `x` are the primal variables, and `lam` the dual variables.
-
-        Note: The order of the primal-dual variables can be adjusted via the
-        `_PRIMAL_DUAL_ORDER` dict.'''
-        return cs.vertcat(*(f[0](self) for f in _PRIMAL_DUAL_ORDER.values()))
-
-    @cached_property
     def kkt(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
@@ -172,7 +151,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         '''
         K = self.kkt[0]
         # next line throws with MX if one of the variables is indexed
-        dKdy = cs.jacobian(K, self.primal_dual_variables)
+        dKdy = cs.jacobian(K, self.nlp.primal_dual_vars)
         dKdp = cs.jacobian(K, self.nlp._p)
         return (
             (-cs.inv(dKdy) @ dKdp)
@@ -180,13 +159,11 @@ class DifferentiableNlp(Wrapper[NlpType]):
             (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
         )
 
-    @cached_property_reset(
-        lagrangian, dual_variables, primal_dual_variables, kkt)
+    @cached_property_reset(lagrangian, kkt)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cached_property_reset(
-        lagrangian, dual_variables, primal_dual_variables, kkt)
+    @cached_property_reset(lagrangian, kkt)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 

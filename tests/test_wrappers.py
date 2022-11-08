@@ -92,22 +92,6 @@ class TestDifferentiableNlp(unittest.TestCase):
                           [x_, lam_lbx_, lam_ubx_, lam_h_])
             )
 
-    def test_primal_dual_variables__returns_correctly(self):
-        nlp = DifferentiableNlp(Nlp(sym_type='SX'))
-        x, lam_lbx, lam_ubx = nlp.variable('x', (2, 3), lb=0, ub=1)
-        _, lam_g = nlp.constraint('c1', x[:, 0], '==', 2)
-        _, lam_h = nlp.constraint('c2', x[0, :] + x[1, :]**2, '<=', 2)
-        self.assertTrue(cs.is_equal(
-            nlp.dual_variables,
-            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h),
-                       cs.vec(lam_lbx), cs.vec(lam_ubx))
-        ))
-        self.assertTrue(cs.is_equal(
-            nlp.primal_dual_variables,
-            cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
-                       cs.vec(lam_lbx), cs.vec(lam_ubx))
-        ))
-
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):
