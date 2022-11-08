@@ -208,7 +208,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                 'y': np.sqrt(1 - 0.5**2)
             })
             kkt, _ = nlp.kkt
-            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_2(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
@@ -224,7 +224,7 @@ class TestDifferentiableNlp(unittest.TestCase):
                 'y': -0.8
             })
             kkt, _ = nlp.kkt
-            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
@@ -237,8 +237,9 @@ class TestDifferentiableNlp(unittest.TestCase):
             nlp.minimize(cs.sum1(p * log2(p)))
             nlp.init_solver(OPTS)
             sol = nlp.solve(vals0={'p': np.random.rand(n)})
-            kkt, _ = nlp.kkt
-            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+            kkt, tau = nlp.kkt
+            kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_4(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
@@ -250,7 +251,7 @@ class TestDifferentiableNlp(unittest.TestCase):
             nlp.init_solver(OPTS)
             sol = nlp.solve(vals0={'x': 1 + 0.1 * np.random.rand()})
             kkt, _ = nlp.kkt
-            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
+            np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
