@@ -48,6 +48,7 @@ class Nlp:
         self._csXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
 
         self._vars: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._dual_vars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._cons: Dict[str, Union[cs.SX, cs.MX]] = {}
 
@@ -203,8 +204,13 @@ class Nlp:
 
     @cached_property
     def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
-        '''Gets the variables of the NLP scheme.'''
+        '''Gets the primal variables of the NLP scheme.'''
         return dict2struct(self._vars)
+
+    @cached_property
+    def dual_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the dual variables of the NLP scheme.'''
+        return dict2struct(self._dual_vars)
 
     @cached_property
     def constraints(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -244,7 +250,7 @@ class Nlp:
         self._debug.register('p', name, shape)
         return par
 
-    @cached_property_reset(variables)
+    @cached_property_reset(variables, dual_variables)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),
@@ -294,13 +300,18 @@ class Nlp:
         self._ubx = npy.concatenate((self._ubx, ub.flatten('F')))
         self._debug.register('x', name, shape)
 
-        lam_lb = self._csXX.sym(f'lam_lb_{name}', *shape)
+        name_lam = f'lam_lb_{name}'
+        lam_lb = self._csXX.sym(name_lam, *shape)
+        self._dual_vars[name_lam] = lam_lb
         self._lam_lbx = cs.vertcat(self._lam_lbx, cs.vec(lam_lb))
-        lam_ub = self._csXX.sym(f'lam_ub_{name}', *shape)
+        name_lam = f'lam_ub_{name}'
+        lam_ub = self._csXX.sym(name_lam, *shape)
+        self._dual_vars[name_lam] = lam_ub
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
+
         return var, lam_lb, lam_ub
 
-    @cached_property_reset(constraints)
+    @cached_property_reset(constraints, dual_variables, lam)
     def constraint(
         self,
         name: str,
@@ -366,11 +377,15 @@ class Nlp:
         group, con, lam = \
             ('_g', '_lbg', '_lam_g') if is_eq else ('_h', '_lbh', '_lam_h')
         self._debug.register(group[1:], name, shape)
-        lam_sym = self._csXX.sym(f'{lam[1:]}_{name}', *shape)
+        name_lam = f'{lam[1:]}_{name}'
+        lam_c = self._csXX.sym(name_lam, *shape)
+        self._dual_vars[name_lam] = lam_c
+
         setattr(self, group, cs.vertcat(getattr(self, group), cs.vec(expr)))
         setattr(self, con, npy.concatenate((getattr(self, con), lb)))
-        setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_sym)))
-        return expr, lam_sym
+        setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_c)))
+
+        return expr, lam_c
 
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
         '''Sets the objective function to be minimized.

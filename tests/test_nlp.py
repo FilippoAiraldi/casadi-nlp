@@ -112,6 +112,14 @@ class TestNlp(unittest.TestCase):
 
             self.assertTrue(cs.is_equal(nlp.variables['x1'], x1))
             self.assertTrue(cs.is_equal(nlp.variables['x2'], x2))
+            self.assertTrue(cs.is_equal(
+                nlp.dual_variables['lam_lb_x1'], lam1_lb))
+            self.assertTrue(cs.is_equal(
+                nlp.dual_variables['lam_ub_x1'], lam1_ub))
+            self.assertTrue(cs.is_equal(
+                nlp.dual_variables['lam_lb_x2'], lam2_lb))
+            self.assertTrue(cs.is_equal(
+                nlp.dual_variables['lam_ub_x2'], lam2_ub))
 
     def test_variable__raises__with_variables_with_same_name(self):
         for sym_type in ('SX', 'MX'):
