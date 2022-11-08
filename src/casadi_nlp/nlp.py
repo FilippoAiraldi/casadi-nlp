@@ -469,14 +469,16 @@ class Nlp:
             raise ValueError('Objective must be scalar.')
         self._f = objective
 
-    def init_solver(self, opts: Dict[str, Any]) -> None:
+    def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
         '''Initializes the IPOPT solver for this NLP with the given options.
 
         Parameters
         ----------
-        opts : Dict[str, Any]
+        opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
         '''
+        if opts is None:
+            opts = {}
         opts = opts.copy()
         con = cs.vertcat(self._g, self._h)
         nlp = {'x': self._x, 'p': self._p, 'g': con, 'f': self._f}
