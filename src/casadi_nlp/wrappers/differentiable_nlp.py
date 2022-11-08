@@ -112,6 +112,12 @@ class DifferentiableNlp(Wrapper[NlpType]):
                 cs.dot(lam_h_ubx, h_ubx))
 
     @cached_property
+    def dual_variables(self) -> Union[cs.SX, cs.MX]:
+        '''Gets the collection of dual variables.'''
+        return cs.vertcat(*(f[0](self) for n, f in _PRIMAL_DUAL_ORDER.items() 
+                            if n != 'x'))
+
+    @cached_property
     def primal_dual_variables(self) -> Union[cs.SX, cs.MX]:
         '''Gets the collection of primal-dual variables.'''
         return cs.vertcat(*(f[0](self) for f in _PRIMAL_DUAL_ORDER.values()))
@@ -149,11 +155,12 @@ class DifferentiableNlp(Wrapper[NlpType]):
         return kkt, tau
 
     @cached_property_reset(
-        h_lbx, h_ubx, lagrangian, primal_dual_variables, kkt)
+        h_lbx, h_ubx, lagrangian, dual_variables, primal_dual_variables, kkt)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cached_property_reset(lagrangian, primal_dual_variables, kkt)
+    @cached_property_reset(
+        lagrangian, dual_variables, primal_dual_variables, kkt)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 

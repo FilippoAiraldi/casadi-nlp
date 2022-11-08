@@ -155,9 +155,14 @@ class TestDifferentiableNlp(unittest.TestCase):
         _, lam_g = nlp.constraint('c1', x[:, 0], '==', 2)
         _, lam_h = nlp.constraint('c2', x[0, :] + x[1, :]**2, '<=', 2)
         self.assertTrue(cs.is_equal(
+            nlp.dual_variables,
+            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h), 
+                       cs.vec(lam_lbx), cs.vec(lam_ubx))
+        ))
+        self.assertTrue(cs.is_equal(
             nlp.primal_dual_variables,
             cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
-                        cs.vec(lam_lbx), cs.vec(lam_ubx))
+                       cs.vec(lam_lbx), cs.vec(lam_ubx))
         ))
 
 
