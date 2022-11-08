@@ -312,6 +312,9 @@ class Nlp:
         self._pars[name] = par
         self._p = cs.vertcat(self._p, cs.vec(par))
         self._debug.register('p', name, shape)
+        
+        if self._solver is not None:  
+            self.init_solver(self._solver_opts)  # resets solver
         return par
 
     @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam)
@@ -372,7 +375,9 @@ class Nlp:
         lam_ub = self._csXX.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_ub
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
-
+        
+        if self._solver is not None:  
+            self.init_solver(self._solver_opts)  # resets solver
         return var, lam_lb, lam_ub
 
     @cache_clearer(constraints, dual_variables, lam)
@@ -449,6 +454,8 @@ class Nlp:
         setattr(self, con, npy.concatenate((getattr(self, con), lb)))
         setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_c)))
 
+        if self._solver is not None:  
+            self.init_solver(self._solver_opts)  # resets solver
         return expr, lam_c
 
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
@@ -468,6 +475,8 @@ class Nlp:
         if objective.shape != (1, 1):
             raise ValueError('Objective must be scalar.')
         self._f = objective
+        if self._solver is not None:  
+            self.init_solver(self._solver_opts)  # resets solver
 
     def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
         '''Initializes the IPOPT solver for this NLP with the given options.
@@ -516,7 +525,7 @@ class Nlp:
         '''
         if pars is None:
             pars = {}
-        if self.solver is None:
+        if self._solver is None:
             raise RuntimeError('Solver uninitialized.')
         parsdiff = self._pars.keys() - pars.keys()
         if len(parsdiff) != 0:
@@ -534,7 +543,7 @@ class Nlp:
         }
         if vals0 is not None:
             kwargs['x0'] = subsevalf(self._x, self._vars, vals0)
-        sol: Dict[str, cs.DM] = self.solver(**kwargs)
+        sol: Dict[str, cs.DM] = self._solver(**kwargs)
 
         # extract lam_x, lam_g and lam_h
         lam_lbx = -cs.fmin(sol['lam_x'], 0)
@@ -558,13 +567,13 @@ class Nlp:
             f=float(sol['f']),
             vars=vars_,
             vals=vals,
-            stats=self.solver.stats().copy(),
+            stats=self._solver.stats().copy(),
             _get_value=get_value
         )
 
     def __str__(self) -> str:
         '''Returns the NLP name and a short description.'''
-        msg = 'not initialized' if self.solver is None else 'initialized'
+        msg = 'not initialized' if self._solver is None else 'initialized'
         C = len(self._cons)
         return f'{type(self).__name__} {{\n' \
                f'  name: {self.name}\n' \
