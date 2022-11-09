@@ -5,7 +5,7 @@ from typing import Dict
 import casadi as cs
 import numpy as np
 from casadi_nlp.util import (
-    is_casadi_object, cache_clearer,
+    hojacobian, is_casadi_object, cache_clearer,
     dict2struct, struct_symSX, DMStruct,
     np_random,
     cs2array
@@ -146,11 +146,34 @@ class TestUtil(unittest.TestCase):
 
     def test_cs2array__converts_properly(self):
         for sym_type, shape in product(
-            [cs.SX, cs.MX], [(1, 1), (3, 1), (1, 3), (3, 3)]):
-            x = sym_type.sym('x', shape)
+                [cs.SX, cs.MX], [(1, 1), (3, 1), (1, 3), (3, 3)]):
+            x = sym_type.sym('x', *shape)
             a = cs2array(x)
             for i in np.ndindex(shape):
-                self.assertTrue(cs.is_equal(x[i], a[i]))
+                if sym_type is cs.SX:
+                    self.assertTrue(cs.is_equal(x[i], a[i]))
+                else:
+                    x_ = cs.DM(np.random.rand(*x.shape))
+                    o = cs.evalf(cs.substitute(x[i] - a[i], x, x_))
+                    np.testing.assert_allclose(o, 0, atol=1e-9)
+
+    def test_hojacobian__computes_right_derivatives(self):
+        for shape in [(2, 2), (3, 1), (1, 3)]:
+            x = cs.SX.sym('x', *shape)
+            y = (
+                (x.reshape((-1, 1)) @ x.reshape((1, -1)) +
+                    (x.T if x.is_row() else x))
+                if x.is_vector() else
+                (x * x.T - x)
+            )
+            J = hojacobian(y, x)
+            self.assertEqual(J.ndim, 4)
+            for index in np.ndindex(J.shape):
+                x_ = np.random.randn(*x.shape)
+                idx1, idx2 = index[:2], index[2:]
+                o = cs.evalf(cs.substitute(
+                    J[index] - cs.jacobian(y[idx1], x[idx2]), x, x_))
+                np.testing.assert_allclose(o, 0, atol=1e-9)
 
 
 if __name__ == '__main__':
