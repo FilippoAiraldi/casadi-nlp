@@ -1,10 +1,11 @@
-from typing import Dict, Tuple, Union, Optional
+from typing import Dict, Literal, Tuple, Union, Optional
 import casadi as cs
 import numpy as np
 from casadi_nlp.nlp import _DUAL_VARIABLES_ORDER
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.solutions import Solution
-from casadi_nlp.util import cached_property, cache_clearer
+from casadi_nlp.util import \
+    cached_property, cache_clearer, hojacobian, cs2array
 
 
 class DifferentiableNlp(Wrapper[NlpType]):
@@ -129,6 +130,22 @@ class DifferentiableNlp(Wrapper[NlpType]):
             'L-px': Lpx,
         }
 
+    @cached_property
+    def hoderivatives(self) -> Dict[str, np.ndarray]:
+        '''Computes various 3rd-order derivatives, which are then grouped in a
+        dict with the following entries
+            - `K-pp`: kkt conditions w.r.t. parameters (twice)
+        '''
+        jacobians = self.jacobians
+        Kp = jacobians['K-p']
+        Ky = jacobians['K-y']
+        return {
+            'K-pp': hojacobian(Kp, self.nlp._p).squeeze(),
+            'K-py': hojacobian(Kp, self.nlp.primal_dual_vars).squeeze(),
+            'K-yp': hojacobian(Ky, self.nlp._p).squeeze(),
+            'K-yy': hojacobian(Ky, self.nlp.primal_dual_vars).squeeze(),
+        }
+
     @property
     def licq(self) -> Union[np.ndarray, cs.SX, cs.MX]:
         '''Gets the symbolic matrix for LICQ, defined as
@@ -151,8 +168,12 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
     def parametric_sensitivity(
         self,
-        solution: Optional[Solution] = None
-    ) -> Union[np.ndarray, cs.SX, cs.MX]:
+        solution: Optional[Solution] = None,
+        order: Literal[1, 2] = 1,
+        p_index: int = None
+    ) -> Union[
+        Tuple[np.ndarray, np.ndarray], Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]
+    ]:
         '''Performs the (symbolic or numerical) sensitivity of the NLP solution
         w.r.t. its parametrization, according to [1].
 
@@ -163,6 +184,12 @@ class DifferentiableNlp(Wrapper[NlpType]):
             computed for that solution; otherwise, the sensitivity is carried
             out symbolically (however, this is much more computationally
             intensive).
+        order : 1 or 2, optional
+            Order of the sensitivity analysis. By default, first order.
+        p_index : int, optional
+            If `order==2`, then the 2nd order sensitivity analysis can be 
+            performed only on one parameter, a.k.a., the one specified by this
+            index.
 
         Returns
         -------
@@ -172,6 +199,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
 
         Raises
         ------
+        ValueError
+            Raises if `order==2` but `p_index` is None or outside bounds.
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
 
@@ -183,26 +212,55 @@ class DifferentiableNlp(Wrapper[NlpType]):
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
-        dKdy = self.jacobians['K-y']
-        dKdp = self.jacobians['K-p']
-        return (
-            (-cs.inv(dKdy) @ dKdp)
-            if solution is None else
-            (np.linalg.solve(solution.value(dKdy), -solution.value(dKdp)))
-        )
 
-    @cache_clearer(jacobians, hessians)
+        # first order sensitivity, a.k.a., dydp
+        Ky = self.jacobians['K-y']
+        Kp = self.jacobians['K-p']
+        if solution is None:
+            dydp = -cs.inv(Ky) @ Kp
+            d2ydp2 = self.nlp._csXX()  # create empty symbol
+        else:
+            A = solution.value(Ky)
+            b = -solution.value(Kp)
+            dydp = np.linalg.solve(A, b)
+            d2ydp2 = np.array([])  # create empty array
+        if order == 1:
+            return dydp, d2ydp2
+
+        # second order sensitivity, a.k.a., d2ydp2
+        if p_index is None or (p_index < 0 or p_index >= self.nlp.np):
+            raise ValueError('Invalid parameter index for 2nd order '
+                             'sensitivity analysis')
+        Kpp = self.hoderivatives['K-pp']
+        Kpy = self.hoderivatives['K-py']
+        Kyp = self.hoderivatives['K-yp']
+        Kyy = self.hoderivatives['K-yy']
+
+        dydp = dydp[:, p_index]
+        Kpp = Kpp[:, p_index, p_index]
+        Kpy = Kpy[:, p_index, :]
+        Kyp = Kyp[..., p_index]
+
+        M = (Kpy + Kyp + (Kyy @ cs2array(dydp)).squeeze()) @ dydp
+        if solution is None:
+            d2ydp2 = -cs.inv(Ky) @ (Kpp + M)
+        else:
+            b = -solution.value(Kpp + M)
+            d2ydp2 = np.linalg.solve(A, b)
+        return dydp, d2ydp2
+
+    @cache_clearer(jacobians, hessians, hoderivatives)
     def parameter(self, *args, **kwargs):
         return self.nlp.parameter(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
