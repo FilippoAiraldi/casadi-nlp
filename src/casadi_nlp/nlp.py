@@ -32,7 +32,7 @@ class Nlp:
     def __init__(
         self,
         sym_type: Literal['SX', 'MX'] = 'SX',
-        remove_reduntant_x_bounds: bool = True,
+        remove_redundant_x_bounds: bool = True,
         name: Optional[str] = None,
         seed: Optional[int] = None
     ) -> None:
@@ -43,7 +43,7 @@ class Nlp:
         sym_type : 'SX' or 'MX', optional
             The CasADi symbolic variable type to use in the NLP, by default
             'SX'.
-        remove_reduntant_x_bounds : bool, optional
+        remove_redundant_x_bounds : bool, optional
             If `True`, then redundant entries in `lbx` and `ubx` are removed
             when properties `h_lbx` and `h_ubx` are called. See these two
             properties for more details. By default, `True`.
@@ -78,7 +78,7 @@ class Nlp:
         self._seed = seed
         self._np_random: Optional[npy.random.Generator] = None
 
-        self.remove_reduntant_x_bounds = remove_reduntant_x_bounds
+        self.remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
     def unwrapped(self) -> 'Nlp':
@@ -245,25 +245,31 @@ class Nlp:
         assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
         return dual
 
-    @property
-    def primal_dual_vars(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the collection of primal-dual variables (usually, denoted as
-        `y`)
-        ```
-                    y = [x^T, lam^T]^T
-        ```
-        where `x` are the primal variables, and `lam` the dual variables.
+    @cached_property
+    def lam_all(self) -> Union[cs.SX, cs.MX]:
+        '''Gets all the dual variables of the NLP scheme in vector form,
+        irrespective of redundant `lbx` and `ubx` multipliers. If 
+        `remove_redundant_x_bounds`, then this property is equivalent to 
+        the `lam` property. 
 
         Note: The order of the dual variables can be adjusted via
         `_DUAL_VARIABLES_ORDER`.'''
-        return cs.vertcat(self._x, self.lam)
+        items = {
+            'g': self._lam_g,
+            'h': self._lam_h,
+            'h_lbx': self._lam_lbx,
+            'h_ubx': self._lam_ubx
+        }
+        dual = cs.vertcat(*(items.pop(v) for v in _DUAL_VARIABLES_ORDER))
+        assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
+        return dual
 
     @cached_property
     def h_lbx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         '''Gets the inequalities due to `lbx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `lbx == -inf`; otherwise, returns all lower bound constraints.'''
-        if not self.remove_reduntant_x_bounds:
+        if not self.remove_redundant_x_bounds:
             return self._lbx[:, None] - self._x, self._lam_lbx
         idx = npy.where(self._lbx != -npy.inf)[0]
         if idx.size == 0:
@@ -275,12 +281,39 @@ class Nlp:
         '''Gets the inequalities due to `ubx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `ubx == +inf`; otherwise, returns all upper bound constraints.'''
-        if not self.remove_reduntant_x_bounds:
+        if not self.remove_redundant_x_bounds:
             return self._x - self._ubx[:, None], self._lam_ubx
         idx = npy.where(self._ubx != npy.inf)[0]
         if idx.size == 0:
             return self._csXX(), self._csXX()
         return self._x[idx] - self._ubx[idx, None], self._lam_ubx[idx]
+
+    def primal_dual_vars(self, all: bool = False) -> Union[cs.SX, cs.MX]:
+        '''Gets the collection of primal-dual variables (usually, denoted as
+        `y`)
+        ```
+                    y = [x^T, lam^T]^T
+        ```
+        where `x` are the primal variables, and `lam` the dual variables.
+
+        Parameters
+        ----------
+        all : bool, optional
+            If `True`, all dual variables are included, even the multipliers
+            connected to redundant `lbx` or `ubx`. Otherwise, those are
+            removed. By default, `False`.
+
+        Returns
+        ------
+        Union[cs.SX, cs.MX]
+            The collection of primal-dual variables `y`.
+
+        Note
+        ----
+        The order of the dual variables can be adjusted via
+        `_DUAL_VARIABLES_ORDER`.
+        '''
+        return cs.vertcat(self._x, self.lam_all if all else self.lam)
 
     @cache_clearer(parameters)
     def parameter(
@@ -318,7 +351,7 @@ class Nlp:
             self.init_solver(self._solver_opts)  # resets solver
         return par
 
-    @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam)
+    @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam, lam_all)
     def variable(
         self, name: str,
         shape: Tuple[int, int] = (1, 1),
@@ -381,7 +414,7 @@ class Nlp:
             self.init_solver(self._solver_opts)  # resets solver
         return var, lam_lb, lam_ub
 
-    @cache_clearer(constraints, dual_variables, lam)
+    @cache_clearer(constraints, dual_variables, lam, lam_all)
     def constraint(
         self,
         name: str,

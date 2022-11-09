@@ -222,7 +222,7 @@ class TestNlp(unittest.TestCase):
             [True, False],
             [('==', '=='), ('==', '>='), ('>=', '>=')]
         ):
-            nlp = Nlp(sym_type=sym_type, remove_reduntant_x_bounds=flag)
+            nlp = Nlp(sym_type=sym_type, remove_redundant_x_bounds=flag)
             x, lam_lb_x, lam_ub_x = nlp.variable('x', shape1)
             y, lam_lb_y, lam_ub_y = nlp.variable('y', shape2, ub=10)
             _, lam_c1 = nlp.constraint('c1', x, ops[0], 5)
@@ -257,23 +257,25 @@ class TestNlp(unittest.TestCase):
 
     def test_primal_dual_variables__returns_correctly(self):
         nlp = Nlp(sym_type='SX')
-        x, lam_lbx, lam_ubx = nlp.variable('x', (2, 3), lb=0, ub=1)
+        x, lam_lbx, lam_ubx = nlp.variable(
+            'x', (2, 3), lb=[[0], [-np.inf]], ub=1)
         _, lam_g = nlp.constraint('c1', x[:, 0], '==', 2)
         _, lam_h = nlp.constraint('c2', x[0, :] + x[1, :]**2, '<=', 2)
-        self.assertTrue(cs.is_equal(
-            nlp.lam,
-            cs.vertcat(cs.vec(lam_g), cs.vec(lam_h),
-                       cs.vec(lam_lbx), cs.vec(lam_ubx))
-        ))
-        self.assertTrue(cs.is_equal(
-            nlp.primal_dual_vars,
-            cs.vertcat(cs.vec(x), cs.vec(lam_g), cs.vec(lam_h),
-                       cs.vec(lam_lbx), cs.vec(lam_ubx))
-        ))
+        v = cs.vec
+        vc = cs.vertcat
+        lam = vc(v(lam_g), v(lam_h), v(lam_lbx[0, :]), v(lam_ubx))
+        self.assertTrue(cs.is_equal( nlp.lam, lam))
+        lam = vc(v(lam_g), v(lam_h), v(lam_lbx), v(lam_ubx))
+        self.assertTrue(cs.is_equal(nlp.lam_all, lam))
+        y = vc(v(x), v(lam_g), v(lam_h), v(lam_lbx[0, :]), v(lam_ubx))
+        self.assertTrue(cs.is_equal(nlp.primal_dual_vars(all=False), y))
+        y = vc(v(x), v(lam_g), v(lam_h), v(lam_lbx), v(lam_ubx))
+        self.assertTrue(cs.is_equal(nlp.primal_dual_vars(all=True), y))
+        
 
     def test_h_lbx_ubx__returns_correct_indices(self):
         for flag in (True, False):
-            nlp = Nlp(sym_type='SX', remove_reduntant_x_bounds=flag)
+            nlp = Nlp(sym_type='SX', remove_redundant_x_bounds=flag)
 
             x1, lam_lbx1, lam_ubx1 = nlp.variable('x1', (2, 1))
             (h_lbx, lam_lbx), (h_ubx, lam_ubx) = nlp.h_lbx, nlp.h_ubx
