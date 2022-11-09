@@ -344,14 +344,19 @@ class TestNlp(unittest.TestCase):
                     lam_ubx - cs.vertcat(
                         lam_ubx1, lam_ubx2, lam_ubx3, lam_ubx4)), 0)
 
-    def test_set_solver__saves_options_correctly(self):
+    def test_init_solver__raises__when_objective_not_set(self):
         for sym_type in ('SX', 'MX'):
             nlp = Nlp(sym_type=sym_type)
-            opts = OPTS.copy()
+            with self.assertRaises(RuntimeError):
+                nlp.init_solver(OPTS)
+     
+    def test_init_solver__saves_options_correctly(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
             x = nlp.variable('x')[0]
             nlp.minimize(x**2)
-            nlp.init_solver(opts)
-            self.assertDictEqual(opts, nlp.solver_opts)
+            nlp.init_solver(OPTS)
+            self.assertDictEqual(OPTS, nlp.solver_opts)
 
     def test_solve__raises__with_uninit_solver(self):
         for sym_type in ('SX', 'MX'):

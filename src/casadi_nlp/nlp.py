@@ -312,8 +312,8 @@ class Nlp:
         self._pars[name] = par
         self._p = cs.vertcat(self._p, cs.vec(par))
         self._debug.register('p', name, shape)
-        
-        if self._solver is not None:  
+
+        if self._solver is not None:
             self.init_solver(self._solver_opts)  # resets solver
         return par
 
@@ -375,8 +375,8 @@ class Nlp:
         lam_ub = self._csXX.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_ub
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
-        
-        if self._solver is not None:  
+
+        if self._solver is not None:
             self.init_solver(self._solver_opts)  # resets solver
         return var, lam_lb, lam_ub
 
@@ -454,7 +454,7 @@ class Nlp:
         setattr(self, con, npy.concatenate((getattr(self, con), lb)))
         setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_c)))
 
-        if self._solver is not None:  
+        if self._solver is not None:
             self.init_solver(self._solver_opts)  # resets solver
         return expr, lam_c
 
@@ -475,7 +475,7 @@ class Nlp:
         if objective.shape != (1, 1):
             raise ValueError('Objective must be scalar.')
         self._f = objective
-        if self._solver is not None:  
+        if self._solver is not None:
             self.init_solver(self._solver_opts)  # resets solver
 
     def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
@@ -485,7 +485,14 @@ class Nlp:
         ----------
         opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
+            
+        Raises
+        ------
+        RuntimeError
+            Raises if the objective has not yet been specified with `minimize`.
         '''
+        if self._f is None:
+            raise RuntimeError('NLP objective not set.')
         if opts is None:
             opts = {}
         opts = opts.copy()
