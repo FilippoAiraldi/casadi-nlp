@@ -77,7 +77,6 @@ class Nlp:
         self._debug = NlpDebug()
         self._seed = seed
         self._np_random: Optional[npy.random.Generator] = None
-
         self.remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property

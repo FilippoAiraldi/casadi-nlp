@@ -165,6 +165,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         raise ValueError('Cannot convert empty arrays.')
     elif ndim == 1:
         o = x[0]
+        x = x.reshape(-1, 1)
     elif ndim == 2:
         o = x[0, 0]
     else:

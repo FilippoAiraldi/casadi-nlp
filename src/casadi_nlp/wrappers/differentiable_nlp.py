@@ -241,7 +241,8 @@ class DifferentiableNlp(Wrapper[NlpType]):
         Kpy = Kpy[:, p_index, :]
         Kyp = Kyp[..., p_index]
 
-        M = (Kpy + Kyp + (Kyy @ cs2array(dydp)).squeeze()) @ dydp
+        dydp_ = cs2array(dydp)
+        M = ((Kpy + Kyp + (Kyy @ dydp_).squeeze()) @ dydp_).squeeze()
         if solution is None:
             d2ydp2 = -cs.inv(Ky) @ (Kpp + M)
         else:
