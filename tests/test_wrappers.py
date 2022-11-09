@@ -217,8 +217,8 @@ class TestDifferentiableNlp(unittest.TestCase):
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
 
-            S1 = sol.value(nlp.parametric_sensitivity()).full().flatten()
-            S2 = nlp.parametric_sensitivity(solution=sol).flatten()
+            S1 = sol.value(nlp.parametric_sensitivity()[0]).full().flatten()
+            S2 = nlp.parametric_sensitivity(solution=sol)[0].flatten()
             for S in (S1, S2):
                 np.testing.assert_allclose(S, [2, -2, -1, 0], atol=1e-5)
 
@@ -251,8 +251,8 @@ class TestDifferentiableNlp(unittest.TestCase):
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
 
-            S1 = nlp.parametric_sensitivity()
-            S2 = nlp.parametric_sensitivity(solution=sol)
+            S1 = nlp.parametric_sensitivity()[0]
+            S2 = nlp.parametric_sensitivity(solution=sol)[0]
             for S in (S1, S2):
                 np.testing.assert_allclose(
                     sol.value(S).full().flat, [1, 0, 2, 0], atol=1e-5)

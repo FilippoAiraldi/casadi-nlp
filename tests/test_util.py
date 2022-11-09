@@ -8,7 +8,7 @@ from casadi_nlp.util import (
     hojacobian, is_casadi_object, cache_clearer,
     dict2struct, struct_symSX, DMStruct,
     np_random,
-    cs2array
+    cs2array, array2cs
 )
 
 
@@ -144,17 +144,21 @@ class TestUtil(unittest.TestCase):
             else:
                 self.assertIsInstance(actual_seed, int)
 
-    def test_cs2array__converts_properly(self):
+    def test_cs2array_array2cs__convert_properly(self):
         for sym_type, shape in product(
-                [cs.SX, cs.MX], [(1, 1), (3, 1), (1, 3), (3, 3)]):
+                [cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]):
             x = sym_type.sym('x', *shape)
             a = cs2array(x)
+            y = array2cs(a)
             for i in np.ndindex(shape):
                 if sym_type is cs.SX:
                     self.assertTrue(cs.is_equal(x[i], a[i]))
+                    self.assertTrue(cs.is_equal(x[i], y[i]))
                 else:
                     x_ = cs.DM(np.random.rand(*x.shape))
                     o = cs.evalf(cs.substitute(x[i] - a[i], x, x_))
+                    np.testing.assert_allclose(o, 0, atol=1e-9)
+                    o = cs.evalf(cs.substitute(y[i] - a[i], x, x_))
                     np.testing.assert_allclose(o, 0, atol=1e-9)
 
     def test_hojacobian__computes_right_derivatives(self):
