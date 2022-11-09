@@ -265,10 +265,10 @@ class Nlp:
         `lbx == -inf`; otherwise, returns all lower bound constraints.'''
         if not self.remove_reduntant_x_bounds:
             return self._lbx[:, None] - self._x, self._lam_lbx
-        I = npy.where(self._lbx != -npy.inf)[0]
-        if I.size == 0:
+        idx = npy.where(self._lbx != -npy.inf)[0]
+        if idx.size == 0:
             return self._csXX(), self._csXX()
-        return self._lbx[I, None] - self._x[I], self._lam_lbx[I]
+        return self._lbx[idx, None] - self._x[idx], self._lam_lbx[idx]
 
     @cached_property
     def h_ubx(self) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
@@ -277,10 +277,10 @@ class Nlp:
         `ubx == +inf`; otherwise, returns all upper bound constraints.'''
         if not self.remove_reduntant_x_bounds:
             return self._x - self._ubx[:, None], self._lam_ubx
-        I = npy.where(self._ubx != npy.inf)[0]
-        if I.size == 0:
+        idx = npy.where(self._ubx != npy.inf)[0]
+        if idx.size == 0:
             return self._csXX(), self._csXX()
-        return self._x[I] - self._ubx[I, None], self._lam_ubx[I]
+        return self._x[idx] - self._ubx[idx, None], self._lam_ubx[idx]
 
     @cache_clearer(parameters)
     def parameter(
@@ -633,17 +633,17 @@ class Nlp:
             raise RuntimeError('Solver not yet initialized.')
 
         # converts inputs/outputs to/from variables and parameters
+        n_outs = len(outs)
         Fin = cs.Function('Fin', ins, [self._x, self._p])
         Fout = cs.Function('Fout', [
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx,
             self._lam_ubx], outs)
         if Fin.has_free():
             raise ValueError('Input expressions do not provide values for: '
-                             + ', '.join(o for o in Fin.get_free()) + '.')
+                             f'{", ".join(Fin.get_free())}.')
         if Fout.has_free():
             raise ValueError('Output solver cannot provide values for: '
-                             + ', '.join(o for o in Fout.get_free()) + '.')
-        n_outs = len(outs)
+                             f'{", ".join(Fout.get_free())}.')
 
         # call the solver
         if self._csXX is cs.SX:
