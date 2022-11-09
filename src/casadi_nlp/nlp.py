@@ -1,6 +1,7 @@
 from functools import partial
 from itertools import count
-from typing import Any, Dict, Literal, Optional, Tuple, Type, Union
+import warnings
+from typing import Any, Dict, Sequence, Literal, Optional, Tuple, Type, Union
 import casadi as cs
 import numpy as npy
 from casadi_nlp.solutions import Solution, subsevalf, DMStruct
@@ -577,6 +578,100 @@ class Nlp:
             stats=self._solver.stats().copy(),
             _get_value=get_value
         )
+
+    def to_function(
+        self,
+        name: str,
+        ins: Union[Sequence[cs.SX], Sequence[cs.MX]],
+        outs: Union[Sequence[cs.SX], Sequence[cs.MX]],
+        name_in: Sequence[str] = None,
+        name_out: Sequence[str] = None,
+        opts: Dict[Any, Any] = None
+    ) -> cs.Function:
+        '''Converts the optimization problem to an MX symbolic function. If the
+        NLP is modelled in SX, the function will still be converted in MX since
+        the IPOPT interface cannot expand SX for now.
+
+        Parameters
+        ----------
+        name : str
+            Name of the function.
+        ins : Sequence of cs.SX or MX
+            Input variables of the function. These must be expressions
+            providing the parameters of the NLP and the initial conditions of
+            the primal variables `x`.
+        outs : Sequence of cs.SX or MX
+            Output variables of the function. These must be expressions
+            depending only on the primal variable `x` and parameters `p` of the
+            of the NLP.
+        name_in : Sequence of str, optional
+            Name of the inputs, by default None.
+        name_out : Sequence of str, optional
+            Name of the outpus, by default None.
+        opts : Dict[Any, Any], optional
+            Options to be passed to `casadi.Function`, by default None.
+
+        Returns
+        -------
+        casadi.Function
+            The NLP solver as a `casadi.Function`.
+
+        Raises
+        ------
+        RuntimeError
+            Raises if the solver is uninitialized.
+        ValueError
+            Raises if the input or output expressions have free variables that
+            are not provided or cannot be computed by the solver.
+        '''
+        if self._csXX is cs.SX:
+            warnings.warn('The IPOPT interface does not support SX expansion, '
+                          'so the function must be wrapped in MX.',
+                          RuntimeWarning)
+        S = self._solver
+        if S is None:
+            raise RuntimeError('Solver not yet initialized.')
+
+        # converts inputs/outputs to/from variables and parameters
+        Fin = cs.Function('Fin', ins, [self._x, self._p])
+        Fout = cs.Function('Fout', [self._x, self._p], outs)
+        if Fin.has_free():
+            raise ValueError('Input expressions do not provide values for: '
+                             + ', '.join(o for o in Fin.get_free()) + '.')
+        if Fout.has_free():
+            raise ValueError('Output solver cannot provide values for: '
+                             + ', '.join(o for o in Fout.get_free()) + '.')
+        n_outs = len(outs)
+
+        # call the solver
+        if self._csXX is cs.SX:
+            Fin = Fin.wrap()
+            Fout = Fout.wrap()
+            ins = [Fin.mx_in(i) for i in range(len(ins))]
+            outs = [Fout.mx_out(i) for i in range(len(outs))]
+        x0, p = Fin(*ins)
+        solver_outs = S(
+            x0=x0,
+            p=p,
+            lbx=self._lbx,
+            ubx=self._ubx,
+            lbg=npy.concatenate((self._lbg, self._lbh)),
+            ubg=0,
+            lam_x0=0,
+            lam_g0=0
+        )
+        Fsolver = cs.Function('Fsolver', ins, [solver_outs['x']])
+
+        # build final function
+        final_outs = Fout(Fsolver(*ins), p)
+        if n_outs == 1:
+            final_outs = [final_outs]
+        args = [name, ins, final_outs]
+        if name_in is not None and name_out is not None:
+            args.extend((name_in, name_out))
+        if opts is not None:
+            args.append(opts)
+        return cs.Function(*args)
 
     def __str__(self) -> str:
         '''Returns the NLP name and a short description.'''

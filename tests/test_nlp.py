@@ -518,6 +518,55 @@ class TestNlp(unittest.TestCase):
                 np.testing.assert_allclose(val2, val3, atol=1e-9)
                 np.testing.assert_allclose(val3, val4, atol=1e-9)
 
+    def test_to_function__raises__with_uninitiliazed_solver(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', lb=0)[0]
+            y = nlp.variable('y')[0]
+            xy = cs.vertcat(x, y)
+            p = nlp.parameter('p')
+            with self.assertRaises(RuntimeError):
+                nlp.to_function('M', [p, xy], [xy], ['p', 'xy'], ['xy'])
+
+    def test_to_function__raises__with_free_variables(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', lb=0)[0]
+            y = nlp.variable('y')[0]
+            xy = cs.vertcat(x, y)
+            c = nlp._csXX.sym('c')
+            a = 0.2
+            p = nlp.parameter('p')
+            nlp.minimize((1 - x)**2 + a * (y - x**2)**2)
+            nlp.init_solver(OPTS)
+            with self.assertRaises(ValueError):
+                nlp.to_function('M', [p], [xy], ['xy'], ['xy'])
+            with self.assertRaises(ValueError):
+                nlp.to_function('M', [p, xy], [xy, c], ['xy'], ['xy'])
+
+    def test_to_function__computes_correct_solution(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', lb=0)[0]
+            y = nlp.variable('y')[0]
+            xy = cs.vertcat(x, y)
+            a = 0.2
+            p = nlp.parameter('p')
+            nlp.minimize((1 - x)**2 + a * (y - x**2)**2)
+            g = (x + 0.5)**2 + y**2
+            nlp.constraint('c1', (p / 2)**2, '<=', g)
+            nlp.constraint('c2', g, '<=', p**2)
+            nlp.init_solver(OPTS)
+
+            M = nlp.to_function('M', [p, xy], [xy], ['p', 'xy'], ['xy'])
+
+            sol = nlp.solve(pars={'p': 1.25})
+            xy1 = sol.value(xy).full().flatten()
+            xy2 = M(1.25, 0).full().flatten()
+
+            np.testing.assert_allclose(xy1, [0.719011, 0.276609], atol=1e-4)
+            np.testing.assert_allclose(xy2, [0.719011, 0.276609], atol=1e-4)
+
 
 if __name__ == '__main__':
     unittest.main()
