@@ -187,7 +187,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         order : 1 or 2, optional
             Order of the sensitivity analysis. By default, first order.
         p_index : int, optional
-            If `order==2`, then the 2nd order sensitivity analysis can be 
+            If `order==2`, then the 2nd order sensitivity analysis can be
             performed only on one parameter, a.k.a., the one specified by this
             index.
 
