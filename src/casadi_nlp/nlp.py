@@ -602,8 +602,8 @@ class Nlp:
             the primal variables `x`.
         outs : Sequence of cs.SX or MX
             Output variables of the function. These must be expressions
-            depending only on the primal variable `x` and parameters `p` of the
-            of the NLP.
+            depending on the primal variable `x`, parameters `p`, and dual
+            variables `lam_g`, `lam_h`, `lam_lbx`, `lam_ubx` of the NLP.
         name_in : Sequence of str, optional
             Name of the inputs, by default None.
         name_out : Sequence of str, optional
@@ -634,7 +634,9 @@ class Nlp:
 
         # converts inputs/outputs to/from variables and parameters
         Fin = cs.Function('Fin', ins, [self._x, self._p])
-        Fout = cs.Function('Fout', [self._x, self._p], outs)
+        Fout = cs.Function('Fout', [
+            self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx,
+            self._lam_ubx], outs)
         if Fin.has_free():
             raise ValueError('Input expressions do not provide values for: '
                              + ', '.join(o for o in Fin.get_free()) + '.')
@@ -650,7 +652,7 @@ class Nlp:
             ins = [Fin.mx_in(i) for i in range(len(ins))]
             outs = [Fout.mx_out(i) for i in range(len(outs))]
         x0, p = Fin(*ins)
-        solver_outs = S(
+        sol = S(
             x0=x0,
             p=p,
             lbx=self._lbx,
@@ -660,10 +662,15 @@ class Nlp:
             lam_x0=0,
             lam_g0=0
         )
-        Fsolver = cs.Function('Fsolver', ins, [solver_outs['x']])
+        x = sol['x']
+        lam_g = sol['lam_g'][:self.ng, :]
+        lam_h = sol['lam_g'][self.ng:, :]
+        lam_lbx = -cs.fmin(sol['lam_x'], 0)
+        lam_ubx = cs.fmax(sol['lam_x'], 0)
+        Fsol = cs.Function('Fsol', ins, [x, lam_g, lam_h, lam_lbx, lam_ubx])
 
         # build final function
-        final_outs = Fout(Fsolver(*ins), p)
+        final_outs = Fout(p, *Fsol(*ins))
         if n_outs == 1:
             final_outs = [final_outs]
         args = [name, ins, final_outs]
