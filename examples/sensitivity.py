@@ -37,8 +37,7 @@ def z(x, lam):
 
 
 # build the NLP
-nlp = Nlp(sym_type='SX')
-
+nlp = Nlp(sym_type='SX')  # MX will likely fail jacobians
 x = nlp.variable('x', (2, 1), lb=[[0], [-np.inf]])[0]
 p = nlp.parameter('p', (2, 1))
 
@@ -72,18 +71,22 @@ ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k.', markersize=8)
 # Parametric sensitivities
 nlp = wrappers.DifferentiableNlp(nlp)
 y = nlp.primal_dual_vars
-# dydp is the sensitivity of primal-dual vars w w.r.t. parameters p
-dydp = nlp.parametric_sensitivity()
-dzdy = cs.jacobian(z(x, lam), y).T
+sol = nlp.solve(pars={'p': [0.2, 1.25]})
+dydp, d2ydp2 = nlp.parametric_sensitivity(order=2, p_index=1)
+d2zdy2, dzdy = cs.hessian(z(x, lam), y)
+d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p[1])
 
 t = np.linspace(1, 2, 1000)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
-    F = sol.value(z(x, lam))
-    J = sol.value(dzdy.T @ dydp)[1]  # take jacobian of only the 2nd parameter
+    z0 = sol.value(z(x, lam))
+    dzdp = sol.value(dzdy.T @ dydp)  # a.k.a., dzdp
+    d2zdp2 = sol.value((d2zdyp + d2zdy2 @ dydp).T @ dydp +  # a.k.a., d2zdp2
+                        dzdy.T @ d2ydp2)
 
-    ax.plot(p0, float(F), 'x', color=clr, markersize=16)
-    ax.plot(t, F + J * (t - p0), lw=2, color=clr)
+    ax.plot(p0, float(z0), 'x', color=clr, markersize=16)
+    ax.plot(
+        t, z0 + dzdp * (t - p0) + 0.5 * d2zdp2 * (t - p0)**2, lw=2, color=clr)
 
 ax.set_xlim(1, 2)
 ax.set_ylim(-0.17, 0.03)
