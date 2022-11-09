@@ -1,13 +1,15 @@
-from typing import Dict
 import unittest
+from itertools import product
 from functools import cached_property
+from typing import Dict
 import casadi as cs
+import numpy as np
 from casadi_nlp.util import (
     is_casadi_object, cache_clearer,
     dict2struct, struct_symSX, DMStruct,
-    np_random
+    np_random,
+    cs2array
 )
-import numpy as np
 
 
 class DummyWithCachedProperty:
@@ -141,6 +143,14 @@ class TestUtil(unittest.TestCase):
                 self.assertEqual(seed, actual_seed)
             else:
                 self.assertIsInstance(actual_seed, int)
+
+    def test_cs2array__converts_properly(self):
+        for sym_type, shape in product(
+            [cs.SX, cs.MX], [(1, 1), (3, 1), (1, 3), (3, 3)]):
+            x = sym_type.sym('x', shape)
+            a = cs2array(x)
+            for i in np.ndindex(shape):
+                self.assertTrue(cs.is_equal(x[i], a[i]))
 
 
 if __name__ == '__main__':

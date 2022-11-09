@@ -137,3 +137,27 @@ def np_random(
     np_seed = seed_seq.entropy
     rng = np.random.Generator(np.random.PCG64(seed_seq))
     return rng, np_seed
+
+
+def cs2array(
+    x: Union[cs.MX, cs.SX], matrix: bool = False, scalar: bool = False
+) -> np.ndarray:
+    '''Converts casadi symbolic variable `x` to a numpy array of scalars.
+
+    Inspired by https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/tools.py
+
+    Parameters
+    ----------
+    x : Union[cs.MX, cs.SX]
+        _description_
+
+    Returns
+    -------
+    np.ndarray
+        The array containing the symbolic variable scalars.
+    '''
+    shape = x.shape
+    y = np.empty(shape, dtype=object)
+    for i in np.ndindex(shape):
+        y[i] = x[i]
+    return y
