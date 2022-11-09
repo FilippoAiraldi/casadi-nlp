@@ -176,7 +176,7 @@ def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
     Returns
     -------
     np.ndarray
-        A 4D array of objects, where each entry `(i,j,k,m)` is the derivative 
+        A 4D array of objects, where each entry `(i,j,k,m)` is the derivative
         of `ex[i,j]` w.r.t. `x[k,m]`.
     '''
     return cs2array(
