@@ -349,7 +349,7 @@ class TestNlp(unittest.TestCase):
             nlp = Nlp(sym_type=sym_type)
             with self.assertRaises(RuntimeError):
                 nlp.init_solver(OPTS)
-     
+
     def test_init_solver__saves_options_correctly(self):
         for sym_type in ('SX', 'MX'):
             nlp = Nlp(sym_type=sym_type)

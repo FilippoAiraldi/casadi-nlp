@@ -486,7 +486,7 @@ class Nlp:
         ----------
         opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
-            
+
         Raises
         ------
         RuntimeError
