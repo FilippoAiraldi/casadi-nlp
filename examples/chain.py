@@ -1,4 +1,4 @@
-# Reproduces https://web.casadi.org/blog/opti/chain.m
+# Reproduces https://web.casadi.org/blog/opti/
 
 
 from casadi_nlp import Nlp

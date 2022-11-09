@@ -1,5 +1,4 @@
-# Inspired by https://web.casadi.org/blog/nlp_sens/code_1d.m and
-# https://web.casadi.org/blog/nlp_sens/plot_nlp.m
+# Inspired by https://web.casadi.org/blog/nlp_sens/
 
 
 import matplotlib.pyplot as plt
@@ -82,10 +81,9 @@ for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
     F = sol.value(z(x, lam))
     J = sol.value(dzdy.T @ dydp)[1]  # take jacobian of only the 2nd parameter
-    H = 0  # 3.5169, 1.4018, 0
 
     ax.plot(p0, float(F), 'x', color=clr, markersize=16)
-    ax.plot(t, F + J * (t - p0) + 0.5 * H * (t - p0)**2, lw=2, color=clr)
+    ax.plot(t, F + J * (t - p0), lw=2, color=clr)
 
 ax.set_xlim(1, 2)
 ax.set_ylim(-0.17, 0.03)
