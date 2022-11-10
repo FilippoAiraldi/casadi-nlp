@@ -5,7 +5,7 @@ from casadi_nlp.nlp import _DUAL_VARIABLES_ORDER
 from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
 from casadi_nlp.solutions import Solution
 from casadi_nlp.util import \
-    cached_property, cache_clearer, hojacobian, cs2array
+    cached_property, cache_clearer, hojacobian, cs2array, array2cs
 
 
 class DifferentiableNlp(Wrapper[NlpType]):
@@ -97,20 +97,34 @@ class DifferentiableNlp(Wrapper[NlpType]):
         '''Computes various partial derivatives, which are then grouped in a
         dict with the following entries
             - `L-p`: lagrangian w.r.t. parameters
-            - `K-p`: kkt conditions w.r.t. parameters
-            - `K-y`: kkt conditions w.r.t. primal-dual variables
             - `g-x`: equality constraints w.r.t. primal variables
             - `h-x`: inequality constraints w.r.t. primal variables
+            - `K-p`: kkt conditions w.r.t. parameters
+            - `K-y`: kkt conditions w.r.t. primal-dual variables
         '''
-        # in case of MX, jacobians throw if the MX are indexed (no more
-        # symbolical according to the exception)
         K = self.kkt[0]
+        # in case of MX, jacobians throw if the MX are indexed (no more
+        # symbolical according to the exception). So we take the jacobian
+        # with all primal-dual vars, and then index the relevant ones.
+        if self.nlp._csXX is cs.SX:
+            y = self.nlp.primal_dual_vars()
+            idx = slice(None)
+        else:
+            y = self.nlp.primal_dual_vars(all=True)
+            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
+            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
+            n = self.nlp.nx + self.nlp.ng + self.nlp.nh
+            idx = np.concatenate((
+                np.arange(n),
+                h_lbx_idx + n,
+                h_ubx_idx + n + h_lbx_idx.size
+            ))
         return {
             'L-p': cs.jacobian(self.lagrangian, self.nlp._p),
-            'K-p': cs.jacobian(K, self.nlp._p),
-            'K-y': cs.jacobian(K, self.nlp.primal_dual_vars),
             'g-x': cs.jacobian(self.nlp._g, self.nlp._x),
             'h-x': cs.jacobian(self.nlp._h, self.nlp._x),
+            'K-p': cs.jacobian(K, self.nlp._p),
+            'K-y': cs.jacobian(K, y)[:, idx],
         }
 
     @cached_property
@@ -135,15 +149,34 @@ class DifferentiableNlp(Wrapper[NlpType]):
         '''Computes various 3rd-order derivatives, which are then grouped in a
         dict with the following entries
             - `K-pp`: kkt conditions w.r.t. parameters (twice)
+            - `K-yp`: kkt conditions w.r.t. parameters and primal variables
+            - `K-yy`: kkt conditions w.r.t. primal variables (twice)
+            - `K-py`: kkt conditions w.r.t. primal variables and parameters
         '''
         jacobians = self.jacobians
         Kp = jacobians['K-p']
         Ky = jacobians['K-y']
+        # in case of MX, jacobians throw if the MX are indexed (no more
+        # symbolical according to the exception). So we take the jacobian
+        # with all primal-dual vars, and then index the relevant ones.
+        if self.nlp._csXX is cs.SX:
+            y = self.nlp.primal_dual_vars()
+            idx = slice(None)
+        else:
+            y = self.nlp.primal_dual_vars(all=True)
+            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
+            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
+            n = self.nlp.nx + self.nlp.ng + self.nlp.nh
+            idx = np.concatenate((
+                np.arange(n),
+                h_lbx_idx + n,
+                h_ubx_idx + n + h_lbx_idx.size
+            ))
         return {
             'K-pp': hojacobian(Kp, self.nlp._p).squeeze(),
-            'K-py': hojacobian(Kp, self.nlp.primal_dual_vars).squeeze(),
             'K-yp': hojacobian(Ky, self.nlp._p).squeeze(),
-            'K-yy': hojacobian(Ky, self.nlp.primal_dual_vars).squeeze(),
+            'K-yy': hojacobian(Ky, y).squeeze()[..., idx],
+            'K-py': hojacobian(Kp, y).squeeze()[..., idx],
         }
 
     @property
@@ -244,7 +277,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         dydp_ = cs2array(dydp)
         M = ((Kpy + Kyp + (Kyy @ dydp_).squeeze()) @ dydp_).squeeze()
         if solution is None:
-            d2ydp2 = -cs.inv(Ky) @ (Kpp + M)
+            d2ydp2 = -cs.inv(Ky) @ array2cs(Kpp + M)
         else:
             b = -solution.value(Kpp + M)
             d2ydp2 = np.linalg.solve(A, b)

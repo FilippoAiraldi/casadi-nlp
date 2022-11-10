@@ -37,7 +37,8 @@ def z(x, lam):
 
 
 # build the NLP
-nlp = Nlp(sym_type='SX')  # MX will likely fail jacobians
+sym_type = 'MX'
+nlp = Nlp(sym_type=sym_type)
 x = nlp.variable('x', (2, 1), lb=[[0], [-np.inf]])[0]
 p = nlp.parameter('p', (2, 1))
 
@@ -70,11 +71,30 @@ ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k.', markersize=8)
 
 # Parametric sensitivities
 nlp = wrappers.DifferentiableNlp(nlp)
-y = nlp.primal_dual_vars
 sol = nlp.solve(pars={'p': [0.2, 1.25]})
 dydp, d2ydp2 = nlp.parametric_sensitivity(order=2, p_index=1)
-d2zdy2, dzdy = cs.hessian(z(x, lam), y)
-d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p[1])
+
+# sensitivity of function z(x(p), lam(p))
+if sym_type == 'SX':
+    y = nlp.primal_dual_vars()
+    d2zdy2, dzdy = cs.hessian(z(x, lam), y)
+    d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p[1])
+else:
+    # a bit trickier for MX
+    y = nlp.primal_dual_vars(all=True)
+    h_lbx_idx = np.where(nlp.lbx != -np.inf)[0]
+    h_ubx_idx = np.where(nlp.ubx != +np.inf)[0]
+    n = nlp.nx + nlp.ng + nlp.nh
+    idx = np.concatenate((
+        np.arange(n),
+        h_lbx_idx + n,
+        h_ubx_idx + n + h_lbx_idx.size
+    ))
+    d2zdy2, dzdy = cs.hessian(z(x, lam), y)
+    d2zdy2 = d2zdy2[idx, idx]
+    dzdy = dzdy[idx, :]
+    d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p)
+    d2zdyp = d2zdyp[idx, 1]
 
 t = np.linspace(1, 2, 1000)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
@@ -82,12 +102,20 @@ for p0, clr in zip(p_values, ['r', 'g', 'b']):
     z0 = sol.value(z(x, lam))
     dzdp = sol.value(dzdy.T @ dydp)  # a.k.a., dzdp
     d2zdp2 = sol.value((d2zdyp + d2zdy2 @ dydp).T @ dydp +  # a.k.a., d2zdp2
-                        dzdy.T @ d2ydp2)
+                       dzdy.T @ d2ydp2)
 
     ax.plot(p0, float(z0), 'x', color=clr, markersize=16)
     ax.plot(
         t, z0 + dzdp * (t - p0) + 0.5 * d2zdp2 * (t - p0)**2, lw=2, color=clr)
 
+ax.set_xlabel('p')
+ax.set_ylabel(r'$z(x(p), \lambda(p))$')
 ax.set_xlim(1, 2)
 ax.set_ylim(-0.17, 0.03)
 plt.show()
+
+# TODO
+# 1. sensitivity for custom expressions (so that I don't have to perform all
+#    these derivatives of z by myself each time)
+# 2. multi-parameter sensitivity (so that we can remove ugly p_index)
+# 3. conert this to a test for sensitivity analysis
