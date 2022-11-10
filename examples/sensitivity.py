@@ -31,9 +31,9 @@ def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float):
     ax.set_ylim(-1.5, 2)
 
 
-def z(x, lam):
+def z(x, lam, p):
     # in the CasADi blog, z is only a function of x, i.e., z(x)
-    return (x[1, :] - x[0, :]) * cs.exp(-10 * lam)
+    return (x[1, :]**p[1] - x[0, :]) * cs.exp(-10 * lam) / p[1]
 
 
 # build the NLP
@@ -62,23 +62,27 @@ for p0, ax in zip(p_values, axs):
 
 
 # How does the optimal solution vary along p?
-Z = nlp.to_function('Z', [p, x], [z(x, lam)], ['p', 'x0'], ['z'])
+Z = nlp.to_function('Z', [p, x], [z(x, lam, p)], ['p', 'x0'], ['z'])
 
 fig, ax = plt.subplots(constrained_layout=True)
-pv = np.row_stack((np.full(100, 0.2), np.linspace(1, 2, 100)))
-ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k.', markersize=8)
+N = 300
+pv = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
+ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
 
 
 # Parametric sensitivities
 nlp = wrappers.DifferentiableNlp(nlp)
 sol = nlp.solve(pars={'p': [0.2, 1.25]})
+p_index = 1
 dydp, d2ydp2 = nlp.parametric_sensitivity(order=2, p_index=1)
 
 # sensitivity of function z(x(p), lam(p))
+Z = z(x, lam, p)
 if sym_type == 'SX':
     y = nlp.primal_dual_vars()
-    d2zdy2, dzdy = cs.hessian(z(x, lam), y)
-    d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p[1])
+    d2zdp2, dzdp = cs.hessian(Z, p[p_index])
+    d2zdy2, dzdy = cs.hessian(Z, y)
+    d2zdyp = cs.jacobian(cs.jacobian(Z, y), p[p_index])
 else:
     # a bit trickier for MX
     y = nlp.primal_dual_vars(all=True)
@@ -90,26 +94,29 @@ else:
         h_lbx_idx + n,
         h_ubx_idx + n + h_lbx_idx.size
     ))
-    d2zdy2, dzdy = cs.hessian(z(x, lam), y)
+    d2zdp2, dzdp = cs.hessian(Z, p)
+    d2zdp2 = d2zdp2[p_index, p_index]
+    dzdp = dzdp[p_index]    
+    d2zdy2, dzdy = cs.hessian(Z, y)
     d2zdy2 = d2zdy2[idx, idx]
     dzdy = dzdy[idx, :]
-    d2zdyp = cs.jacobian(cs.jacobian(z(x, lam), y), p)
-    d2zdyp = d2zdyp[idx, 1]
+    d2zdyp = cs.jacobian(cs.jacobian(Z, y), p)
+    d2zdyp = d2zdyp[idx, p_index]
 
 t = np.linspace(1, 2, 1000)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
-    z0 = sol.value(z(x, lam))
-    dzdp = sol.value(dzdy.T @ dydp)  # a.k.a., dzdp
-    d2zdp2 = sol.value((d2zdyp + d2zdy2 @ dydp).T @ dydp +  # a.k.a., d2zdp2
-                       dzdy.T @ d2ydp2)
+    z0 = sol.value(Z)
+    J = sol.value(dzdy.T @ dydp + dzdp)
+    H = sol.value(
+        (d2zdy2 @ dydp + d2zdyp).T @ dydp + dzdy.T @ d2ydp2 + d2zdp2)
 
-    ax.plot(p0, float(z0), 'x', color=clr, markersize=16)
+    ax.plot(p0, float(z0), 'o', color=clr, markersize=4)
     ax.plot(
-        t, z0 + dzdp * (t - p0) + 0.5 * d2zdp2 * (t - p0)**2, lw=2, color=clr)
+        t, z0 + J * (t - p0) + 0.5 * H * (t - p0)**2, lw=2, color=clr)
 
 ax.set_xlabel('p')
-ax.set_ylabel(r'$z(x(p), \lambda(p))$')
+ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
 ax.set_xlim(1, 2)
 ax.set_ylim(-0.17, 0.03)
 plt.show()
