@@ -143,10 +143,10 @@ class NlpSensitivity(Wrapper[NlpType]):
         Ky = jacobians['K-y']
         y, idx = self._y_idx
         return {
-            'K-pp': hojacobian(Kp, self.nlp._p).squeeze(),
-            'K-yp': hojacobian(Ky, self.nlp._p).squeeze(),
-            'K-yy': hojacobian(Ky, y).squeeze()[..., idx],
-            'K-py': hojacobian(Kp, y).squeeze()[..., idx],
+            'K-pp': hojacobian(Kp, self.nlp._p)[..., 0],
+            'K-yp': hojacobian(Ky, self.nlp._p)[..., 0],
+            'K-yy': hojacobian(Ky, y)[..., idx, 0],
+            'K-py': hojacobian(Kp, y)[..., idx, 0],
         }
 
     @property
@@ -241,7 +241,14 @@ class NlpSensitivity(Wrapper[NlpType]):
         # sensitivity of custom expression
         Z = expr  # Z := z(x(p),lam(p),p)
         if Z is None:
-            return array2cs(dydp), array2cs(d2ydp2)
+            dydp = dydp.squeeze()
+            d2ydp2 = d2ydp2.squeeze()
+            if solution is not None:
+                return dydp, d2ydp2
+            return (
+                array2cs(dydp),
+                array2cs(d2ydp2) if d2ydp2.ndim <= 2 else d2ydp2
+            )
         if not Z.is_scalar():
             raise ValueError('Expression must be scalar.')
 

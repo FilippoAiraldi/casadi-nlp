@@ -31,7 +31,7 @@ class TestWrapper(unittest.TestCase):
         self.assertIs(nlp, wrapped.unwrapped)
 
 
-class TestDifferentiableNlp(unittest.TestCase):
+class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
@@ -253,9 +253,9 @@ class TestDifferentiableNlp(unittest.TestCase):
 
             S1 = nlp.parametric_sensitivity()[0]
             S2 = nlp.parametric_sensitivity(solution=sol)[0]
-            for S in (S1, S2):
-                np.testing.assert_allclose(
-                    sol.value(S).full().flat, [1, 0, 2, 0], atol=1e-5)
+            np.testing.assert_allclose(
+                sol.value(S1).full().flat, [1, 0, 2, 0], atol=1e-5)
+            np.testing.assert_allclose(S2.flat, [1, 0, 2, 0], atol=1e-5)
 
             Lp = nlp.jacobians['L-p']
             Lpp = nlp.hessians['L-pp']
@@ -263,10 +263,12 @@ class TestDifferentiableNlp(unittest.TestCase):
             Lzz = nlp.hessians['L-xx']
             np.testing.assert_allclose(sol.value(Lp), 4, atol=1e-7)
 
-            for S in (S1, S2):
-                dzdp = S[:nlp.nx]
-                d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
-                np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
+            dzdp = S1[:nlp.nx]
+            d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
+            np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
+            dzdp = S2[:nlp.nx, None]
+            d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
+            np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
 
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
@@ -295,6 +297,44 @@ class TestDifferentiableNlp(unittest.TestCase):
             d = subsevalf(nlp.licq, x, x_).full()
             np.testing.assert_allclose(d, [[0, -1], [0, -1]])
             self.assertNotEqual(np.linalg.matrix_rank(d), d.shape[0])
+
+    def test_parametric_sensitivity__is_correct(self):
+        # https://web.casadi.org/blog/nlp_sens/
+
+        p_values_and_solutions = [
+            (1.25, (-0.442401495488, 0.400036517837, 3.516850030791)),
+            (1.4, (-0.350853791920, 0.766082818877, 1.401822559490)),
+            (2, (-0.000000039328, 0, 0))
+        ]
+
+        def z(x):
+            return x[1, :] - x[0, :]
+
+        for sym_type in ('SX', 'MX'):
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
+            x = nlp.variable('x', (2, 1), lb=[[0], [-np.inf]])[0]
+            p = nlp.parameter('p', (2, 1))
+            nlp.minimize((1 - x[0])**2 + p[0] * (x[1] - x[0]**2)**2)
+            g = (x[0] + 0.5)**2 + x[1]**2
+            nlp.constraint('c1', (p[1] / 2)**2, '<=', g)
+            nlp.constraint('c2', g, '<=', p[1]**2)
+            nlp.init_solver(OPTS)
+
+            Z1_ = z(x)
+            J1_, H1_ = nlp.parametric_sensitivity(expr=Z1_)
+            for p, (Z, J, H) in p_values_and_solutions:
+                sol = nlp.solve(pars={'p': [0.2, p]})
+                Z1 = sol.value(Z1_)
+                J1 = sol.value(J1_)
+                H1 = sol.value(H1_)
+                J2, H2 = nlp.parametric_sensitivity(expr=Z1_, solution=sol)
+                np.testing.assert_allclose(J1, J2, atol=1e-7)
+                np.testing.assert_allclose(H1, H2, atol=1e-7)
+                np.testing.assert_allclose(Z, Z1, atol=1e-4)
+                np.testing.assert_allclose(J, J1[1], atol=1e-4)
+                np.testing.assert_allclose(J, J2[1], atol=1e-4)
+                np.testing.assert_allclose(H, H1[1, 1], atol=1e-4)
+                np.testing.assert_allclose(H, H2[1, 1], atol=1e-4)
 
 
 if __name__ == '__main__':
