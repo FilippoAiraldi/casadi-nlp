@@ -5,10 +5,6 @@ import casadi as cs
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 
-# https://casadi.sourceforge.net/tutorials/tools/structure.pdf
-# https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py
-
-
 @dataclass(frozen=True)
 class Solution:
     '''Class containing information on the solution of an NLP solver's run.'''

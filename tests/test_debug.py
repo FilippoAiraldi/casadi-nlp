@@ -7,7 +7,7 @@ import random
 GROUPS = set(NlpDebug.types.keys())
 
 
-class TestMpcDebug(unittest.TestCase):
+class TestNlpDebug(unittest.TestCase):
     def test_register__adds_correct_info(self):
         debug = NlpDebug()
         name = 'a name'

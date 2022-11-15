@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, Union, Optional
+from typing import Dict, Tuple, Union, Optional
 import casadi as cs
 import numpy as np
 from csnlp.nlp import _DUAL_VARIABLES_ORDER
