@@ -109,7 +109,7 @@ def subsevalf(
         still (partially) symbolic.
     '''
 
-    if isinstance(expr, np.ndarray) and expr.ndim > 2:
+    if isinstance(expr, np.ndarray):
         out = np.empty(expr.shape, dtype=object)
         for i in np.ndindex(expr.shape):
             out[i] = subsevalf(expr[i], old, new, eval=eval)
