@@ -49,18 +49,14 @@ sol = nlp.solve(pars={'p': 1.25})  # solves the NLP for parameter p=1.25
 x_opt = sol.vals['x']  
 y_opt = sol.value(y)
 ```
-To compute the sensitivity of the optimal primal variables with respect to the 
-parameters, first we need to augment the capabilities of the NLP with a wrapper
-specialized in differentiating the optimization problem, and then compute the
-first-order sensitivities
+To compute the sensitivity of the optimal primal-dual variables `y` with respect to the parameters `p` of the NLP (see [[3]](#3) for details), first we need to augment the capabilities of the NLP with a wrapper specialized in differentiating the optimization problem, and then compute the first-order and second sensitivities (`dydp` and `d2ydp2`, respectively) as such
 ```python
 from csnlp import wrappers
 
 nlp = wrappers.DifferentiableNlp(nlp)
-
-# dxydp is the sensitivity of primal variables x and y w.r.t. parameters p
-dxydp = nlp.parametric_sensitivity()[:nlp.nx]
+dydp, d2ydp2 = nlp.parametric_sensitivity()
 ```
+in other words, these sensitivities provide the jacobian and hessian that locally approximate the solution w.r.t. the parameters `p`. As shown in the examples, the sensitivity can be also computed for any generic expression `z` that is a function of the primal-dual variables and the parameters, i.e., `z(x(p),lam(p),p)`, and computations can be carried out symbolically or numerically (more stable).
 
 
 ## Examples
@@ -90,3 +86,10 @@ Wachter, A. and Biegler, L.T. (2006). On the implementation
 of an interior-point filter line-search algorithm
 for large-scale nonlinear programming. Mathematical
 Programming, 106(1), 25–57.
+
+<a id="3">[3]</a> 
+Büskens, C. and Maurer, H. (2001). Sensitivity analysis
+and real-time optimization of parametric nonlinear programming
+problems. In M. Grötschel, S.O. Krumke, and
+J. Rambau (eds.), Online Optimization of Large Scale
+Systems, 3–16. Springer, Berlin, Heidelberg

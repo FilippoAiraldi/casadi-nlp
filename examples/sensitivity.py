@@ -72,7 +72,6 @@ ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
 
 # Parametric sensitivities of function z(x(p), lam(p))
 nlp = wrappers.NlpSensitivity(nlp)
-sol = nlp.solve(pars={'p': [0.2, 1.25]})
 Z = z(x, lam, p)
 J, H = nlp.parametric_sensitivity(expr=Z)
 
