@@ -130,9 +130,9 @@ class NlpSensitivity(Wrapper[NlpType]):
         }
 
     @cached_property
-    def hoderivatives(self) -> Dict[str, np.ndarray]:
-        '''Computes various 3rd-order derivatives, which are then grouped in a
-        dict with the following entries
+    def hojacobians(self) -> Dict[str, np.ndarray]:
+        '''Computes various 3D jacobians, which are then grouped in a dict with
+        the following entries
             - `K-pp`: kkt conditions w.r.t. parameters (twice)
             - `K-yp`: kkt conditions w.r.t. parameters and primal variables
             - `K-yy`: kkt conditions w.r.t. primal variables (twice)
@@ -234,10 +234,10 @@ class NlpSensitivity(Wrapper[NlpType]):
         if p_index is None or (p_index < 0 or p_index >= self.nlp.np):
             raise ValueError('Invalid parameter index for 2nd order '
                              'sensitivity analysis')
-        Kpp = self.hoderivatives['K-pp']
-        Kpy = self.hoderivatives['K-py']
-        Kyp = self.hoderivatives['K-yp']
-        Kyy = self.hoderivatives['K-yy']
+        Kpp = self.hojacobians['K-pp']
+        Kpy = self.hojacobians['K-py']
+        Kyp = self.hojacobians['K-yp']
+        Kyy = self.hojacobians['K-yy']
 
         dydp = dydp[:, p_index]
         Kpp = Kpp[:, p_index, p_index]
@@ -253,19 +253,19 @@ class NlpSensitivity(Wrapper[NlpType]):
             d2ydp2 = np.linalg.solve(A, b)
         return dydp, d2ydp2
 
-    @cache_clearer(jacobians, hessians, hoderivatives)
+    @cache_clearer(jacobians, hessians, hojacobians)
     def parameter(self, *args, **kwargs):
         return self.nlp.parameter(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
+    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
 
