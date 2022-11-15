@@ -224,12 +224,12 @@ class NlpSensitivity(Wrapper[NlpType]):
             dydp = np.linalg.solve(A, b)
 
         # second order sensitivity, a.k.a., d2ydp2
+        dydp = cs2array(dydp)
         Kpp = self.hojacobians['K-pp']
         Kpy = self.hojacobians['K-py'].transpose((0, 2, 1))
         Kyp = self.hojacobians['K-yp']
         Kyy = self.hojacobians['K-yy']
-        dydp_ = cs2array(dydp)
-        M = (Kpy + Kyp + (Kyy @ dydp_)).transpose((0, 2, 1)) @ dydp_
+        M = (Kpy + Kyp + (Kyy @ dydp)).transpose((0, 2, 1)) @ dydp
         if solution is None:
             A = cs2array(cs.inv(Ky))
             b = -(Kpp + M).transpose((2, 0, 1))
@@ -247,18 +247,18 @@ class NlpSensitivity(Wrapper[NlpType]):
 
         p = self.nlp._p
         y, idx = self._y_idx
-        Zpp, Zp = cs.hessian(Z, p)
-        Zyy, Zy = cs.hessian(Z, y)
-        Zyp = cs.jacobian(cs.jacobian(Z, y), p)
-        Zy = cs2array(Zy[idx, :])
-        Zyy = cs2array(Zyy[idx, idx])
-        Zyp = cs2array(Zyp[idx, :])
+        Zpp, Zp = (cs2array(o) for o in cs.hessian(Z, p))
+        Zyy, Zy = (cs2array(o) for o in cs.hessian(Z, y))
+        Zyp = cs2array(cs.jacobian(cs.jacobian(Z, y), p))
+        Zy = Zy[idx, :]
+        Zyy = Zyy[idx, :][:, idx]
+        Zyp = Zyp[idx, :]
 
         dzdp = dydp.T @ Zy + Zp
         d2zdp2 = (Zyy @ dydp + Zyp).T @ dydp + Zpp + \
             (d2ydp2.transpose((1, 2, 0)) @ Zy).squeeze()
         if solution is not None:
-            dzdp, d2zdp2 = solution.value(dzdp), solution.value(d2zdp2)
+            return solution.value(dzdp), solution.value(d2zdp2)
         return array2cs(dzdp), array2cs(d2zdp2)
 
     @cache_clearer(jacobians, hessians, hojacobians)
