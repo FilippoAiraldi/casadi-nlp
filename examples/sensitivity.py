@@ -33,7 +33,7 @@ def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float):
 
 def z(x, lam, p):
     # in the CasADi blog, z is only a function of x, i.e., z(x)
-    return (x[1, :]**p[1] - x[0, :]) * cs.exp(-10 * lam) / p[1]
+    return (x[1, :]**p[1] - x[0, :]) * cs.exp(-10 * lam + p[0]) / p[1]
 
 
 # build the NLP
@@ -53,7 +53,7 @@ nlp.init_solver(opts)
 # Use IPOPT to solve the nonlinear optimization
 M = nlp.to_function('M', [p, x], [x], ['p', 'x0'], ['x'])
 
-p_values = (1.2, 1.5, 1.9)
+p_values = (1.2, 1.45, 1.9)
 fig, axs = plt.subplots(
     1, 3, sharey=True, constrained_layout=True, figsize=(8, 3))
 for p0, ax in zip(p_values, axs):
@@ -89,5 +89,5 @@ for p0, clr in zip(p_values, ['r', 'g', 'b']):
 ax.set_xlabel('p')
 ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
 ax.set_xlim(1, 2)
-ax.set_ylim(-0.17, 0.03)
+ax.set_ylim(-0.25, 0.03)
 plt.show()
