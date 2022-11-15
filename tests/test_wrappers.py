@@ -3,7 +3,7 @@ from itertools import product
 import casadi as cs
 import numpy as np
 from csnlp import Nlp
-from csnlp.wrappers import Wrapper, DifferentiableNlp
+from csnlp.wrappers import Wrapper, NlpSensitivity
 from csnlp.solutions import subsevalf
 from csnlp.math import log
 
@@ -36,7 +36,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x')[0]
             y = nlp.variable('y')[0]
             _, lam = nlp.constraint('c1', x**2 + y**2, '==', 1)
@@ -56,7 +56,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         n = 50
         lbx = 1 / n * 1e-6
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             p, lam_lbx, _ = nlp.variable('p', (n, 1), lb=lbx)
             c1, lam_g = nlp.constraint('c1', cs.sum1(p), '==', 1)
             f = cs.sum1(p * log(p, 2))
@@ -74,7 +74,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_lagrangian__is_correct__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x, lam_lbx, lam_ubx = nlp.variable('x', (2, 1), lb=0, ub=1)
             c1, lam_h = nlp.constraint('c1', x[0] + x[1]**2, '<=', 2)
             f = - x[0] * x[1]
@@ -94,7 +94,7 @@ class TestDifferentiableNlp(unittest.TestCase):
 
     def test_kkt__returns_tau_correctly(self):
         for sym_type, flag in product(('MX', 'SX'), (True, False)):
-            nlp = DifferentiableNlp(
+            nlp = NlpSensitivity(
                 Nlp(sym_type=sym_type), include_barrier_term=flag)
             x = nlp.variable('x')[0]
             nlp.constraint('c', x, '<=', 1)
@@ -108,7 +108,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         for sym_type in ('MX', 'SX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x')[0]
             y = nlp.variable('y')[0]
             nlp.constraint('c1', x**2 + y**2, '==', 1)
@@ -121,7 +121,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_1b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x')[0]
             y = nlp.variable('y')[0]
             nlp.constraint('c1', x**2 + y**2, '==', 1)
@@ -137,7 +137,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_2(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x')[0]
             y = nlp.variable('y')[0]
             nlp.constraint('c1', x**2 + y**2, '==', 3)
@@ -154,7 +154,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             p = nlp.variable('p', (n, 1), lb=1 / n * 1e-6)[0]
             nlp.constraint('c1', cs.sum1(p), '==', 1)
             nlp.minimize(cs.sum1(p * log(p, 2)))
@@ -167,7 +167,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_4(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x')[0]
             nlp.constraint('c1', x**2, '==', 1)
             nlp.minimize(x**2)
@@ -179,7 +179,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_kkt__computes_kkt_conditions_correctly__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x', (2, 1), lb=0)[0]
             nlp.constraint('c1', x[0] + x[1]**2, '<=', 2)
             nlp.minimize(- x[0] * x[1])
@@ -200,7 +200,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         #     Online Optimization of Large Scale Systems, 3–16. Springer,
         #     Berlin, Heidelberg.
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             z = nlp.variable('z', (2, 1))[0]
             p = nlp.parameter('p')
             nlp.minimize(-((0.5 + p) * cs.sqrt(z[0]) + (0.5 - p) * z[1]))
@@ -233,7 +233,7 @@ class TestDifferentiableNlp(unittest.TestCase):
         #     Online Optimization of Large Scale Systems, 3–16. Springer,
         #     Berlin, Heidelberg.
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             z = nlp.variable('z', (2, 1))[0]
             p = nlp.parameter('p')
             nlp.minimize(cs.sumsqr(z + [1, -2]))
@@ -271,7 +271,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x', (2, 1))[0]
             nlp.constraint('c1', cs.sum1(x), '<=', 1)
             nlp.constraint('c2', cs.sumsqr(x), '<=', 1)
@@ -285,7 +285,7 @@ class TestDifferentiableNlp(unittest.TestCase):
     def test_licq__computes_qualification_correctly__example_2(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#MFCQ_ohne_LICQ
         for sym_type in ('SX', 'MX'):
-            nlp = DifferentiableNlp(Nlp(sym_type=sym_type))
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
             x = nlp.variable('x', (2, 1))[0]
             nlp.constraint('c1', x[1], '>=', 0)
             nlp.constraint('c2', x[0]**4 - x[1], '<=', 1)

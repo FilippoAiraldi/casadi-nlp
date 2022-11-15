@@ -71,7 +71,7 @@ ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
 
 
 # Parametric sensitivities
-nlp = wrappers.DifferentiableNlp(nlp)
+nlp = wrappers.NlpSensitivity(nlp)
 sol = nlp.solve(pars={'p': [0.2, 1.25]})
 p_index = 1
 dydp, d2ydp2 = nlp.parametric_sensitivity(order=2, p_index=1)

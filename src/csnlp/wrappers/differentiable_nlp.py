@@ -8,7 +8,7 @@ from csnlp.util import \
     cached_property, cache_clearer, hojacobian, cs2array, array2cs
 
 
-class DifferentiableNlp(Wrapper[NlpType]):
+class NlpSensitivity(Wrapper[NlpType]):
     '''
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
     its derivates. See [1] for nonlinear programming sensitivity analysis.
@@ -26,7 +26,7 @@ class DifferentiableNlp(Wrapper[NlpType]):
         nlp: NlpType,
         include_barrier_term: bool = True
     ) -> None:
-        '''Instantiates the wrapper.
+        '''Instantiates the wrapper for performing NLP sensitivities.
 
         Parameters
         ----------
