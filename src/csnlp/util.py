@@ -160,6 +160,8 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         Raises if the array is empty (zero dimensions), or if it has more than 
         2 dimensions.
     '''
+    if isinstance(x, (cs.SX, cs.MX, cs.DM)):
+        return x
     ndim = x.ndim
     if ndim == 0:
         raise ValueError('Cannot convert empty arrays.')
@@ -198,6 +200,8 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     np.ndarray
         The array containing the symbolic variable scalars.
     '''
+    if isinstance(x, np.ndarray):
+        return x
     shape = x.shape
     y = np.empty(shape, dtype=object)
     for i in np.ndindex(shape):
