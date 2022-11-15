@@ -103,22 +103,7 @@ class NlpSensitivity(Wrapper[NlpType]):
             - `K-y`: kkt conditions w.r.t. primal-dual variables
         '''
         K = self.kkt[0]
-        # in case of MX, jacobians throw if the MX are indexed (no more
-        # symbolical according to the exception). So we take the jacobian
-        # with all primal-dual vars, and then index the relevant ones.
-        if self.nlp._csXX is cs.SX:
-            y = self.nlp.primal_dual_vars()
-            idx = slice(None)
-        else:
-            y = self.nlp.primal_dual_vars(all=True)
-            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
-            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
-            n = self.nlp.nx + self.nlp.ng + self.nlp.nh
-            idx = np.concatenate((
-                np.arange(n),
-                h_lbx_idx + n,
-                h_ubx_idx + n + h_lbx_idx.size
-            ))
+        y, idx = self._y_idx
         return {
             'L-p': cs.jacobian(self.lagrangian, self.nlp._p),
             'g-x': cs.jacobian(self.nlp._g, self.nlp._x),
@@ -156,22 +141,7 @@ class NlpSensitivity(Wrapper[NlpType]):
         jacobians = self.jacobians
         Kp = jacobians['K-p']
         Ky = jacobians['K-y']
-        # in case of MX, jacobians throw if the MX are indexed (no more
-        # symbolical according to the exception). So we take the jacobian
-        # with all primal-dual vars, and then index the relevant ones.
-        if self.nlp._csXX is cs.SX:
-            y = self.nlp.primal_dual_vars()
-            idx = slice(None)
-        else:
-            y = self.nlp.primal_dual_vars(all=True)
-            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
-            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
-            n = self.nlp.nx + self.nlp.ng + self.nlp.nh
-            idx = np.concatenate((
-                np.arange(n),
-                h_lbx_idx + n,
-                h_ubx_idx + n + h_lbx_idx.size
-            ))
+        y, idx = self._y_idx
         return {
             'K-pp': hojacobian(Kp, self.nlp._p).squeeze(),
             'K-yp': hojacobian(Ky, self.nlp._p).squeeze(),
@@ -298,3 +268,25 @@ class NlpSensitivity(Wrapper[NlpType]):
     @cache_clearer(lagrangian, kkt, jacobians, hessians, hoderivatives)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
+
+    @property
+    def _y_idx(self) -> Tuple[Union[cs.SX, cs.MX], np.ndarray]:
+        '''Internal utility to return all the primal-dual variables and indices
+        that are associated to non-redundant entries in the kkt conditions.'''
+        if self.nlp._csXX is cs.SX:
+            y = self.nlp.primal_dual_vars()
+            idx = slice(None)
+        else:
+            # in case of MX, jacobians throw if the MX are indexed (no more
+            # symbolical according to the exception). So we take the jacobian
+            # with all primal-dual vars, and then index the relevant rows/cols.
+            y = self.nlp.primal_dual_vars(all=True)
+            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
+            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
+            n = self.nlp.nx + self.nlp.ng + self.nlp.nh
+            idx = np.concatenate((
+                np.arange(n),
+                h_lbx_idx + n,
+                h_ubx_idx + n + h_lbx_idx.size
+            ))
+        return y, idx
