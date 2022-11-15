@@ -171,28 +171,30 @@ class NlpSensitivity(Wrapper[NlpType]):
 
     def parametric_sensitivity(
         self,
+        p_index: int,
+        expr: Union[cs.SX, cs.MX] = None,
         solution: Optional[Solution] = None,
-        order: Literal[1, 2] = 1,
-        p_index: int = None
     ) -> Union[
         Tuple[np.ndarray, np.ndarray], Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]
     ]:
-        '''Performs the (symbolic or numerical) sensitivity of the NLP solution
-        w.r.t. its parametrization, according to [1].
+        '''Performs the (symbolic or numerical) sensitivity of the NLP w.r.t.
+        its parametrization, according to [1].
 
         Parameters
         ----------
+        p_index : int
+            The 2nd order sensitivity analysis can be performed only on one
+            parameter, a.k.a., the one specified by this index.
+        expression : cs.SX or MX, optional
+            If provided, computes the sensitivity of this expression (which
+            must be dependent on the primal-dual variables and/or parameters of
+            the NLP) w.r.t. the NLP parameters. If `None`, then the sensitivity
+            of the primal-dual variables is returned.
         solution : Solution, optional
             If a solution is passed, then the sensitivity is numerically
             computed for that solution; otherwise, the sensitivity is carried
             out symbolically (however, this is much more computationally
             intensive).
-        order : 1 or 2, optional
-            Order of the sensitivity analysis. By default, first order.
-        p_index : int, optional
-            If `order==2`, then the 2nd order sensitivity analysis can be
-            performed only on one parameter, a.k.a., the one specified by this
-            index.
 
         Returns
         -------
@@ -203,7 +205,7 @@ class NlpSensitivity(Wrapper[NlpType]):
         Raises
         ------
         ValueError
-            Raises if `order==2` but `p_index` is None or outside bounds.
+            Raises if `p_index` is outside bounds.
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
 
@@ -215,35 +217,29 @@ class NlpSensitivity(Wrapper[NlpType]):
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
+        if p_index < 0 or p_index >= self.nlp.np:
+            raise ValueError('Invalid parameter index for 2nd order '
+                             'sensitivity analysis')
 
         # first order sensitivity, a.k.a., dydp
         Ky = self.jacobians['K-y']
         Kp = self.jacobians['K-p']
         if solution is None:
             dydp = -cs.inv(Ky) @ Kp
-            d2ydp2 = self.nlp._csXX()  # create empty symbol
         else:
             A = solution.value(Ky)
             b = -solution.value(Kp)
             dydp = np.linalg.solve(A, b)
-            d2ydp2 = np.array([])  # create empty array
-        if order == 1:
-            return dydp, d2ydp2
 
         # second order sensitivity, a.k.a., d2ydp2
-        if p_index is None or (p_index < 0 or p_index >= self.nlp.np):
-            raise ValueError('Invalid parameter index for 2nd order '
-                             'sensitivity analysis')
         Kpp = self.hojacobians['K-pp']
         Kpy = self.hojacobians['K-py']
         Kyp = self.hojacobians['K-yp']
         Kyy = self.hojacobians['K-yy']
-
         dydp = dydp[:, p_index]
         Kpp = Kpp[:, p_index, p_index]
         Kpy = Kpy[:, p_index, :]
         Kyp = Kyp[..., p_index]
-
         dydp_ = cs2array(dydp)
         M = ((Kpy + Kyp + (Kyy @ dydp_).squeeze()) @ dydp_).squeeze()
         if solution is None:
@@ -251,7 +247,30 @@ class NlpSensitivity(Wrapper[NlpType]):
         else:
             b = -solution.value(Kpp + M)
             d2ydp2 = np.linalg.solve(A, b)
-        return dydp, d2ydp2
+
+        # sensitivity of custom expression
+        Z = expr  # Z := z(x(p),lam(p),p)
+        if Z is None:
+            return dydp, d2ydp2
+        if not Z.is_scalar():
+            raise ValueError('Custom expression must be scalar.')
+
+        p = self.nlp._p
+        y, idx = self._y_idx
+        Zpp, Zp = cs.hessian(Z, p)
+        Zyy, Zy = cs.hessian(Z, y)
+        Zyp = cs.jacobian(cs.jacobian(Z, y), p)
+        Zp = Zp[p_index]
+        Zpp = Zpp[p_index, p_index]
+        Zy = Zy[idx, :]
+        Zyy = Zyy[idx, idx]
+        Zyp = Zyp[idx, p_index]
+
+        J = Zy.T @ dydp + Zp
+        H = (Zyy @ dydp + Zyp).T @ dydp + Zy.T @ d2ydp2 + Zpp
+        if solution is not None:
+            J, H = solution.value(J), solution.value(H)
+        return J, H
 
     @cache_clearer(jacobians, hessians, hojacobians)
     def parameter(self, *args, **kwargs):

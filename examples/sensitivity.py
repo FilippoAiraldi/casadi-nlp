@@ -70,50 +70,22 @@ pv = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
 ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
 
 
-# Parametric sensitivities
+# Parametric sensitivities of function z(x(p), lam(p))
 nlp = wrappers.NlpSensitivity(nlp)
 sol = nlp.solve(pars={'p': [0.2, 1.25]})
-p_index = 1
-dydp, d2ydp2 = nlp.parametric_sensitivity(order=2, p_index=1)
-
-# sensitivity of function z(x(p), lam(p))
 Z = z(x, lam, p)
-if sym_type == 'SX':
-    y = nlp.primal_dual_vars()
-    d2zdp2, dzdp = cs.hessian(Z, p[p_index])
-    d2zdy2, dzdy = cs.hessian(Z, y)
-    d2zdyp = cs.jacobian(cs.jacobian(Z, y), p[p_index])
-else:
-    # a bit trickier for MX
-    y = nlp.primal_dual_vars(all=True)
-    h_lbx_idx = np.where(nlp.lbx != -np.inf)[0]
-    h_ubx_idx = np.where(nlp.ubx != +np.inf)[0]
-    n = nlp.nx + nlp.ng + nlp.nh
-    idx = np.concatenate((
-        np.arange(n),
-        h_lbx_idx + n,
-        h_ubx_idx + n + h_lbx_idx.size
-    ))
-    d2zdp2, dzdp = cs.hessian(Z, p)
-    d2zdp2 = d2zdp2[p_index, p_index]
-    dzdp = dzdp[p_index]
-    d2zdy2, dzdy = cs.hessian(Z, y)
-    d2zdy2 = d2zdy2[idx, idx]
-    dzdy = dzdy[idx, :]
-    d2zdyp = cs.jacobian(cs.jacobian(Z, y), p)
-    d2zdyp = d2zdyp[idx, p_index]
+p_index = 1
+J, H = nlp.parametric_sensitivity(Z, p_index=p_index)
 
 t = np.linspace(1, 2, 1000)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
     z0 = sol.value(Z)
-    J = sol.value(dzdy.T @ dydp + dzdp)
-    H = sol.value(
-        (d2zdy2 @ dydp + d2zdyp).T @ dydp + dzdy.T @ d2ydp2 + d2zdp2)
-
+    j0 = sol.value(J)
+    h0 = sol.value(H)
     ax.plot(p0, float(z0), 'o', color=clr, markersize=4)
     ax.plot(
-        t, z0 + J * (t - p0) + 0.5 * H * (t - p0)**2, lw=2, color=clr)
+        t, z0 + j0 * (t - p0) + 0.5 * h0 * (t - p0)**2, lw=2, color=clr)
 
 ax.set_xlabel('p')
 ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
