@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Union, Iterable
+import numpy as np
 import casadi as cs
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
@@ -64,7 +65,7 @@ class Solution:
 
 
 def subsevalf(
-    expr: Union[cs.SX, cs.MX],
+    expr: Union[cs.SX, cs.MX, np.ndarray],
     old: Union[cs.SX, cs.MX,
                Dict[str, Union[cs.SX, cs.MX]],
                Iterable[Union[cs.SX, cs.MX]],
@@ -74,14 +75,14 @@ def subsevalf(
                Iterable[Union[cs.SX, cs.MX]],
                CasadiStructured],
     eval: bool = True
-) -> Union[cs.SX, cs.DM]:
+) -> Union[cs.SX, cs.DM, np.ndarray]:
     '''
     Substitutes the old variables with the new ones in the symbolic expression,
     and evaluates it, if required.
 
     Parameters
     ----------
-    expr : casadi.SX, MX
+    expr : casadi.SX, MX or an array of these
         Expression for substitution and, possibly, evaluation.
     old : casadi.SX, MX (or struct, dict, iterable of)
         Old variable to be substituted.
@@ -94,7 +95,7 @@ def subsevalf(
 
     Returns
     -------
-    new_expr : casadi.SX, MX, DM
+    new_expr : casadi.SX, MX, DM or an array of these
         New expression after substitution (SX, MX) and, possibly, evaluation
         (DM).
 
@@ -107,17 +108,26 @@ def subsevalf(
         free, i.e., the expression cannot be evaluated numerically since it is
         still (partially) symbolic.
     '''
-    if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
-        expr = cs.substitute(expr, old, new)
-    elif isinstance(old, dict):
-        for name, o in old.items():
-            expr = cs.substitute(expr, o, new[name])
-    elif isinstance(old, Iterable):
-        for o, n in zip(old, new):
-            expr = cs.substitute(expr, o, n)
-    else:
-        raise TypeError(f'Invalid type {old.__class__.__name__} for old.')
 
-    if eval:
-        expr = cs.evalf(expr)
-    return expr
+    if isinstance(expr, np.ndarray) and expr.ndim > 2:
+        out = np.empty(expr.shape, dtype=object)
+        for i in np.ndindex(expr.shape):
+            out[i] = subsevalf(expr[i], old, new, eval=eval)
+        if eval:
+            out = out.astype(float)
+        return out
+    else:
+        if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
+            expr = cs.substitute(expr, old, new)
+        elif isinstance(old, dict):
+            for name, o in old.items():
+                expr = cs.substitute(expr, o, new[name])
+        elif isinstance(old, Iterable):
+            for o, n in zip(old, new):
+                expr = cs.substitute(expr, o, n)
+        else:
+            raise TypeError(f'Invalid type {old.__class__.__name__} for old.')
+
+        if eval:
+            expr = cs.evalf(expr)
+        return expr
