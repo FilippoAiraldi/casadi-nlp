@@ -171,7 +171,6 @@ class NlpSensitivity(Wrapper[NlpType]):
 
     def parametric_sensitivity(
         self,
-        p_index: int,
         expr: Union[cs.SX, cs.MX] = None,
         solution: Optional[Solution] = None,
     ) -> Union[
@@ -182,9 +181,6 @@ class NlpSensitivity(Wrapper[NlpType]):
 
         Parameters
         ----------
-        p_index : int
-            The 2nd order sensitivity analysis can be performed only on one
-            parameter, a.k.a., the one specified by this index.
         expression : cs.SX or MX, optional
             If provided, computes the sensitivity of this expression (which
             must be dependent on the primal-dual variables and/or parameters of
@@ -217,10 +213,6 @@ class NlpSensitivity(Wrapper[NlpType]):
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
         '''
-        if p_index < 0 or p_index >= self.nlp.np:
-            raise ValueError('Invalid parameter index for 2nd order '
-                             'sensitivity analysis')
-
         # first order sensitivity, a.k.a., dydp
         Ky = self.jacobians['K-y']
         Kp = self.jacobians['K-p']
@@ -233,25 +225,23 @@ class NlpSensitivity(Wrapper[NlpType]):
 
         # second order sensitivity, a.k.a., d2ydp2
         Kpp = self.hojacobians['K-pp']
-        Kpy = self.hojacobians['K-py']
+        Kpy = self.hojacobians['K-py'].transpose((0, 2, 1))
         Kyp = self.hojacobians['K-yp']
         Kyy = self.hojacobians['K-yy']
-        dydp = dydp[:, p_index]
-        Kpp = Kpp[:, p_index, p_index]
-        Kpy = Kpy[:, p_index, :]
-        Kyp = Kyp[..., p_index]
         dydp_ = cs2array(dydp)
-        M = ((Kpy + Kyp + (Kyy @ dydp_).squeeze()) @ dydp_).squeeze()
+        M = (Kpy + Kyp + (Kyy @ dydp_)).transpose((0, 2, 1)) @ dydp_
         if solution is None:
-            d2ydp2 = -cs.inv(Ky) @ array2cs(Kpp + M)
+            A = cs2array(cs.inv(Ky))
+            b = -(Kpp + M).transpose((2, 0, 1))
+            d2ydp2 = (A @ b).transpose((1, 2, 0))
         else:
-            b = -solution.value(Kpp + M)
-            d2ydp2 = np.linalg.solve(A, b)
+            b = -solution.value(Kpp + M).transpose((2, 0, 1))
+            d2ydp2 = np.linalg.solve(A, b).transpose((1, 2, 0))
 
         # sensitivity of custom expression
         Z = expr  # Z := z(x(p),lam(p),p)
         if Z is None:
-            return dydp, d2ydp2
+            return array2cs(dydp), array2cs(d2ydp2)
         if not Z.is_scalar():
             raise ValueError('Custom expression must be scalar.')
 
@@ -260,17 +250,16 @@ class NlpSensitivity(Wrapper[NlpType]):
         Zpp, Zp = cs.hessian(Z, p)
         Zyy, Zy = cs.hessian(Z, y)
         Zyp = cs.jacobian(cs.jacobian(Z, y), p)
-        Zp = Zp[p_index]
-        Zpp = Zpp[p_index, p_index]
-        Zy = Zy[idx, :]
-        Zyy = Zyy[idx, idx]
-        Zyp = Zyp[idx, p_index]
+        Zy = cs2array(Zy[idx, :])
+        Zyy = cs2array(Zyy[idx, idx])
+        Zyp = cs2array(Zyp[idx, :])
 
-        J = Zy.T @ dydp + Zp
-        H = (Zyy @ dydp + Zyp).T @ dydp + Zy.T @ d2ydp2 + Zpp
+        dzdp = dydp.T @ Zy + Zp
+        d2zdp2 = (Zyy @ dydp + Zyp).T @ dydp + Zpp + \
+            (d2ydp2.transpose((1, 2, 0)) @ Zy).squeeze()
         if solution is not None:
-            J, H = solution.value(J), solution.value(H)
-        return J, H
+            dzdp, d2zdp2 = solution.value(dzdp), solution.value(d2zdp2)
+        return array2cs(dzdp), array2cs(d2zdp2)
 
     @cache_clearer(jacobians, hessians, hojacobians)
     def parameter(self, *args, **kwargs):

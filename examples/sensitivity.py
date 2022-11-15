@@ -74,15 +74,14 @@ ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
 nlp = wrappers.NlpSensitivity(nlp)
 sol = nlp.solve(pars={'p': [0.2, 1.25]})
 Z = z(x, lam, p)
-p_index = 1
-J, H = nlp.parametric_sensitivity(Z, p_index=p_index)
+J, H = nlp.parametric_sensitivity(expr=Z)
 
 t = np.linspace(1, 2, 1000)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
     z0 = sol.value(Z)
-    j0 = sol.value(J)
-    h0 = sol.value(H)
+    j0 = sol.value(J)[1]
+    h0 = sol.value(H)[1, 1]
     ax.plot(p0, float(z0), 'o', color=clr, markersize=4)
     ax.plot(
         t, z0 + j0 * (t - p0) + 0.5 * h0 * (t - p0)**2, lw=2, color=clr)
@@ -92,9 +91,3 @@ ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
 ax.set_xlim(1, 2)
 ax.set_ylim(-0.17, 0.03)
 plt.show()
-
-# TODO
-# 1. sensitivity for custom expressions (so that I don't have to perform all
-#    these derivatives of z by myself each time)
-# 2. multi-parameter sensitivity (so that we can remove ugly p_index)
-# 3. conert this to a test for sensitivity analysis
