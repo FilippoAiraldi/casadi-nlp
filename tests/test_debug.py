@@ -1,6 +1,6 @@
 from typing import Tuple
 import unittest
-from casadi_nlp.debug import NlpDebug, NlpDebugEntry
+from csnlp.debug import NlpDebug, NlpDebugEntry
 import random
 
 

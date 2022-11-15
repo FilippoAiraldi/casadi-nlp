@@ -1,5 +1,5 @@
 from typing import Any, Generic, TypeVar
-from casadi_nlp.nlp import Nlp
+from csnlp.nlp import Nlp
 
 
 NlpType = TypeVar('NlpType', bound=Nlp)

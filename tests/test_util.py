@@ -4,7 +4,7 @@ from functools import cached_property
 from typing import Dict
 import casadi as cs
 import numpy as np
-from casadi_nlp.util import (
+from csnlp.util import (
     hojacobian, is_casadi_object, cache_clearer,
     dict2struct, struct_symSX, DMStruct,
     np_random,

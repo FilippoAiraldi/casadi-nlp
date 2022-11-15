@@ -3,8 +3,8 @@ import math
 import casadi as cs
 import numpy as np
 from scipy.stats import norm
-import casadi_nlp.math as csmath
-from casadi_nlp.solutions import subsevalf
+import csnlp.math as csmath
+from csnlp.solutions import subsevalf
 
 
 class TestMath(unittest.TestCase):

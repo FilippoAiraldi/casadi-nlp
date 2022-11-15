@@ -4,7 +4,7 @@
 
 # Nonlinear Programming with CasADi
 
-**casadi-nlp** provides classes and utilities to model, solve and analyse nonlinear programmes (NLPs) in optimization.
+**csnlp** provides classes and utilities to model, solve and analyse nonlinear programmes (NLPs) in optimization.
 
 In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [[1]](#1) to model the optimization problems and perform symbolic differentiation, as well as the [IPOPT](https://github.com/coin-or/Ipopt) solver [[2]](#2) (though the package can be adapted to other solvers pretty easily). The package offers also tools for the sensitivity analysis of NLPs.
 
@@ -12,9 +12,9 @@ In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [
 ## Installation
 To install the package, run
 ```bash
-pip install casadi-nlp
+pip install csnlp
 ```
-**casadi-nlp** has the following dependencies
+**csnlp** has the following dependencies
 
 - Python 3.8
 - [NumPy](https://pypi.org/project/numpy/)
@@ -30,7 +30,7 @@ git clone https://github.com/FilippoAiraldi/casadi-nlp.git
 ## Usage
 Similar to CasADi Opti, we instantiate a class that represents the NLP and allows to model its variables, parameters, constraints and objective. A simple example is below
 ```python
-from casadi_nlp import Nlp
+from csnlp import Nlp
 
 nlp = Nlp()
 x = nlp.variable('x')[0]
@@ -54,7 +54,7 @@ parameters, first we need to augment the capabilities of the NLP with a wrapper
 specialized in differentiating the optimization problem, and then compute the
 first-order sensitivities
 ```python
-from casadi_nlp import wrappers
+from csnlp import wrappers
 
 nlp = wrappers.DifferentiableNlp(nlp)
 

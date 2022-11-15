@@ -2,10 +2,10 @@ import unittest
 from itertools import product
 import casadi as cs
 import numpy as np
-from casadi_nlp import Nlp
-from casadi_nlp.wrappers import Wrapper, DifferentiableNlp
-from casadi_nlp.solutions import subsevalf
-from casadi_nlp.math import log
+from csnlp import Nlp
+from csnlp.wrappers import Wrapper, DifferentiableNlp
+from csnlp.solutions import subsevalf
+from csnlp.math import log
 
 
 OPTS = {

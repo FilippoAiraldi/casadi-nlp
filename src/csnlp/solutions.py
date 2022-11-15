@@ -47,7 +47,7 @@ class Solution:
             The symbolic expression to be evaluated at the solution's values.
         eval : bool, optional
             Evaluates numerically the new expression. By default, `True`. See
-            `casadi_nlp.solutions.subsevalf` for more details.
+            `csnlp.solutions.subsevalf` for more details.
 
         Returns
         -------

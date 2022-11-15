@@ -2,9 +2,9 @@ import unittest
 from itertools import product
 import casadi as cs
 import numpy as np
-from casadi_nlp import Nlp
-from casadi_nlp.solutions import subsevalf
-from casadi_nlp.math import log
+from csnlp import Nlp
+from csnlp.solutions import subsevalf
+from csnlp.math import log
 
 
 OPTS = {
@@ -264,14 +264,13 @@ class TestNlp(unittest.TestCase):
         v = cs.vec
         vc = cs.vertcat
         lam = vc(v(lam_g), v(lam_h), v(lam_lbx[0, :]), v(lam_ubx))
-        self.assertTrue(cs.is_equal( nlp.lam, lam))
+        self.assertTrue(cs.is_equal(nlp.lam, lam))
         lam = vc(v(lam_g), v(lam_h), v(lam_lbx), v(lam_ubx))
         self.assertTrue(cs.is_equal(nlp.lam_all, lam))
         y = vc(v(x), v(lam_g), v(lam_h), v(lam_lbx[0, :]), v(lam_ubx))
         self.assertTrue(cs.is_equal(nlp.primal_dual_vars(all=False), y))
         y = vc(v(x), v(lam_g), v(lam_h), v(lam_lbx), v(lam_ubx))
         self.assertTrue(cs.is_equal(nlp.primal_dual_vars(all=True), y))
-        
 
     def test_h_lbx_ubx__returns_correct_indices(self):
         for flag in (True, False):

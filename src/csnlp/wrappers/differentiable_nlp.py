@@ -1,10 +1,10 @@
 from typing import Dict, Literal, Tuple, Union, Optional
 import casadi as cs
 import numpy as np
-from casadi_nlp.nlp import _DUAL_VARIABLES_ORDER
-from casadi_nlp.wrappers.wrapper import Wrapper, NlpType
-from casadi_nlp.solutions import Solution
-from casadi_nlp.util import \
+from csnlp.nlp import _DUAL_VARIABLES_ORDER
+from csnlp.wrappers.wrapper import Wrapper, NlpType
+from csnlp.solutions import Solution
+from csnlp.util import \
     cached_property, cache_clearer, hojacobian, cs2array, array2cs
 
 

@@ -4,9 +4,9 @@ import warnings
 from typing import Any, Dict, Sequence, Literal, Optional, Tuple, Type, Union
 import casadi as cs
 import numpy as npy
-from casadi_nlp.solutions import Solution, subsevalf, DMStruct
-from casadi_nlp.debug import NlpDebug
-from casadi_nlp.util import (
+from csnlp.solutions import Solution, subsevalf, DMStruct
+from csnlp.debug import NlpDebug
+from csnlp.util import (
     cached_property, cache_clearer,
     struct_symSX, dict2struct,
     np_random

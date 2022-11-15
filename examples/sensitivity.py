@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 import casadi as cs
 import numpy as np
-from casadi_nlp import Nlp, wrappers
+from csnlp import Nlp, wrappers
 
 
 def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float):
@@ -96,7 +96,7 @@ else:
     ))
     d2zdp2, dzdp = cs.hessian(Z, p)
     d2zdp2 = d2zdp2[p_index, p_index]
-    dzdp = dzdp[p_index]    
+    dzdp = dzdp[p_index]
     d2zdy2, dzdy = cs.hessian(Z, y)
     d2zdy2 = d2zdy2[idx, idx]
     dzdy = dzdy[idx, :]

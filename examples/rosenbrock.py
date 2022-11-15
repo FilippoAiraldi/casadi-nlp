@@ -1,7 +1,7 @@
 # Reproduces https://web.casadi.org/blog/opti/
 
 
-from casadi_nlp import Nlp
+from csnlp import Nlp
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt

@@ -3,7 +3,7 @@ import unittest
 import casadi as cs
 from casadi.tools import struct_SX, struct_MX, entry
 import numpy as np
-from casadi_nlp.solutions import subsevalf, Solution
+from csnlp.solutions import subsevalf, Solution
 
 
 class TestSolutions(unittest.TestCase):
