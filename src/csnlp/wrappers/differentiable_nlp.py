@@ -201,7 +201,7 @@ class NlpSensitivity(Wrapper[NlpType]):
         Raises
         ------
         ValueError
-            Raises if `p_index` is outside bounds.
+            Raises if `expr` is not scalar.
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
 
@@ -243,7 +243,7 @@ class NlpSensitivity(Wrapper[NlpType]):
         if Z is None:
             return array2cs(dydp), array2cs(d2ydp2)
         if not Z.is_scalar():
-            raise ValueError('Custom expression must be scalar.')
+            raise ValueError('Expression must be scalar.')
 
         p = self.nlp._p
         y, idx = self._y_idx
