@@ -604,13 +604,15 @@ class Nlp:
             self._lam_lbx, self._lam_ubx)
         new = cs.vertcat(p, sol['x'], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        return Solution(
+        solution = Solution(
             f=float(sol['f']),
             vars=vars_,
             vals=vals,
             stats=self._solver.stats().copy(),
             _get_value=get_value
         )
+        self._failures += int(not solution.success)
+        return solution
 
     def to_function(
         self,
