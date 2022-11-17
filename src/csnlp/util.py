@@ -93,7 +93,8 @@ def dict2struct(
     Union[DMStruct, struct_symSX, struct_SX, Dict[str, cs.MX]]
         Either a structure generated from `dict`, or a copy of `dict` itself.
     '''
-
+    if not dict:  # in case of empty dict
+        return {}
     o = next(iter(dict.values()))
     if isinstance(o, cs.DM):
         dummy = struct_symSX([
@@ -140,7 +141,7 @@ def np_random(
 
 
 def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
-    '''Converts numpy array `x` of scalar symbolic variable to a single 
+    '''Converts numpy array `x` of scalar symbolic variable to a single
     symbolic instance. Opposite to `array2cs`. Note that all entries in `x`
     must have the same type, either SX or MX.
 
@@ -157,7 +158,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     Raises
     ------
     ValueError
-        Raises if the array is empty (zero dimensions), or if it has more than 
+        Raises if the array is empty (zero dimensions), or if it has more than
         2 dimensions.
     '''
     if isinstance(x, (cs.SX, cs.MX, cs.DM)):
@@ -185,7 +186,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
 
 
 def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
-    '''Converts casadi symbolic variable `x` to a numpy array of scalars. 
+    '''Converts casadi symbolic variable `x` to a numpy array of scalars.
     Opposite to `array2cs`.
 
     Inspired by https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/tools.py
