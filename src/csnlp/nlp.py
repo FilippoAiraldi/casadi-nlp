@@ -247,9 +247,9 @@ class Nlp:
     @cached_property
     def lam_all(self) -> Union[cs.SX, cs.MX]:
         '''Gets all the dual variables of the NLP scheme in vector form,
-        irrespective of redundant `lbx` and `ubx` multipliers. If 
-        `remove_redundant_x_bounds`, then this property is equivalent to 
-        the `lam` property. 
+        irrespective of redundant `lbx` and `ubx` multipliers. If
+        `remove_redundant_x_bounds`, then this property is equivalent to
+        the `lam` property.
 
         Note: The order of the dual variables can be adjusted via
         `_DUAL_VARIABLES_ORDER`.'''
@@ -352,7 +352,8 @@ class Nlp:
 
     @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam, lam_all)
     def variable(
-        self, name: str,
+        self,
+        name: str,
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npy.ndarray, cs.DM] = -npy.inf,
         ub: Union[npy.ndarray, cs.DM] = +npy.inf
