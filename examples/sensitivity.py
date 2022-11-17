@@ -51,42 +51,41 @@ nlp.init_solver(opts)
 
 
 # Use IPOPT to solve the nonlinear optimization
-M = nlp.to_function('M', [p, x], [x], ['p', 'x0'], ['x'])
-
 p_values = (1.2, 1.45, 1.9)
 fig, axs = plt.subplots(
     1, 3, sharey=True, constrained_layout=True, figsize=(8, 3))
+M = nlp.to_function('M', [p, x], [x], ['p', 'x0'], ['x'])
 for p0, ax in zip(p_values, axs):
     x_ = M([0.2, p0], 0).full()
     plot_nlp(ax, 0.2, p0, x_[0], x_[1])
 
 
 # How does the optimal solution vary along p?
-Z = nlp.to_function('Z', [p, x], [z(x, lam, p)], ['p', 'x0'], ['z'])
+nlp = wrappers.NlpSensitivity(nlp)
+# just a strange equation we want to compute the sensitivity of w.r.t. p
+Z = z(x, lam, p) * (nlp.lagrangian - 1)
+Zfcn = nlp.to_function('Z', [p, x], [Z], ['p', 'x0'], ['z'])
 
 fig, ax = plt.subplots(constrained_layout=True)
 N = 300
 pv = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
-ax.plot(pv[1].flat, Z(pv, 0).full().flat, 'k-', lw=3)
+ax.plot(pv[1].flat, Zfcn(pv, 0).full().flat, 'k-', lw=3)
 
 
 # Parametric sensitivities of function z(x(p), lam(p))
-nlp = wrappers.NlpSensitivity(nlp)
-Z = z(x, lam, p)
-J, H = nlp.parametric_sensitivity(expr=Z)
-
 t = np.linspace(1, 2, 1000)
+J, H = nlp.parametric_sensitivity(expr=Z)
 for p0, clr in zip(p_values, ['r', 'g', 'b']):
     sol = nlp.solve(pars={'p': [0.2, p0]})
     z0 = sol.value(Z)
-    j0 = sol.value(J)[1]
-    h0 = sol.value(H)[1, 1]
+    j0 = sol.value(J)
+    h0 = sol.value(H)
     ax.plot(p0, float(z0), 'o', color=clr, markersize=4)
-    ax.plot(
-        t, z0 + j0 * (t - p0) + 0.5 * h0 * (t - p0)**2, lw=2, color=clr)
+    ax.plot(t, z0 + j0[1] * (t - p0) + 0.5 * h0[1, 1] * (t - p0)**2,
+            lw=2, color=clr)
 
 ax.set_xlabel('p')
 ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
-ax.set_xlim(1, 2)
-ax.set_ylim(-0.25, 0.03)
+ax.set_xlim(t[0], t[-1])
+ax.set_ylim(-0.4, 0.4)
 plt.show()

@@ -257,18 +257,14 @@ class TestNlpSensitivity(unittest.TestCase):
                 sol.value(S1).full().flat, [1, 0, 2, 0], atol=1e-5)
             np.testing.assert_allclose(S2.flat, [1, 0, 2, 0], atol=1e-5)
 
-            Lp = nlp.jacobians['L-p']
-            Lpp = nlp.hessians['L-pp']
-            Lpz = nlp.hessians['L-px']
-            Lzz = nlp.hessians['L-xx']
-            np.testing.assert_allclose(sol.value(Lp), 4, atol=1e-7)
-
-            dzdp = S1[:nlp.nx]
-            d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
-            np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
-            dzdp = S2[:nlp.nx, None]
-            d2Fdp2 = dzdp.T @ Lzz @ dzdp + 2 * (Lpz @ dzdp).T + Lpp
-            np.testing.assert_allclose(sol.value(d2Fdp2), 2, atol=1e-7)
+            Fp1, Fpp1 = (sol.value(o).full().item() for o in
+                         nlp.parametric_sensitivity(expr=nlp.f))
+            Fp2, Fpp2 = (o.item() for o in
+                         nlp.parametric_sensitivity(expr=nlp.f, solution=sol))
+            np.testing.assert_allclose(Fp1, 4, atol=1e-7)
+            np.testing.assert_allclose(Fp2, 4, atol=1e-7)
+            np.testing.assert_allclose(Fpp1, 2, atol=1e-7)
+            np.testing.assert_allclose(Fpp2, 2, atol=1e-7)            
 
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
