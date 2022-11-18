@@ -89,7 +89,11 @@ class Mpc(Wrapper[NlpType]):
     @cached_property
     def states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the states of the MPC controller.'''
-        return dict2struct({n: self.nlp._vars[n] for n in self._state_names})
+    @cached_property
+    def initial_states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the initial states (parameters) of the MPC controller.'''
+        return dict2struct(
+            {n: self.nlp._pars[f'{n}_0'] for n in self._state_names})
 
     @cached_property
     def actions(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -112,7 +116,7 @@ class Mpc(Wrapper[NlpType]):
         return dict2struct(
             {n: self.nlp._pars[n] for n in self._disturbance_names})
 
-    @cache_clearer(states)
+    @cache_clearer(states, initial_states)
     def state(
         self,
         name: str,
@@ -130,16 +134,18 @@ class Mpc(Wrapper[NlpType]):
             Name of the state.
         dim : int
             Dimension of the state (assumed to be a vector).
-        lb : Union[np.ndarray, cs.DM], optional
+        lb : array_like, casadi.DM, optional
             Hard lower bound of the state, by default -np.inf.
-        ub : Union[np.ndarray, cs.DM], optional
+        ub : array_like, casadi.DM, optional
             Hard upper bound of the state, by default +np.inf.
 
         Returns
         -------
-        state : SX or MX
-            The state symbolic variable.
-        initial state : SX or MX
+        state : casadi.SX, MX or None
+            The state symbolic variable. If `shooting=single`, then `None` is
+            returned since the state will only be available once the dynamics
+            are set.
+        initial state : casadi.SX, MX
             The initial state symbolic parameter.
         '''
         x = self.nlp.variable(
