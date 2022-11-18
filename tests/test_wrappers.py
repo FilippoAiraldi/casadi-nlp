@@ -3,7 +3,7 @@ from itertools import product
 import casadi as cs
 import numpy as np
 from csnlp import Nlp
-from csnlp.wrappers import Wrapper, NlpSensitivity
+from csnlp.wrappers import Wrapper, NlpSensitivity, Mpc
 from csnlp.solutions import subsevalf
 from csnlp.math import log
 
@@ -332,6 +332,65 @@ class TestNlpSensitivity(unittest.TestCase):
                 np.testing.assert_allclose(H, H1[1, 1], atol=1e-4)
                 np.testing.assert_allclose(H, H2[1, 1], atol=1e-4)
 
+
+class TestMpc(unittest.TestCase):
+    def test_init__raises__with_invalid_args(self):
+        with self.assertRaises(ValueError):
+            Mpc(nlp=None, shooting='ciao', prediction_horizon=1)
+        with self.assertRaises(ValueError):
+            Mpc(nlp=None, prediction_horizon=0)
+        with self.assertRaises(ValueError):
+            Mpc(nlp=None, prediction_horizon=10, control_horizon=-2)
+
+    def test_init__initializes_control_horizon_properly(self):
+        N = 10
+        mpc1 = Mpc(nlp=None, prediction_horizon=N)
+        mpc2 = Mpc(nlp=None, prediction_horizon=N, control_horizon=N * 2)
+        self.assertEqual(mpc1.control_horizon, N)
+        self.assertEqual(mpc2.control_horizon, N * 2)
+
+    def test_state__constructs_state_correctly(self):
+        N = 10
+        nlp = Nlp(sym_type='MX')
+        mpc = Mpc(nlp=nlp, prediction_horizon=N)
+        x1, x1_0 = mpc.state('x1', 2)
+        self.assertEqual(x1.shape, (2, N + 1))
+        self.assertEqual(x1.shape, mpc.states['x1'].shape)
+        self.assertEqual(x1_0.shape, (2, 1))
+        self.assertEqual(mpc.constraints['x1_0'].shape, (2, 1))
+        x2, x2_0 = mpc.state('x2', 1)
+        self.assertEqual(x2.shape, (1, N + 1))
+        self.assertEqual(x2.shape, mpc.states['x2'].shape)
+        self.assertEqual(x2_0.shape, (1, 1))
+        self.assertEqual(mpc.constraints['x2_0'].shape, (1, 1))
+
+    def test_action__constructs_action_correctly(self):
+        Np = 10
+        for Nc in [Np // 2, Np]:
+            nlp = Nlp(sym_type='SX')
+            mpc = Mpc(nlp=nlp, prediction_horizon=Np, control_horizon=Nc)
+            u1, u1_exp = mpc.action('u1', 2)
+            self.assertEqual(u1.shape, (2, Nc))
+            self.assertEqual(u1.shape, mpc.actions['u1'].shape)
+            self.assertEqual(u1_exp.shape, (2, Np))
+            self.assertEqual(u1_exp.shape, mpc.actions_exp['u1'].shape)
+            u2, u2_exp = mpc.action('u2', 1)
+            self.assertEqual(u2.shape, (1, Nc))
+            self.assertEqual(u2.shape, mpc.actions['u2'].shape)
+            self.assertEqual(u2_exp.shape, (1, Np))
+            self.assertEqual(u2_exp.shape, mpc.actions_exp['u2'].shape)
+            for i in range(Nc - 1, Np):
+                self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
+                self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))
+
+    def test_constraint__saves_slack_correctly(self):
+        nlp = Nlp(sym_type='MX')
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        x, _ = mpc.state('x')
+        _, _, slack = mpc.constraint('c0', x, '>=', 5, soft=True)
+        self.assertIn(slack.name(), mpc._slack_names)
+        self.assertIn(slack.name(), mpc.slacks)
+        self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
 
 if __name__ == '__main__':
     unittest.main()
