@@ -383,7 +383,7 @@ class TestMpc(unittest.TestCase):
                 self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
                 self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))
 
-    def test_constraint__saves_slack_correctly(self):
+    def test_constraint__constructs_slack_correctly(self):
         nlp = Nlp(sym_type='MX')
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
         x, _ = mpc.state('x')
@@ -391,6 +391,16 @@ class TestMpc(unittest.TestCase):
         self.assertIn(slack.name(), mpc._slack_names)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
+
+    def test_disturbance__constructs_disturbance_correctly(self):
+        nlp = Nlp(sym_type='MX')
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        d1 = mpc.disturbance('d1', (2, 3))
+        self.assertEqual(d1.shape, (2, 3))
+        self.assertEqual(d1.shape, mpc.disturbances['d1'].shape)
+        d2 = mpc.disturbance('d2', (20, 1))
+        self.assertEqual(d2.shape, (20, 1))
+        self.assertEqual(d2.shape, mpc.disturbances['d2'].shape)
 
 if __name__ == '__main__':
     unittest.main()

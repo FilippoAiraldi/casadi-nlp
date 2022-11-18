@@ -73,6 +73,7 @@ class Mpc(Wrapper[NlpType]):
         self._action_names: Set[str] = set()
         self._actions_exp: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._slack_names: Set[str] = set()
+        self._disturbance_names: Set[str] = set()
 
     @property
     def prediction_horizon(self) -> int:
@@ -103,6 +104,12 @@ class Mpc(Wrapper[NlpType]):
     def slacks(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the slack variables of the MPC controller.'''
         return dict2struct({n: self.nlp._vars[n] for n in self._slack_names})
+
+    @cached_property
+    def disturbances(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        '''Gets the disturbance parameters of the MPC controller.'''
+        return dict2struct(
+            {n: self.nlp._pars[n] for n in self._disturbance_names})
 
     @cache_clearer(states)
     def state(
@@ -194,9 +201,32 @@ class Mpc(Wrapper[NlpType]):
         Tuple[cs.SX, cs.SX, cs.SX],
         Tuple[cs.MX, cs.MX, cs.MX],
     ]:
+        '''See `Nlp.constraint` method.'''
         out = self.nlp.constraint(
             name=name, lhs=lhs, op=op, rhs=rhs, soft=soft, simplify=simplify)
         if soft:
             self._slack_names.add(f'slack_{name}')
+        return out
+
+    @cache_clearer(disturbances)
+    def disturbance(
+        self, name: str, shape: Tuple[int, int] = (1, 1)
+    ) -> Union[cs.SX, cs.MX]:
+        '''Adds a disturbance parameter to the MPC controller.
+
+        Parameters
+        ----------
+        name : str
+            Name of the disturbance.
+        shape : Tuple[int, int], optional
+            Shape of the disturbance, by default (1, 1).
+
+        Returns
+        -------
+        casadi.SX or MX
+            The symbol for the new disturbance in the MPC controller.
+        '''
+        out = self.nlp.parameter(name=name, shape=shape)
+        self._disturbance_names.add(name)
         return out
 
