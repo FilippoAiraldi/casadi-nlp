@@ -264,7 +264,7 @@ class TestNlpSensitivity(unittest.TestCase):
             np.testing.assert_allclose(Fp1, 4, atol=1e-7)
             np.testing.assert_allclose(Fp2, 4, atol=1e-7)
             np.testing.assert_allclose(Fpp1, 2, atol=1e-7)
-            np.testing.assert_allclose(Fpp2, 2, atol=1e-7)            
+            np.testing.assert_allclose(Fpp2, 2, atol=1e-7)
 
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
@@ -373,12 +373,12 @@ class TestMpc(unittest.TestCase):
             self.assertEqual(u1.shape, (2, Nc))
             self.assertEqual(u1.shape, mpc.actions['u1'].shape)
             self.assertEqual(u1_exp.shape, (2, Np))
-            self.assertEqual(u1_exp.shape, mpc.actions_exp['u1'].shape)
+            self.assertEqual(u1_exp.shape, mpc.actions_expanded['u1'].shape)
             u2, u2_exp = mpc.action('u2', 1)
             self.assertEqual(u2.shape, (1, Nc))
             self.assertEqual(u2.shape, mpc.actions['u2'].shape)
             self.assertEqual(u2_exp.shape, (1, Np))
-            self.assertEqual(u2_exp.shape, mpc.actions_exp['u2'].shape)
+            self.assertEqual(u2_exp.shape, mpc.actions_expanded['u2'].shape)
             for i in range(Nc - 1, Np):
                 self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
                 self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))
@@ -401,6 +401,7 @@ class TestMpc(unittest.TestCase):
         d2 = mpc.disturbance('d2', (20, 1))
         self.assertEqual(d2.shape, (20, 1))
         self.assertEqual(d2.shape, mpc.disturbances['d2'].shape)
+
 
 if __name__ == '__main__':
     unittest.main()

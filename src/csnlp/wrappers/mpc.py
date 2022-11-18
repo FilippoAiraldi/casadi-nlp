@@ -1,4 +1,4 @@
-from typing import Literal, Set, Tuple, Union, Dict, Optional
+from typing import List, Literal, Tuple, Union, Dict, Optional
 import casadi as cs
 import numpy as np
 from csnlp.wrappers.wrapper import Wrapper, NlpType
@@ -69,8 +69,10 @@ class Mpc(Wrapper[NlpType]):
             raise ValueError('Control horizon must be positive and > 0.')
         else:
             self._control_horizon = control_horizon
-        self._state_names: Set[str] = set()
-        self._action_names: Set[str] = set()
+        self._state_names: List[str] = []
+        self._action_names: List[str] = []
+        self._slack_names: List[str] = []
+        self._disturbance_names: List[str] = []
         self._actions_exp: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._slack_names: Set[str] = set()
         self._disturbance_names: Set[str] = set()
@@ -96,7 +98,7 @@ class Mpc(Wrapper[NlpType]):
         return dict2struct({n: self.nlp._vars[n] for n in self._action_names})
 
     @cached_property
-    def actions_exp(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    def actions_expanded(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the expanded control actions of the MPC controller.'''
         return dict2struct(self._actions_exp)
 
@@ -145,10 +147,10 @@ class Mpc(Wrapper[NlpType]):
             name, (dim, self._prediction_horizon + 1), lb, ub)[0]
         x0 = self.nlp.parameter(f'{name}_0', (dim, 1))
         self.nlp.constraint(f'{name}_0', x[:, 0], '==', x0)
-        self._state_names.add(name)
+        self._state_names.append(name)
         return x, x0
 
-    @cache_clearer(actions, actions_exp)
+    @cache_clearer(actions, actions_expanded)
     def action(
         self,
         name: str,
@@ -180,10 +182,10 @@ class Mpc(Wrapper[NlpType]):
             of the prediction horizon.
         '''
         u = self.nlp.variable(name, (dim, self._control_horizon), lb, ub)[0]
-        self._action_names.add(name)
         gap = self._prediction_horizon - self._control_horizon
         u_exp = cs.horzcat(u, *(u[:, -1] for _ in range(gap)))
         self._actions_exp[name] = u_exp
+        self._action_names.append(name)
         return u, u_exp
 
     @cache_clearer(slacks)
@@ -205,7 +207,7 @@ class Mpc(Wrapper[NlpType]):
         out = self.nlp.constraint(
             name=name, lhs=lhs, op=op, rhs=rhs, soft=soft, simplify=simplify)
         if soft:
-            self._slack_names.add(f'slack_{name}')
+            self._slack_names.append(f'slack_{name}')
         return out
 
     @cache_clearer(disturbances)
@@ -227,6 +229,6 @@ class Mpc(Wrapper[NlpType]):
             The symbol for the new disturbance in the MPC controller.
         '''
         out = self.nlp.parameter(name=name, shape=shape)
-        self._disturbance_names.add(name)
+        self._disturbance_names.append(name)
         return out
 
