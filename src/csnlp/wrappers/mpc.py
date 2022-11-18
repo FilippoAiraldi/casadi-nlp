@@ -74,8 +74,7 @@ class Mpc(Wrapper[NlpType]):
         self._slack_names: List[str] = []
         self._disturbance_names: List[str] = []
         self._actions_exp: Dict[str, Union[cs.SX, cs.MX]] = {}
-        self._slack_names: Set[str] = set()
-        self._disturbance_names: Set[str] = set()
+        self._dynamics: cs.Function = None
 
     @property
     def prediction_horizon(self) -> int:
@@ -234,25 +233,35 @@ class Mpc(Wrapper[NlpType]):
             self._slack_names.append(f'slack_{name}')
         return out
 
-    @cache_clearer(disturbances)
-    def disturbance(
-        self, name: str, shape: Tuple[int, int] = (1, 1)
-    ) -> Union[cs.SX, cs.MX]:
-        '''Adds a disturbance parameter to the MPC controller.
+    @property
+    def dynamics(self) -> Optional[cs.Function]:
+        '''Gets the prediction model's dynamics of the MPC controller. If not
+        set, returns `None`.'''
+        return self._dynamics
 
-        Parameters
-        ----------
-        name : str
-            Name of the disturbance.
-        shape : Tuple[int, int], optional
-            Shape of the disturbance, by default (1, 1).
+    @dynamics.setter
+    def dynamics(self, F: cs.Function) -> None:
+        if self._dynamics is not None:
+            raise RuntimeError('Dynamics were already set.')
+        n_in = F.n_in()
+        n_out = F.n_out()
+        if n_in < 2 or n_in > 3 or n_out < 1:
+            raise ValueError(
+                'The dynamics function must accepted 2 or 3 arguments and '
+                f'return at least 1 output; got {n_in} inputs and {n_out} '
+                'outputs instead.')
 
-        Returns
-        -------
-        casadi.SX or MX
-            The symbol for the new disturbance in the MPC controller.
-        '''
-        out = self.nlp.parameter(name=name, shape=shape)
-        self._disturbance_names.append(name)
-        return out
-
+        X = cs.vertcat(*(self.nlp._vars[n] for n in self._state_names))
+        U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
+        if n_in < 3:
+            get_args = lambda k: (X[:, k], U[:, k])
+        if n_in > 2:
+            D = cs.vertcat(
+                *(self.nlp._pars[n] for n in self._disturbance_names))
+            get_args = lambda k: (X[:, k], U[:, k], D[:, k])
+        for k in range(self._prediction_horizon):
+            x_next = F(*get_args(k))
+            if n_out != 1:
+                x_next = x_next[0]
+            self.constraint(f'dyn_{k}', X[:, k + 1], '==', x_next)
+        self._dynamics = F

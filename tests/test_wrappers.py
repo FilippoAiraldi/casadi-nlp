@@ -403,6 +403,54 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(d2.shape, (20, N))
         self.assertEqual(d2.shape, mpc.disturbances['d2'].shape)
 
+    def test_dynamics__raises__if_dynamics_already_set(self):
+        nlp = Nlp(sym_type='MX')
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        mpc._dynamics = 5
+        with self.assertRaises(RuntimeError):
+            mpc.dynamics = 6
+
+    def test_dynamics__raises__if_dynamics_arguments_are_invalid(self):
+        x1 = cs.SX.sym('x1', 2)
+        x2 = cs.SX.sym('x2', 3)
+        x = cs.vertcat(x1, x2)
+        u1 = cs.SX.sym('u1', 3)
+        u2 = cs.SX.sym('u2', 1)
+        u = cs.vertcat(u1, u2)
+        d = cs.SX.sym('d')
+        p = cs.SX.sym('p')
+        x_next = x + cs.vertcat(u, u2)
+        F1 = cs.Function('F', [x], [x_next])
+        F2 = cs.Function('F', [x, u, d, p], [x_next + d + p])
+        nlp = Nlp(sym_type='MX')
+        mpc = Mpc(nlp=nlp, prediction_horizon=10, control_horizon=5)
+        for F in (F1, F2):
+            with self.assertRaises(ValueError):
+                mpc.dynamics = F
+
+    def test_dynamics__creates_dynamics_eq_constraints(self):
+        N = 10
+        for i in range(2):
+            nlp = Nlp(sym_type='SX')
+            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2)
+            x1, _ = mpc.state('x1', 2)
+            x2, _ = mpc.state('x2', 3)
+            u1, _ = mpc.action('u1', 3)
+            u2, _ = mpc.action('u2', 1)
+            x = cs.vertcat(x1[:, 0], x2[:, 0])
+            u = cs.vertcat(u1[:, 0], u2[:, 0])
+            x_next = x + cs.vertcat(u, u2[:, 0])
+            if i == 0:
+                F = cs.Function('F', [x, u], [x_next], ['x', 'u'], ['x+'])
+            else:
+                d = mpc.disturbance('d')
+                x_next += d[:, 0]
+                F = cs.Function(
+                    'F', [x, u, d], [x_next], ['x', 'u', 'd'], ['x+'])
+            mpc.dynamics = F
+            for k in range(N):
+                self.assertIn(f'dyn_{k}', mpc.constraints.keys())
+            self.assertEqual(mpc.ng, (1 + N) * 5)
 
 if __name__ == '__main__':
     unittest.main()
