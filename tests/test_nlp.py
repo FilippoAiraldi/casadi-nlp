@@ -215,6 +215,41 @@ class TestNlp(unittest.TestCase):
                     subsevalf(lam, [lam_c1, lam_c2], [lam1_, lam2_])
                 )
 
+    def test_constraint__adds_soft_variable_correctly(self):
+        for sym_type in ('SX', 'MX'):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x')[0]
+            nlp.constraint('c0', x, '>=', 0, soft=True)
+            self.assertEqual(nlp.nx, 2)
+            self.assertIn('slack_c0', nlp._vars)
+
+    def test_constraint__solves_correctly__with_soft_variable(self):
+        # From https://www.gams.com/latest/docs/UG_EMP_SoftConstraints.html
+        for sym_type in ('SX', 'MX'):
+            # solve with manual soft variable
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', (2, 1), lb=0)[0]
+            v = nlp.variable('v', lb=0)[0]
+            nlp.constraint('c0', 3 * x[0] + x[1], '<=', 5)
+            nlp.constraint('c1', v, '>=', 20 - x[1]**2)
+            nlp.minimize(-x[0]**2 + 5 * (cs.log(x[0]) - 1)**2 + 2 * v)
+            nlp.init_solver(OPTS)
+            sol1 = nlp.solve(vals0={'x': [1, 1], 'v': 0})
+
+            # solve with automatic soft variable
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable('x', (2, 1), lb=0)[0]
+            nlp.constraint('c0', 3 * x[0] + x[1], '<=', 5)
+            _, _, v = nlp.constraint('c1', x[1]**2, '>=', 20, soft=True)
+            nlp.minimize(-x[0]**2 + 5 * (cs.log(x[0]) - 1)**2 + 2 * v)
+            nlp.init_solver(OPTS)
+            sol2 = nlp.solve(vals0={'x': [1, 1], 'slack_c1': 0})
+
+            # assert results equal
+            np.testing.assert_allclose(sol1.f, sol2.f)
+            np.testing.assert_allclose(sol1.vals['x'], sol2.vals['x'])
+            np.testing.assert_allclose(sol1.vals['v'], sol2.vals['slack_c1'])
+
     def test_dual__returns_dual_variables_correctly(self):
         shape1, shape2 = (4, 3), (2, 2)
         for sym_type, flag, ops in product(

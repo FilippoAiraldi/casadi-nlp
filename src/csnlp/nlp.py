@@ -421,8 +421,14 @@ class Nlp:
         lhs: Union[npy.ndarray, cs.DM, cs.SX, cs.MX],
         op: Literal['==', '>=', '<='],
         rhs: Union[npy.ndarray, cs.DM, cs.SX, cs.MX],
+        soft: bool = False,
         simplify: bool = True
-    ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+    ) -> Union[
+        Tuple[cs.SX, cs.SX],
+        Tuple[cs.MX, cs.MX],
+        Tuple[cs.SX, cs.SX, cs.SX],
+        Tuple[cs.MX, cs.MX, cs.MX],
+    ]:
         '''Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
 
         Parameters
@@ -435,6 +441,12 @@ class Nlp:
             Operator relating the two terms.
         rhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the right-hand term of the constraint.
+        soft : bool, optional
+            If `True`, then a slack variable with appropriate size is added to
+            the NLP to make the inequality constraint soft, and returned.
+            This slack is automatically lower-bounded by 0, but remember to
+            penalize its magnitude in the objective. Slacks are not supported
+            for equality constraints. Defaults to `False`.
         simplify : bool, optional
             Optionally simplies the constraint expression, but can be disabled.
 
@@ -445,12 +457,17 @@ class Nlp:
             `h(x,u) <= 0`.
         lam : casadi.SX, MX
             The symbol corresponding to the constraint's multipliers.
+        slack : casadi.SX, MX, optional
+            The slack variable in case of `soft=True`; otherwise, only a
+            2-tuple is returned.
 
         Raises
         ------
         ValueError
             Raises if there is already another constraint with the same name;
             or if the operator is not recognized.
+        NotImplementedError
+            Raises if a soft equality constraint is requested.
         TypeError
             Raises if the constraint is not symbolic.
         '''
@@ -466,6 +483,9 @@ class Nlp:
         if op == '==':
             is_eq = True
             lb = npy.zeros(npy.prod(shape))
+            if soft:
+                raise NotImplementedError(
+                    'Soft equality constraints are not currently supported.')
         elif op == '<=':
             is_eq = False
             lb = npy.full(npy.prod(shape), -npy.inf)
@@ -475,6 +495,10 @@ class Nlp:
             lb = npy.full(npy.prod(shape), -npy.inf)
         else:
             raise ValueError(f'Unrecognized operator {op}.')
+
+        if soft:
+            slack = self.variable(f'slack_{name}', expr.shape, lb=0)[0]
+            expr -= slack
 
         self._cons[name] = expr
         group, con, lam = \
@@ -490,7 +514,7 @@ class Nlp:
 
         if self._solver is not None:
             self.init_solver(self._solver_opts)  # resets solver
-        return expr, lam_c
+        return (expr, lam_c, slack) if soft else (expr, lam_c)
 
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
         '''Sets the objective function to be minimized.
