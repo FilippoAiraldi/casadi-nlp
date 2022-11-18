@@ -393,13 +393,14 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
 
     def test_disturbance__constructs_disturbance_correctly(self):
+        N = 10
         nlp = Nlp(sym_type='MX')
-        mpc = Mpc(nlp=nlp, prediction_horizon=10)
-        d1 = mpc.disturbance('d1', (2, 3))
-        self.assertEqual(d1.shape, (2, 3))
+        mpc = Mpc(nlp=nlp, prediction_horizon=N)
+        d1 = mpc.disturbance('d1', 2)
+        self.assertEqual(d1.shape, (2, N))
         self.assertEqual(d1.shape, mpc.disturbances['d1'].shape)
-        d2 = mpc.disturbance('d2', (20, 1))
-        self.assertEqual(d2.shape, (20, 1))
+        d2 = mpc.disturbance('d2', 20)
+        self.assertEqual(d2.shape, (20, N))
         self.assertEqual(d2.shape, mpc.disturbances['d2'].shape)
 
 

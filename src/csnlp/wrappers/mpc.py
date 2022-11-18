@@ -154,7 +154,7 @@ class Mpc(Wrapper[NlpType]):
     def action(
         self,
         name: str,
-        dim: int,
+        dim: int = 1,
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf
     ) -> Union[cs.SX, cs.MX]:
@@ -166,8 +166,9 @@ class Mpc(Wrapper[NlpType]):
         ----------
         name : str
             Name of the control action.
-        dim : int
-            Dimension of the control action (assumed to be a vector).
+        dim : int, optional
+            Dimension of the control action (assumed to be a vector). Defaults
+            to 1.
         lb : Union[np.ndarray, cs.DM], optional
             Hard lower bound of the control action, by default -np.inf.
         ub : Union[np.ndarray, cs.DM], optional
@@ -187,6 +188,29 @@ class Mpc(Wrapper[NlpType]):
         self._actions_exp[name] = u_exp
         self._action_names.append(name)
         return u, u_exp
+
+    @cache_clearer(disturbances)
+    def disturbance(self, name: str, dim: int = 1) -> Union[cs.SX, cs.MX]:
+        '''Adds a disturbance parameter to the MPC controller along the whole
+        prediction horizon.
+
+        Parameters
+        ----------
+        name : str
+            Name of the disturbance.
+        dim : int, optional
+            Dimension of the disturbance (assumed to be a vector). Defaults to
+            1.
+
+        Returns
+        -------
+        casadi.SX or MX
+            The symbol for the new disturbance in the MPC controller.
+        '''
+        out = self.nlp.parameter(
+            name=name, shape=(dim, self._prediction_horizon))
+        self._disturbance_names.append(name)
+        return out
 
     @cache_clearer(slacks)
     def constraint(
