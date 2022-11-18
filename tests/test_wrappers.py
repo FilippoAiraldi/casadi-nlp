@@ -351,18 +351,27 @@ class TestMpc(unittest.TestCase):
 
     def test_state__constructs_state_correctly(self):
         N = 10
-        nlp = Nlp(sym_type='MX')
-        mpc = Mpc(nlp=nlp, prediction_horizon=N)
-        x1, x1_0 = mpc.state('x1', 2)
-        self.assertEqual(x1.shape, (2, N + 1))
-        self.assertEqual(x1.shape, mpc.states['x1'].shape)
-        self.assertEqual(x1_0.shape, (2, 1))
-        self.assertEqual(mpc.constraints['x1_0'].shape, (2, 1))
-        x2, x2_0 = mpc.state('x2', 1)
-        self.assertEqual(x2.shape, (1, N + 1))
-        self.assertEqual(x2.shape, mpc.states['x2'].shape)
-        self.assertEqual(x2_0.shape, (1, 1))
-        self.assertEqual(mpc.constraints['x2_0'].shape, (1, 1))
+        for shooting in ('single', 'multi'):
+            nlp = Nlp(sym_type='MX')
+            mpc = Mpc(nlp=nlp, prediction_horizon=N, shooting=shooting)
+            x1, x1_0 = mpc.state('x1', 2)
+            if shooting == 'multi':
+                self.assertEqual(x1.shape, (2, N + 1))
+                self.assertEqual(x1.shape, mpc.states['x1'].shape)
+                self.assertEqual(mpc.constraints['x1_0'].shape, (2, 1))
+            else:
+                self.assertIsNone(x1)
+            self.assertEqual(x1_0.shape, (2, 1))
+            self.assertEqual(x1_0.shape, mpc.initial_states['x1'].shape)
+            x2, x2_0 = mpc.state('x2', 1)
+            if shooting == 'multi':
+                self.assertEqual(x2.shape, (1, N + 1))
+                self.assertEqual(x2.shape, mpc.states['x2'].shape)
+                self.assertEqual(mpc.constraints['x2_0'].shape, (1, 1))
+            else:
+                self.assertIsNone(x2)
+            self.assertEqual(x2_0.shape, (1, 1))
+            self.assertEqual(x2_0.shape, mpc.initial_states['x2'].shape)
 
     def test_action__constructs_action_correctly(self):
         Np = 10
@@ -428,7 +437,7 @@ class TestMpc(unittest.TestCase):
             with self.assertRaises(ValueError):
                 mpc.dynamics = F
 
-    def test_dynamics__creates_dynamics_eq_constraints(self):
+    def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self):
         N = 10
         for i in range(2):
             nlp = Nlp(sym_type='SX')
@@ -451,6 +460,7 @@ class TestMpc(unittest.TestCase):
             for k in range(N):
                 self.assertIn(f'dyn_{k}', mpc.constraints.keys())
             self.assertEqual(mpc.ng, (1 + N) * 5)
+
 
 if __name__ == '__main__':
     unittest.main()

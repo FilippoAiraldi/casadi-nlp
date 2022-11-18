@@ -61,7 +61,7 @@ class Mpc(Wrapper[NlpType]):
             raise ValueError('Invalid shooting method.')
         if prediction_horizon <= 0:
             raise ValueError('Prediction horizon must be positive and > 0.')
-        self._shooting = shooting
+        self._is_multishooting = shooting == 'multi'
         self._prediction_horizon = prediction_horizon
         if control_horizon is None:
             self._control_horizon = self._prediction_horizon
@@ -70,6 +70,8 @@ class Mpc(Wrapper[NlpType]):
         else:
             self._control_horizon = control_horizon
         self._state_names: List[str] = []
+        if not self._is_multishooting:
+            self._state_exprs: Dict[str, Union[cs.SX, cs.MX]] = {}
         self._action_names: List[str] = []
         self._slack_names: List[str] = []
         self._disturbance_names: List[str] = []
@@ -89,6 +91,11 @@ class Mpc(Wrapper[NlpType]):
     @cached_property
     def states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the states of the MPC controller.'''
+        if self._is_multishooting:
+            return dict2struct(
+                {n: self.nlp._vars[n] for n in self._state_names})
+        return dict2struct(self._state_exprs, entry_type='expr')
+
     @cached_property
     def initial_states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         '''Gets the initial states (parameters) of the MPC controller.'''
@@ -123,7 +130,7 @@ class Mpc(Wrapper[NlpType]):
         dim: int = 1,
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf
-    ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+    ) -> Union[Tuple[Optional[cs.SX], cs.SX], Tuple[Optional[cs.MX], cs.MX]]:
         '''Adds a state variable to the MPC controller along the whole
         prediction horizon. Automatically creates the constraint on the initial
         conditions for this state.
@@ -147,11 +154,27 @@ class Mpc(Wrapper[NlpType]):
             are set.
         initial state : casadi.SX, MX
             The initial state symbolic parameter.
+
+        Raises
+        ------
+        ValueError
+            Raises if there exists already a state with the same name.
+        RuntimeError
+            Raises if lower or upper bounds have been specified, since these
+            can only be set after the dynamics via the `constraint` method.
         '''
-        x = self.nlp.variable(
-            name, (dim, self._prediction_horizon + 1), lb, ub)[0]
-        x0 = self.nlp.parameter(f'{name}_0', (dim, 1))
-        self.nlp.constraint(f'{name}_0', x[:, 0], '==', x0)
+        if self._is_multishooting:
+            x = self.nlp.variable(
+                name, (dim, self._prediction_horizon + 1), lb, ub)[0]
+            x0 = self.nlp.parameter(f'{name}_0', (dim, 1))
+            self.nlp.constraint(f'{name}_0', x[:, 0], '==', x0)
+        else:
+            if np.any(lb != -np.inf) or np.any(ub != +np.inf):
+                raise RuntimeError(
+                    'In single shooting, lower and upper state bounds can only'
+                    ' be created after the dynamics have been set')
+            x = None
+            x0 = self.nlp.parameter(f'{name}_0', (dim, 1))
         self._state_names.append(name)
         return x, x0
 
@@ -256,12 +279,20 @@ class Mpc(Wrapper[NlpType]):
                 'The dynamics function must accepted 2 or 3 arguments and '
                 f'return at least 1 output; got {n_in} inputs and {n_out} '
                 'outputs instead.')
+        if self._is_multishooting:
+            self._set_multishooting_dynamics(F, n_in, n_out)
+        else:
+            self._set_singleshooting_dynamics(F, n_in, n_out)
+        self._dynamics = F
 
+    def _set_multishooting_dynamics(
+            self, F: cs.Function, n_in: int, n_out: int) -> None:
+        # utility to create dynamics constraints with multiple shooting
         X = cs.vertcat(*(self.nlp._vars[n] for n in self._state_names))
         U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
         if n_in < 3:
             get_args = lambda k: (X[:, k], U[:, k])
-        if n_in > 2:
+        else:
             D = cs.vertcat(
                 *(self.nlp._pars[n] for n in self._disturbance_names))
             get_args = lambda k: (X[:, k], U[:, k], D[:, k])
@@ -270,4 +301,30 @@ class Mpc(Wrapper[NlpType]):
             if n_out != 1:
                 x_next = x_next[0]
             self.constraint(f'dyn_{k}', X[:, k + 1], '==', x_next)
-        self._dynamics = F
+
+    @cache_clearer(states)
+    def _set_singleshooting_dynamics(
+            self, F: cs.Function, n_in: int, n_out: int) -> None:
+        Xk = cs.vertcat(
+            *(self.nlp._pars[f'{n}_0'] for n in self._state_names))
+        U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
+        if n_in < 3:
+            get_args = lambda k: (U[:, k],)
+        else:
+            D = cs.vertcat(
+                *(self.nlp._pars[n] for n in self._disturbance_names))
+            get_args = lambda k: (U[:, k], D[:, k])
+
+        X = [Xk]
+        for k in range(self._prediction_horizon):
+            Xk = F(Xk, *get_args(k))
+            if n_out != 1:
+                Xk = Xk[0]
+            X.append(Xk)
+        X = cs.horzcat(*X)
+
+        i = 0
+        for name in self._state_names:
+            dim = self.nlp._pars[f'{name}_0'].shape[0]
+            self._state_exprs[name] = X[i:i + dim, :]
+            i += dim
