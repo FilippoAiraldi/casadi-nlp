@@ -4,8 +4,8 @@ import numpy as np
 from csnlp.nlp import _DUAL_VARIABLES_ORDER
 from csnlp.wrappers.wrapper import Wrapper, NlpType
 from csnlp.solutions import Solution
-from csnlp.util import \
-    cached_property, cache_clearer, hojacobian, cs2array, array2cs
+from csnlp.util.tools import cached_property, cache_clearer
+from csnlp.util.casadi import hojacobian, cs2array, array2cs
 
 
 class NlpSensitivity(Wrapper[NlpType]):

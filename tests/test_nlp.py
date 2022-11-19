@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 from csnlp import Nlp
 from csnlp.solutions import subsevalf
-from csnlp.math import log
+from csnlp.util.math import log
 
 
 OPTS = {

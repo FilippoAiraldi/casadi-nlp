@@ -6,11 +6,8 @@ import casadi as cs
 import numpy as npy
 from csnlp.solutions import Solution, subsevalf, DMStruct
 from csnlp.debug import NlpDebug
-from csnlp.util import (
-    cached_property, cache_clearer,
-    struct_symSX, dict2struct,
-    np_random
-)
+from csnlp.util.tools import cached_property, cache_clearer, np_random
+from csnlp.util.casadi import struct_symSX, dict2struct
 
 
 '''This dictates the order for operations related to dual variables.'''
