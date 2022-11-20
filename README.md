@@ -1,5 +1,6 @@
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/release/LICENSE)
 ![Python 3.8](https://img.shields.io/badge/python->=3.8-green.svg)
+[![Downloads](https://pepy.tech/badge/csnlp)](https://pepy.tech/project/csnlp)
 
 
 # Nonlinear Programming with CasADi
