@@ -7,7 +7,7 @@ from typing import Dict
 import casadi as cs
 import numpy as np
 from scipy.stats import norm
-import math
+import math as _math
 from csnlp.solutions import subsevalf
 from csnlp.util import tools, casadi, math, io
 
@@ -205,8 +205,8 @@ class TestMath(unittest.TestCase):
     def test_log(self):
         base = np.random.rand() * 10
         x = np.random.rand() * 10
-        self.assertEqual(math.log(x), math.log(x))
-        self.assertEqual(math.log(x, base), math.log(x, base))
+        self.assertEqual(math.log(x), _math.log(x))
+        self.assertEqual(math.log(x, base), _math.log(x, base))
 
     def test_prod(self):
         shape = (4, 5)
