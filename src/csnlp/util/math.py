@@ -196,6 +196,10 @@ def monomial_powers(d: int, k: int) -> np.ndarray:
 
 
 class Normalization(UserDict):
+    '''Class for the normalization of quantities. It suffices to register the 
+    range of the variable, and then it can be easily (de-)normalized according
+    to such range.'''
+    
     def can_normalize(self, name: str) -> bool:
         '''Checks whether there exists a range under the given name.
 
