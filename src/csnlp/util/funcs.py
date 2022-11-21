@@ -1,18 +1,21 @@
-from functools import cached_property, wraps
-from typing import Any, Callable, Optional, Tuple
+from functools import cached_property, _lru_cache_wrapper, wraps
+from typing import Any, Callable, List, Optional, Tuple, Union
 import numpy as np
 
 
-def cache_clearer(*properties: cached_property) -> Callable[[Any], Any]:
+def cache_clearer(
+    *callables: Union[cached_property, _lru_cache_wrapper]
+) -> Callable[[Any], Any]:
     '''Decorator that allows to enhance a method with the ability, when
-    called, to clear the cached of some target properties. This is especially
-    useful to reset the cache of a given cached property when another method
-    makes changes to the underlying data, thus compromising the cached results.
+    called, to clear the cached of some target methods/properties. This is
+    especially useful to reset the cache of a given cached method/property when
+    another method makes changes to the underlying data, thus compromising the
+    cached results.
 
     Parameters
     ----------
-    properties : cached_property
-        The cached properties to be reset in this decorator.
+    callables : cached_property or lru cache wrapper
+        The cached properties or methods to be reset in this decorator.
 
     Returns
     -------
@@ -22,24 +25,30 @@ def cache_clearer(*properties: cached_property) -> Callable[[Any], Any]:
     Raises
     ------
     TypeError
-        Raises if the given properties are not instances of
-        `functools.cached_property`.
+        Raises if the given inputs are not instances of
+        `functools.cached_property` or `functools._lru_cache_wrapper`.
     '''
-    # for now, the class handles only cached_properties, but it can be extended
-    # to reset also other types of caches.
-    if any(not isinstance(p, cached_property) for p in properties):
-        raise TypeError('The specified properties must be an instance of '
-                        '`functools.cached_property`')
+    cps: List[cached_property] = []
+    lrus: List[_lru_cache_wrapper] = []
+    for p in callables:
+        if isinstance(p, cached_property):
+            cps.append(p)
+        elif isinstance(p, _lru_cache_wrapper):
+            lrus.append(p)
+        else:
+            raise TypeError('Expected cached properties or lru wrappers; got '
+                            f'{p.__class__.__name__} instead.')
 
-    # use a double decorator as it is a trick to allow passing arguments to it
     def actual_decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             self = args[0]
-            for property in properties:
-                n = property.attrname
+            for prop in cps:
+                n = prop.attrname
                 if n is not None and n in self.__dict__:
                     del self.__dict__[n]
+            for lru in lrus:
+                lru.cache_clear()
             return func(*args, **kwargs)
         return wrapper
 

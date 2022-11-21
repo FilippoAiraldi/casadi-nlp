@@ -2,7 +2,7 @@ import os
 import tempfile
 import unittest
 from itertools import product
-from csnlp.util.funcs import cached_property
+from functools import lru_cache, cached_property
 from typing import Dict
 import casadi as cs
 import numpy as np
@@ -22,12 +22,12 @@ class Dummy:
         self.counter1 += 1
         return self.counter1
 
-    @cached_property
-    def prop2(self) -> int:
+    @lru_cache
+    def method2(self) -> int:
         self.counter2 += 1
         return self.counter2
 
-    @funcs.cache_clearer(prop1, prop2)
+    @funcs.cache_clearer(prop1, method2)
     def clear_cache(self) -> None:
         return
 
@@ -56,20 +56,20 @@ class TestFuncs(unittest.TestCase):
         dummy = Dummy()
         dummy.prop1
         dummy.prop1
-        dummy.prop2
-        dummy.prop2
+        dummy.method2()
+        dummy.method2()
         self.assertEqual(dummy.counter1, 1)
         self.assertEqual(dummy.counter2, 1)
         dummy.clear_cache()
         dummy.prop1
-        dummy.prop2
+        dummy.method2()
         self.assertEqual(dummy.counter1, 2)
         self.assertEqual(dummy.counter2, 2)
         dummy.clear_cache()
         dummy.prop1
         dummy.prop1
-        dummy.prop2
-        dummy.prop2
+        dummy.method2()
+        dummy.method2()
         self.assertEqual(dummy.counter1, 3)
         self.assertEqual(dummy.counter2, 3)
 
@@ -77,8 +77,8 @@ class TestFuncs(unittest.TestCase):
         dummy = Dummy2()
         dummy.prop1
         dummy.prop1
-        dummy.prop2
-        dummy.prop2
+        dummy.method2()
+        dummy.method2()
         dummy.prop3
         dummy.prop3
         self.assertEqual(dummy.counter1, 1)
@@ -86,7 +86,7 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy.counter3, 1)
         dummy.clear_cache()
         dummy.prop1
-        dummy.prop2
+        dummy.method2()
         dummy.prop3
         self.assertEqual(dummy.counter1, 2)
         self.assertEqual(dummy.counter2, 2)
