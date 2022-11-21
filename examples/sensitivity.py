@@ -29,11 +29,23 @@ def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float):
     ax.set_ylabel('y')
     ax.set_xlim(-1.5, 2)
     ax.set_ylim(-1.5, 2)
+    ax.set_title(f'a={a:.1f}, b={b:.1f}')
 
 
-def z(x, lam, p):
-    # in the CasADi blog, z is only a function of x, i.e., z(x)
+def z1(x, lam, p):
     return (x[1, :]**p[1] - x[0, :]) * cs.exp(-10 * lam + p[0]) / p[1]
+
+
+def z2(x):
+    return (x[1, :] - x[0, :])
+
+
+def z3(x, p):
+    return (x[1, :]**(1 / p[1]) - x[0, :])
+
+
+def z4(lam, p):
+    return cs.exp(-10 * lam + p[0]) / p[1]
 
 
 # build the NLP
@@ -59,18 +71,22 @@ for p0, ax in zip(p_values, axs):
     x_ = M([0.2, p0], 0).full()
     plot_nlp(ax, 0.2, p0, x_[0], x_[1])
 
-
 # How does the optimal solution vary along p?
 nlp = wrappers.NlpSensitivity(nlp)
-# just a strange equation we want to compute the sensitivity of w.r.t. p
-Z = z(x, lam, p) * (nlp.lagrangian - 1)
+# a bunch of strange equations we want to compute sensitivity of w.r.t. p[1]
+Z = cs.blockcat(
+    [[z1(x, lam, p)**2, z2(x)],
+     [1 / (1 + z3(x, p)), z4(lam, p)],
+     [z3(x, p) * (-1 - 10 * z1(x, lam, p)), z4(lam, p) / (1 + z2(x))]])
 Zfcn = nlp.to_function('Z', [p, x], [Z], ['p', 'x0'], ['z'])
 
-fig, ax = plt.subplots(constrained_layout=True)
+fig, axs = plt.subplots(*Z.shape, constrained_layout=True)
 N = 300
-pv = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
-ax.plot(pv[1].flat, Zfcn(pv, 0).full().flat, 'k-', lw=3)
-
+Ps = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
+Zs = np.stack([Zfcn(Ps[:, i], 0) for i in range(Ps.shape[1])], axis=-1)
+for i in np.ndindex(axs.shape):
+    axs[i].plot(Ps[1].flat, Zs[i].flat, 'k-', lw=4)
+    axs[i].set_ylim(axs[i].get_ylim() + np.array([-.1, .1]))
 
 # Parametric sensitivities of function z(x(p), lam(p))
 t = np.linspace(1, 2, 1000)
@@ -80,12 +96,14 @@ for p0, clr in zip(p_values, ['r', 'g', 'b']):
     z0 = sol.value(Z)
     j0 = sol.value(J)
     h0 = sol.value(H)
-    ax.plot(p0, float(z0), 'o', color=clr, markersize=4)
-    ax.plot(t, z0 + j0[1] * (t - p0) + 0.5 * h0[1, 1] * (t - p0)**2,
-            lw=2, color=clr)
+    for i in np.ndindex(axs.shape):
+        axs[i].plot(p0, float(z0[i]), 'o', color=clr, markersize=6)
+        axs[i].plot(
+            t, z0[i] + j0[i][1] * (t - p0) + 0.5 * h0[i][1, 1] * (t - p0)**2,
+            color=clr)
 
-ax.set_xlabel('p')
-ax.set_ylabel(r'$z(x(p), \lambda(p), p)$')
-ax.set_xlim(t[0], t[-1])
-ax.set_ylim(-0.4, 0.4)
+for i in np.ndindex(axs.shape):
+    axs[i].set_xlabel('p_1')
+    axs[i].set_ylabel(fr'$z_{{{str(i)[1:-1]}}}(x(p), \lambda(p), p)$')
+    axs[i].set_xlim(t[0], t[-1])
 plt.show()
