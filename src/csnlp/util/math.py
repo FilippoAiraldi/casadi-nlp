@@ -1,9 +1,13 @@
-import math
-from typing import Union, Optional
+from math import sqrt
+from collections import UserDict
+from itertools import combinations
+from typing import Union, Optional, Mapping
 import casadi as cs
+import numpy as np
+from scipy.special import comb
 
 
-SQRT2 = math.sqrt(2)
+SQRT2 = sqrt(2)
 
 
 def log(
@@ -140,3 +144,162 @@ def norm_ppf(
         The quantile of the normal distribution.
     '''
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
+
+
+def nchoosek(n: Union[int, np.ndarray], k: int) -> Union[int, np.ndarray]:
+    '''Emulates the `nchoosek` function from Matlab. Returns the binomial
+    coefficient, i.e.,  the number of combinations of `n` items taken `k` at a
+    time. If `n` is an array, then it is flatten and all possible combinations
+    of its elements are returned.
+
+    Parameters
+    ----------
+    n : int or array_like
+        Number of elements or array of elements to choose from.
+    k : int
+        Number of elements to choose.
+
+    Returns
+    -------
+    int or array_like
+        Depending on the type of input `n`, the output is either the total
+        number of combinations or the combinations in a matrix.
+    '''
+    return (comb(n, k, exact=True)
+            if isinstance(n, int) else
+            np.row_stack(list(combinations(np.asarray(n).flatten(), k))))
+
+
+def monomial_powers(d: int, k: int) -> np.ndarray:
+    '''Computes the powers of all `d`-dimensional monomials of degree `k`.
+
+    Parameters
+    ----------
+    d : int
+        The number of monomial elements.
+    k : int
+        The degree of each monomial.
+
+    Returns
+    -------
+    np.ndarray
+        An array containing in each row the power of each index in order to
+        obtain the desired monomial of power `k`.
+    '''
+    m = nchoosek(k + d - 1, d - 1)
+    dividers = np.column_stack((
+        np.zeros((m, 1), dtype=int),
+        np.row_stack(nchoosek(np.arange(1, k + d), d - 1)),
+        np.full((m, 1), k + d, dtype=int)
+    ))
+    return np.flipud(np.diff(dividers, axis=1) - 1).astype(int)
+
+
+class Normalization(UserDict):
+    def can_normalize(self, name: str) -> bool:
+        '''Checks whether there exists a range under the given name.
+
+        Parameters
+        ----------
+        name : str
+            Name of the normalization range.
+
+        Returns
+        -------
+        bool
+            Whether range `name` exists for normalization.
+        '''
+        return name in self.data
+
+    def register(self, other: Mapping = None, **kwargs: np.ndarray) -> None:
+        '''Registers new normalization ranges, but raises if duplicates occur.
+
+        Parameters
+        ----------
+        other : Mapping, optional
+            A mapping (e.g., dict) of normalization ranges, by default None.
+
+        Raises
+        ------
+        KeyError
+            Raises if a duplicate key is detected.
+        '''
+        for k in kwargs:
+            if k in self.data:
+                raise KeyError(
+                    f'\'{k}\' already registered for normalization.')
+        if other is None:
+            return self.update(**kwargs)
+        for k, _ in other.items() if isinstance(other, Mapping) else other:
+            if k in self.data:
+                raise KeyError(
+                    f'\'{k}\' already registered for normalization.')
+        return self.update(other, **kwargs)
+
+    def normalize(self, name: str, x: np.ndarray) -> np.ndarray:
+        '''Normalizes the value `x` according to the ranges of `name`.
+
+        Parameters
+        ----------
+        name : str
+            Ranges to be used.
+        x : np.ndarray
+            Value to be normalized. If an array, then take care that the last
+            dimension matches the dimension of the normalization ranges,
+            otherwise the output will have a different shape.
+
+        Returns
+        -------
+        np.ndarray
+            Normalized `x`.
+
+        Raises
+        ------~
+        AssertionError
+            Raises if normalized output's shape does not match input's shape.
+        '''
+        r: np.ndarray = self.data[name]
+        if r.ndim == 1:
+            out = (x - r[0]) / (r[1] - r[0])
+        else:
+            out = (x - r[:, 0]) / (r[:, 1] - r[:, 0])
+        assert np.shape(out) == np.shape(x), \
+            'Normalization altered input shape.'
+        return out
+
+        # '''Denormalizes the value `x` according to the ranges of `name`.'''
+
+    def denormalize(self, name: str, x: np.ndarray) -> np.ndarray:
+        '''Denormalizes the value `x` according to the ranges of `name`.
+
+        Parameters
+        ----------
+        name : str
+            Ranges to be used.
+        x : np.ndarray
+            Value to be denormalized.
+
+        Returns
+        -------
+        np.ndarray
+            Denormalized `x`.
+
+        Raises
+        ------
+        AssertionError
+            Raises if denormalized output's shape does not match input's shape.
+        '''
+        r: np.ndarray = self.data[name]
+        if r.ndim == 1:
+            out = (r[1] - r[0]) * x + r[0]
+        else:
+            out = (r[:, 1] - r[:, 0]) * x + r[:, 0]
+        assert np.shape(out) == np.shape(x), \
+            'Denormalization altered input shape.'
+        return out
+
+    def __repr__(self) -> str:
+        return f'<{self.__class__.__name__}: {super().__repr__()}>'
+
+    def __str__(self) -> str:
+        return f'<{self.__class__.__name__}: {super().__str__()}>'

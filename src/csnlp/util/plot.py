@@ -72,7 +72,9 @@ def spy(
 
     if 'markersize' not in spy_kwargs:
         spy_kwargs['markersize'] = 1
-    o = (ax if ax is not None else plt).spy(H, **spy_kwargs)
+    if ax is None:
+        _, ax = plt.subplots(1, 1)
+    o = ax.spy(H, **spy_kwargs)
     nz = np.count_nonzero(H)
     ax.set_xlabel(f'nz = {nz} ({nz / H.size * 100:.2f}%)')
     return o
@@ -103,4 +105,3 @@ def set_mpl_defaults(
     mpl.rcParams['lines.linewidth'] = 3
     if matlab_colors:
         mpl.rcParams['axes.prop_cycle'] = cycler('color', MATLAB_COLORS)
-

@@ -133,24 +133,3 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     for i in np.ndindex(shape):
         y[i] = x[i]
     return y
-
-
-def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
-    '''Computes jacobian on higher-order matrices, i.e., with an output in 4D.
-
-    Parameters
-    ----------
-    ex : Union[cs.MX, cs.SX]
-        The expression to compute the jacobian for. Can be a matrix.
-    x : Union[cs.MX, cs.SX]
-        The variable to differentiate with respect to. Can be a matrix.
-
-    Returns
-    -------
-    np.ndarray
-        A 4D array of objects, where each entry `(i,j,k,m)` is the derivative
-        of `ex[i,j]` w.r.t. `x[k,m]`.
-    '''
-    return cs2array(
-        cs.jacobian(cs.vec(ex), cs.vec(x))
-    ).reshape(ex.shape + x.shape, order='F')

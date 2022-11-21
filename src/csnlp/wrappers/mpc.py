@@ -2,8 +2,8 @@ from typing import List, Literal, Tuple, Union, Dict, Optional
 import casadi as cs
 import numpy as np
 from csnlp.wrappers.wrapper import Wrapper, NlpType
-from csnlp.util.tools import cached_property, cache_clearer
-from csnlp.util.casadi import dict2struct, struct_symSX
+from csnlp.util.funcs import cached_property, cache_clearer
+from csnlp.util.data import dict2struct, struct_symSX
 
 
 class Mpc(Wrapper[NlpType]):

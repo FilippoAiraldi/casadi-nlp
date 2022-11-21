@@ -1,5 +1,5 @@
 from functools import cached_property, wraps
-from typing import Callable, Tuple, Optional
+from typing import Callable, Optional, Tuple
 import numpy as np
 
 
@@ -45,9 +45,7 @@ def cache_clearer(*properties: cached_property) -> Callable:
     return actual_decorator
 
 
-def np_random(
-    seed: Optional[int] = None
-) -> Tuple[np.random.Generator, int]:
+def np_random(seed: Optional[int] = None) -> Tuple[np.random.Generator, int]:
     '''Generates a random number generator from the seed and returns the
     Generator and seed.
 
