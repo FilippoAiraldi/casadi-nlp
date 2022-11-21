@@ -260,14 +260,16 @@ class NlpSensitivity(Wrapper):
 
         p = self.nlp._p
         y, idx = self._y_idx
-        Zpp, Zp = (o.squeeze() for o in hohessian(Z, p))
-        Zyy, Zy = (o.squeeze() for o in hohessian(Z, y))
-        Zyp = hohessian(Z, y, p)[0].squeeze()
-        Zpy = hohessian(Z, p, y)[0].squeeze()
-        Zy = Zy[..., idx]
-        Zyy = Zyy[..., idx, :][..., idx]
-        Zyp = Zyp[..., idx, :]
-        Zpy = Zpy[..., idx]
+        Zpp, Zp = hohessian(Z, p)
+        Zyy, Zy = hohessian(Z, y)
+        Zyp = hohessian(Z, y, p)[0]
+        Zpy = hohessian(Z, p, y)[0]
+        Zpp = Zpp.squeeze((1, 3, 5))
+        Zp = Zp.squeeze((1, 3))
+        Zy = Zy[:, 0, idx, 0]
+        Zyy = Zyy.squeeze((1, 3, 5))[:, idx, :][..., idx]
+        Zyp = Zyp.squeeze((1, 3, 5))[:, idx, :]
+        Zpy = Zpy.squeeze((1, 3, 5))[..., idx]
 
         dzdp = Zy @ dydp + Zp
         T1 = (d2ydp2.transpose((1, 2, 0)) @ Zy.T).transpose((2, 0, 1))

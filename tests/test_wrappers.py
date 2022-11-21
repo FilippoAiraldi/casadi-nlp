@@ -27,7 +27,7 @@ class TestWrapper(unittest.TestCase):
     def test_unwrapped__unwraps_nlp_correctly(self):
         nlp = Nlp()
         self.assertIs(nlp, nlp.unwrapped)
-        wrapped = Wrapper[Nlp](nlp)
+        wrapped = Wrapper(nlp)
         self.assertIs(nlp, wrapped.unwrapped)
 
 
@@ -257,7 +257,7 @@ class TestNlpSensitivity(unittest.TestCase):
                 sol.value(S1).full().flat, [1, 0, 2, 0], atol=1e-5)
             np.testing.assert_allclose(S2.flat, [1, 0, 2, 0], atol=1e-5)
 
-            Fp1, Fpp1 = (sol.value(o).full().item() for o in
+            Fp1, Fpp1 = (sol.value(o).item() for o in
                          nlp.parametric_sensitivity(expr=nlp.f))
             Fp2, Fpp2 = (o.item() for o in
                          nlp.parametric_sensitivity(expr=nlp.f, solution=sol))
@@ -317,13 +317,15 @@ class TestNlpSensitivity(unittest.TestCase):
             nlp.init_solver(OPTS)
 
             Z1_ = z(x)
-            J1_, H1_ = nlp.parametric_sensitivity(expr=Z1_)
+            J1_, H1_ = (np.squeeze(o) for o in
+                        nlp.parametric_sensitivity(expr=Z1_))
             for p, (Z, J, H) in p_values_and_solutions:
                 sol = nlp.solve(pars={'p': [0.2, p]})
                 Z1 = sol.value(Z1_)
                 J1 = sol.value(J1_)
                 H1 = sol.value(H1_)
-                J2, H2 = nlp.parametric_sensitivity(expr=Z1_, solution=sol)
+                J2, H2 = (np.squeeze(o) for o in
+                          nlp.parametric_sensitivity(expr=Z1_, solution=sol))
                 np.testing.assert_allclose(J1, J2, atol=1e-7)
                 np.testing.assert_allclose(H1, H2, atol=1e-7)
                 np.testing.assert_allclose(Z, Z1, atol=1e-4)
