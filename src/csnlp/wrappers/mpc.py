@@ -7,9 +7,8 @@ from csnlp.util.data import dict2struct, struct_symSX
 
 
 class Mpc(Wrapper):
-    '''
-    A wrapper to easily turn the NLP scheme into an MPC controller. Most of the
-    theory for MPC is taken from [1].
+    '''A wrapper to easily turn the NLP scheme into an MPC controller. Most of
+    the theory for MPC is taken from [1].
 
     References
     ----------
