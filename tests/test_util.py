@@ -12,7 +12,7 @@ from csnlp.solutions import subsevalf
 from csnlp.util import funcs, array, math, io, data
 
 
-class DummyWithCachedProperty:
+class Dummy:
     def __init__(self) -> None:
         self.counter1 = 0
         self.counter2 = 0
@@ -32,7 +32,7 @@ class DummyWithCachedProperty:
         return
 
 
-class DummyWithCachedProperty2(DummyWithCachedProperty):
+class Dummy2(Dummy):
     def __init__(self) -> None:
         super().__init__()
         self.counter3 = 0
@@ -53,7 +53,7 @@ class TestFuncs(unittest.TestCase):
             funcs.cache_clearer(5)
 
     def test_cache_clearer__clears_property_cache(self):
-        dummy = DummyWithCachedProperty()
+        dummy = Dummy()
         dummy.prop1
         dummy.prop1
         dummy.prop2
@@ -74,7 +74,7 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy.counter2, 3)
 
     def test_cache_clearer__accepts_new_caches_to_clear(self):
-        dummy = DummyWithCachedProperty2()
+        dummy = Dummy2()
         dummy.prop1
         dummy.prop1
         dummy.prop2

@@ -1,9 +1,9 @@
 from functools import cached_property, wraps
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 import numpy as np
 
 
-def cache_clearer(*properties: cached_property) -> Callable:
+def cache_clearer(*properties: cached_property) -> Callable[[Any], Any]:
     '''Decorator that allows to enhance a method with the ability, when
     called, to clear the cached of some target properties. This is especially
     useful to reset the cache of a given cached property when another method
@@ -16,7 +16,7 @@ def cache_clearer(*properties: cached_property) -> Callable:
 
     Returns
     -------
-    decorated_func : Callable
+    decorated_func : Callable[[Any], Any]
         Returns the function wrapped with this decorator.
 
     Raises
@@ -42,6 +42,7 @@ def cache_clearer(*properties: cached_property) -> Callable:
                     del self.__dict__[n]
             return func(*args, **kwargs)
         return wrapper
+
     return actual_decorator
 
 
