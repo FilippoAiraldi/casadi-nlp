@@ -6,7 +6,7 @@ from csnlp.wrappers.wrapper import Wrapper, NlpType
 from csnlp.solutions import Solution
 from csnlp.util.funcs import cached_property, cache_clearer
 from csnlp.util.data import cs2array, array2cs
-from csnlp.util.array import hojacobian
+from csnlp.util.array import hojacobian, hohessian
 
 
 class NlpSensitivity(Wrapper[NlpType]):
@@ -201,8 +201,6 @@ class NlpSensitivity(Wrapper[NlpType]):
 
         Raises
         ------
-        ValueError
-            Raises if `expr` is not scalar.
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
 
@@ -257,29 +255,31 @@ class NlpSensitivity(Wrapper[NlpType]):
                 array2cs(dydp),
                 array2cs(d2ydp2) if d2ydp2.ndim <= 2 else d2ydp2
             )
-        if not Z.is_scalar():
-            raise ValueError('Expression must be scalar.')
+        Zshape = Z.shape
+        Z = cs.vec(Z)
 
         p = self.nlp._p
         y, idx = self._y_idx
-        Zpp, Zp = (cs2array(o) for o in cs.hessian(Z, p))
-        Zyy, Zy = (cs2array(o) for o in cs.hessian(Z, y))
-        Zyp = cs2array(cs.jacobian(cs.jacobian(Z, y), p))
-        Zpy = cs2array(cs.jacobian(cs.jacobian(Z, p), y))
-        Zy = Zy[idx, :]
-        Zyy = Zyy[idx, :][:, idx]
-        Zyp = Zyp[idx, :]
-        Zpy = Zpy[:, idx]
+        Zpp, Zp = (o.squeeze() for o in hohessian(Z, p))
+        Zyy, Zy = (o.squeeze() for o in hohessian(Z, y))
+        Zyp = hohessian(Z, y, p)[0].squeeze()
+        Zpy = hohessian(Z, p, y)[0].squeeze()
+        Zy = Zy[..., idx]
+        Zyy = Zyy[..., idx, :][..., idx]
+        Zyp = Zyp[..., idx, :]
+        Zpy = Zpy[..., idx]
 
-        dzdp = dydp.T @ Zy + Zp
-        d2zdp2 = (
-            Zpp +
-            (d2ydp2.transpose((1, 2, 0)) @ Zy).squeeze() +
-            dydp.T @ (Zyp + Zpy.T + Zyy.T @ dydp)
-        )
+        dzdp = Zy @ dydp + Zp
+        T1 = (d2ydp2.transpose((1, 2, 0)) @ Zy.T).transpose((2, 0, 1))
+        T2 = Zyy.transpose((0, 2, 1)) @ dydp + Zpy.transpose((0, 2, 1)) + Zyp
+        d2zdp2 = Zpp + T1 + dydp.T @ T2
+
+        np_ = self.nlp.np
+        dzdp = dzdp.reshape(Zshape + (np_,), order='F')
+        d2zdp2 = d2zdp2.reshape(Zshape + (np_, np_), order='F')
         if solution is not None:
             return solution.value(dzdp), solution.value(d2zdp2)
-        return array2cs(dzdp), array2cs(d2zdp2)
+        return dzdp, d2zdp2
 
     @cache_clearer(jacobians, hessians, hojacobians)
     def parameter(self, *args, **kwargs):
