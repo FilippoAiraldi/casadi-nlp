@@ -55,7 +55,7 @@ opts = {'print_time': False, 'ipopt': {'sb': 'yes', 'print_level': 0}}
 nlp.init_solver(opts)
 
 
-# # Use IPOPT to solve the nonlinear optimization
+# Use IPOPT to solve the nonlinear optimization
 M = nlp.to_function('M', [p, x], [x], ['p', 'x0'], ['x'])
 
 p_values = ((1.4, 1.9), (2.2, 1.9), (2.2, 1.1))
@@ -69,7 +69,8 @@ for p_, ax in zip(p_values, axs.flat):
 # How does the optimal solution vary along p?
 Z = nlp.to_function('Z', [p, x], [z(x, lam, p)], ['p', 'x0'], ['z'])
 fig, ax = plt.subplots(
-    constrained_layout=True, subplot_kw={'projection': '3d'})
+    constrained_layout=True, 
+    subplot_kw={'projection': '3d', 'computed_zorder': False})
 N = 150
 P = np.meshgrid(np.linspace(1, 2.5, N), np.linspace(1, 2, N))
 try:
@@ -77,7 +78,8 @@ try:
 except Exception:
     Z_values = Z(np.row_stack((P[0].flat, P[1].flat)), 0).full().reshape(N, N)
     io.savemat('Z_values.mat', {'p0': P[0], 'p1': P[1], 'z': Z_values})
-ax.plot_surface(P[0], P[1], Z_values, cmap='viridis', antialiased=False, lw=0)
+ax.plot_wireframe(P[0], P[1], Z_values, color='k', antialiased=False,
+                  rstride=5, cstride=5, zorder=0)
 
 
 # Parametric sensitivities of function z(x(p), lam(p))
@@ -91,11 +93,11 @@ for p_ in p_values:
     Z_ = sol.value(Z).full()
     J_ = sol.value(J).full()
     H_ = sol.value(H).full()
-    c = ax.scatter(p_[0], p_[1], Z_, s=200)
+    c = ax.scatter(p_[0], p_[1], Z_, s=100, zorder=2)
     deltaP = P_flat - np.array(p_)[:, None]
     S = Z_ + J_.T @ deltaP + 0.5 * np.diag(deltaP.T @ H_ @ deltaP)
-    ax.plot_surface(
-        P[0], P[1], S.reshape(N, N), color=c.get_facecolor(), alpha=0.3, lw=0)
+    ax.plot_surface(P[0], P[1], S.reshape(N, N),
+                    color=c.get_facecolor(), alpha=0.3, lw=0, zorder=1)
 
 ax.set_xlabel('$p_0$')
 ax.set_ylabel('$p_1$')
