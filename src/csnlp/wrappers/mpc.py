@@ -1,12 +1,12 @@
 from typing import List, Literal, Tuple, Union, Dict, Optional
 import casadi as cs
 import numpy as np
-from csnlp.wrappers.wrapper import Wrapper, NlpType
+from csnlp.wrappers.wrapper import Wrapper, Nlp
 from csnlp.util.funcs import cached_property, cache_clearer
 from csnlp.util.data import dict2struct, struct_symSX
 
 
-class Mpc(Wrapper[NlpType]):
+class Mpc(Wrapper):
     '''
     A wrapper to easily turn the NLP scheme into an MPC controller. Most of the
     theory for MPC is taken from [1].
@@ -20,7 +20,7 @@ class Mpc(Wrapper[NlpType]):
 
     def __init__(
         self,
-        nlp: NlpType,
+        nlp: Nlp,
         prediction_horizon: int,
         control_horizon: Optional[int] = None,
         shooting: Literal['single', 'multi'] = 'multi'
@@ -29,7 +29,7 @@ class Mpc(Wrapper[NlpType]):
 
         Parameters
         ----------
-        nlp : NlpType
+        nlp : Nlp
             NLP scheme to be wrapped
         prediction_horizon : int
             A positive integer for the prediction horizon of the MPC

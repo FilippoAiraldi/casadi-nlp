@@ -1,11 +1,8 @@
-from typing import Any, Generic, TypeVar
+from typing import Any
 from csnlp.nlp import Nlp
 
 
-NlpType = TypeVar('NlpType', bound=Nlp)
-
-
-class Wrapper(Generic[NlpType]):
+class Wrapper:
     '''
     Wraps an NLP to allow a modular transformation of its methods. This class
     is the base class for all wrappers. The subclass could override some
@@ -13,7 +10,7 @@ class Wrapper(Generic[NlpType]):
     the original code.
     '''
 
-    def __init__(self, nlp: NlpType) -> None:
+    def __init__(self, nlp: Nlp) -> None:
         '''Wraps an NLP instance.
 
         Parameters
@@ -24,7 +21,7 @@ class Wrapper(Generic[NlpType]):
         self.nlp = nlp
 
     @property
-    def unwrapped(self) -> NlpType:
+    def unwrapped(self) -> Nlp:
         ''''Returns the original NLP of the wrapper.'''
         return self.nlp.unwrapped
 

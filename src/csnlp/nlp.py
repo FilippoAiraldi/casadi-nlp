@@ -10,7 +10,7 @@ from csnlp.util.funcs import cached_property, cache_clearer, np_random
 from csnlp.util.data import struct_symSX, dict2struct
 
 
-'''This dictates the order for operations related to dual variables.'''
+'''This tuple dictates the order for operations related to dual variables.'''
 _DUAL_VARIABLES_ORDER = ('g', 'h', 'h_lbx', 'h_ubx')
 
 
@@ -296,8 +296,8 @@ class Nlp:
         ----------
         all : bool, optional
             If `True`, all dual variables are included, even the multipliers
-            connected to redundant `lbx` or `ubx`. Otherwise, those are
-            removed. By default, `False`.
+            connected to redundant `lbx` or `ubx`. Otherwise, the redundant
+            ones are removed. By default, `False`.
 
         Returns
         ------
@@ -613,11 +613,10 @@ class Nlp:
         lam_g = sol['lam_g'][:self.ng, :]
         lam_h = sol['lam_g'][self.ng:, :]
 
-        if self._csXX == cs.SX:
-            vars_: struct_symSX = self.variables
+        vars_ = self.variables
+        if self._csXX is cs.SX:
             vals = vars_(sol['x'])
         else:
-            vars_: Dict[str, cs.MX] = self.variables
             vals = dict2struct({name: subsevalf(var, self._x, sol['x'])
                                 for name, var in vars_.items()})
         old = cs.vertcat(

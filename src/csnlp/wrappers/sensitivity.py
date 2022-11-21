@@ -2,14 +2,14 @@ from typing import Dict, Tuple, Union, Optional
 import casadi as cs
 import numpy as np
 from csnlp.nlp import _DUAL_VARIABLES_ORDER
-from csnlp.wrappers.wrapper import Wrapper, NlpType
+from csnlp.wrappers.wrapper import Wrapper, Nlp
 from csnlp.solutions import Solution
 from csnlp.util.funcs import cached_property, cache_clearer
 from csnlp.util.data import cs2array, array2cs
 from csnlp.util.array import hojacobian, hohessian
 
 
-class NlpSensitivity(Wrapper[NlpType]):
+class NlpSensitivity(Wrapper):
     '''
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
     its derivates. See [1] for nonlinear programming sensitivity analysis.
@@ -24,14 +24,14 @@ class NlpSensitivity(Wrapper[NlpType]):
 
     def __init__(
         self,
-        nlp: NlpType,
+        nlp: Nlp,
         include_barrier_term: bool = True
     ) -> None:
         '''Instantiates the wrapper for performing NLP sensitivities.
 
         Parameters
         ----------
-        nlp : NlpType
+        nlp : Nlp
             The NLP problem to be wrapped.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
@@ -298,7 +298,7 @@ class NlpSensitivity(Wrapper[NlpType]):
         return self.nlp.minimize(*args, **kwargs)
 
     @property
-    def _y_idx(self) -> Tuple[Union[cs.SX, cs.MX], np.ndarray]:
+    def _y_idx(self) -> Tuple[Union[cs.SX, cs.MX], Union[slice, np.ndarray]]:
         '''Internal utility to return all the primal-dual variables and indices
         that are associated to non-redundant entries in the kkt conditions.'''
         if self.nlp._csXX is cs.SX:
