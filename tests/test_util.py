@@ -125,6 +125,24 @@ class TestArray(unittest.TestCase):
                     J[index] - cs.jacobian(y[idx1], x[idx2]), x, x_))
                 np.testing.assert_allclose(o, 0, atol=1e-9)
 
+    def test_hohessian__computes_right_derivatives(self):
+        for shape in [(2, 2), (3, 1), (1, 3)]:
+            x = cs.SX.sym('x', *shape)
+            y = (
+                (x.reshape((-1, 1)) @ x.reshape((1, -1)) +
+                    (x.T if x.is_row() else x))
+                if x.is_vector() else
+                (x * x.T - x)
+            )
+            H, _ = array.hohessian(y, x)
+            self.assertEqual(H.ndim, 6)
+            for i in np.ndindex(y.shape):
+                x_ = np.random.randn(*x.shape)
+                H_ = data.cs2array(cs.hessian(y[i], x)[0])
+                o = cs.evalf(cs.substitute(
+                    H[i].reshape(H_.shape, order='F') - H_, x, x_))
+                np.testing.assert_allclose(o, 0, atol=1e-9)
+
     def test_jaggedstack__raises__with_empty_array(self):
         with self.assertRaises(ValueError):
             array.jaggedstack([])
@@ -351,6 +369,7 @@ class TestMath(unittest.TestCase):
         z = N.denormalize('x', y)
         np.testing.assert_allclose(y, [-2, 1])
         np.testing.assert_allclose(x, z)
+
 
 if __name__ == '__main__':
     unittest.main()
