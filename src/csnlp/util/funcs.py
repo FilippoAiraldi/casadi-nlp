@@ -1,11 +1,11 @@
 from functools import cached_property, _lru_cache_wrapper, wraps
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 import numpy as np
 
 
 def cache_clearer(
     *callables: Union[cached_property, _lru_cache_wrapper]
-) -> Callable[[Any], Any]:
+) -> Callable:
     '''Decorator that allows to enhance a method with the ability, when
     called, to clear the cached of some target methods/properties. This is
     especially useful to reset the cache of a given cached method/property when
@@ -19,7 +19,7 @@ def cache_clearer(
 
     Returns
     -------
-    decorated_func : Callable[[Any], Any]
+    decorated_func : Callable
         Returns the function wrapped with this decorator.
 
     Raises
