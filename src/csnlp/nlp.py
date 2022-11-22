@@ -74,7 +74,7 @@ class Nlp:
         self._debug = NlpDebug()
         self._seed = seed
         self._np_random: Optional[npy.random.Generator] = None
-        self.remove_redundant_x_bounds = remove_redundant_x_bounds
+        self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
     def unwrapped(self) -> 'Nlp':
@@ -88,11 +88,6 @@ class Nlp:
         if self._np_random is None:
             self._np_random, _ = np_random(self._seed)
         return self._np_random
-
-    @np_random.setter
-    def np_random(self, value: npy.random.Generator) -> None:
-        '''Sets the nlp's random engine.'''
-        self._np_random = value
 
     @property
     def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
@@ -265,7 +260,7 @@ class Nlp:
         '''Gets the inequalities due to `lbx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `lbx == -inf`; otherwise, returns all lower bound constraints.'''
-        if not self.remove_redundant_x_bounds:
+        if not self._remove_redundant_x_bounds:
             return self._lbx[:, None] - self._x, self._lam_lbx
         idx = npy.where(self._lbx != -npy.inf)[0]
         if idx.size == 0:
@@ -277,7 +272,7 @@ class Nlp:
         '''Gets the inequalities due to `ubx` and their multipliers. If
         `simplify_x_bounds=True`, it removes redundant entries, i.e., where
         `ubx == +inf`; otherwise, returns all upper bound constraints.'''
-        if not self.remove_redundant_x_bounds:
+        if not self._remove_redundant_x_bounds:
             return self._x - self._ubx[:, None], self._lam_ubx
         idx = npy.where(self._ubx != npy.inf)[0]
         if idx.size == 0:
@@ -619,9 +614,8 @@ class Nlp:
         else:
             vals = dict2struct({name: subsevalf(var, self._x, sol['x'])
                                 for name, var in vars_.items()})
-        old = cs.vertcat(
-            self._p, self._x, self._lam_g, self._lam_h,
-            self._lam_lbx, self._lam_ubx)
+        old = cs.vertcat(self._p, self._x, self._lam_g, self._lam_h,
+                         self._lam_lbx, self._lam_ubx)
         new = cs.vertcat(p, sol['x'], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
         solution = Solution(

@@ -8,7 +8,7 @@ import numpy as np
 from csnlp import Nlp, wrappers
 
 
-def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float):
+def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float) -> None:
     X, Y = np.meshgrid(*[np.linspace(-1.5, 2, 100)] * 2)
     ax.contour(X, Y, (1 - X)**2 + a * (Y - X**2)**2, 100)
 
