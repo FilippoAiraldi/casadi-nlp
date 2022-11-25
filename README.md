@@ -1,12 +1,12 @@
-[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/release/LICENSE)
-![Python 3.8](https://img.shields.io/badge/python->=3.8-green.svg)
-[![Downloads](https://pepy.tech/badge/csnlp)](https://pepy.tech/project/csnlp)
-
 # Nonlinear Programming with CasADi
 
 **csnlp** provides classes and utilities to model, solve and analyse nonlinear programmes (NLPs) in optimization.
 
 In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [[1]](#1) to model the optimization problems and perform symbolic differentiation, as well as the [IPOPT](https://github.com/coin-or/Ipopt) solver [[2]](#2) (though the package can be adapted to other solvers pretty easily). The package offers also tools for the sensitivity analysis of NLPs, solving them with multiple initial conditions, as well as for building MPC controllers.
+
+[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/release/LICENSE)
+![Python 3.8](https://img.shields.io/badge/python->=3.8-green.svg)
+[![Downloads](https://pepy.tech/badge/csnlp)](https://pepy.tech/project/csnlp)
 
 ---
 
@@ -53,7 +53,7 @@ nlp.constraint('c2', g, '<=', p**2)
 nlp.init_solver()  # initializes IPOPT under the hood
 sol = nlp.solve(pars={'p': 1.25})  # solves the NLP for parameter p=1.25
 
-x_opt = sol.vals['x']  
+x_opt = sol.vals['x']
 y_opt = sol.value(y)
 ```
 
