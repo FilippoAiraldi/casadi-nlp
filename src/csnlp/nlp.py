@@ -49,9 +49,9 @@ class Nlp:
         seed : int, optional
             Random number generator seed.
         '''
-
         self.id = next(self.__ids)
-        self.name = f'NLP{self.id}' if name is None else name
+        self.name = \
+            f'{self.__class__.__name__}{self.id}' if name is None else name
         self._csXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)
 
         self._vars: Dict[str, Union[cs.SX, cs.MX]] = {}

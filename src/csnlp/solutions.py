@@ -104,7 +104,6 @@ def subsevalf(
         free, i.e., the expression cannot be evaluated numerically since it is
         still (partially) symbolic.
     '''
-
     if isinstance(expr, np.ndarray):
         out = np.empty(expr.shape, dtype=object)
         for i in np.ndindex(expr.shape):
@@ -112,18 +111,18 @@ def subsevalf(
         if eval:
             out = out.astype(float)
         return out
-    else:
-        if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
-            expr = cs.substitute(expr, old, new)
-        elif isinstance(old, dict):
-            for name, o in old.items():
-                expr = cs.substitute(expr, o, new[name])
-        elif isinstance(old, Iterable):
-            for o, n in zip(old, new):
-                expr = cs.substitute(expr, o, n)
-        else:
-            raise TypeError(f'Invalid type {old.__class__.__name__} for old.')
 
-        if eval:
-            expr = cs.evalf(expr)
-        return expr
+    if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
+        expr = cs.substitute(expr, old, new)
+    elif isinstance(old, dict):
+        for name, o in old.items():
+            expr = cs.substitute(expr, o, new[name])
+    elif isinstance(old, Iterable):
+        for o, n in zip(old, new):
+            expr = cs.substitute(expr, o, n)
+    else:
+        raise TypeError(f'Invalid type {old.__class__.__name__} for old.')
+
+    if eval:
+        expr = cs.evalf(expr)
+    return expr

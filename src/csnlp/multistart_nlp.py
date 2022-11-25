@@ -60,7 +60,8 @@ class MultistartNlp(Nlp):
 
     @lru_cache
     def _symbols(
-        self, i: int = None,
+        self,
+        i: int = None,
         vars: bool = False,
         pars: bool = False,
         dual: bool = False
@@ -201,18 +202,14 @@ class MultistartNlp(Nlp):
             raise ValueError(
                 "`return_multi_sol` and `return_all_sols` can't be both true.")
 
-        if pars is None:
-            catpars = None
-        else:
-            catpars = {_n(n, i): pars_i[n] 
-                       for i, pars_i in enumerate(pars) for n in pars_i.keys()}
-        if vals0 is None:
-            catvals0 = None
-        else:
-            catvals0 = {_n(n, i): vals0_i[n]
-                        for i, vals0_i in enumerate(vals0) 
-                        for n in vals0_i.keys()}
-        multi_sol = self._multi_nlp.solve(catpars, catvals0)
+        if pars is not None:
+            pars = {_n(n, i): pars_i[n]
+                    for i, pars_i in enumerate(pars) for n in pars_i.keys()}
+        if vals0 is not None:
+            vals0 = {_n(n, i): vals0_i[n]
+                     for i, vals0_i in enumerate(vals0)
+                     for n in vals0_i.keys()}
+        multi_sol = self._multi_nlp.solve(pars=pars, vals0=vals0)
         if return_multi_sol:
             return multi_sol
 
