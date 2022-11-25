@@ -1,13 +1,15 @@
+import sys
+import unittest
 import os
 import tempfile
-import unittest
 from itertools import product
 from functools import lru_cache, cached_property
+import math as _math
 from typing import Dict
 import casadi as cs
 import numpy as np
 from scipy.stats import norm
-import math as _math
+sys.path.insert(1, 'src')
 from csnlp.solutions import subsevalf
 from csnlp.util import funcs, array, math, io, data
 
