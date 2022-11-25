@@ -339,37 +339,6 @@ class TestMath(unittest.TestCase):
             if out is not None:
                 np.testing.assert_allclose(p, out)
 
-    def test_normalization__raises__when_registering_duplicate_ranges(self):
-        N = math.Normalization({'x': [-1, 1]})
-        with self.assertRaises(KeyError):
-            N.register({'x': [0, 2]})
-        with self.assertRaises(KeyError):
-            N.register(x=[0, 2])
-        N.register(y=[0, 2])
-
-    def test_normalization__can_normalize__only_valid_ranges(self):
-        N = math.Normalization({'x': [-1, 1]})
-        self.assertTrue(N.can_normalize('x'))
-        self.assertFalse(N.can_normalize('u'))
-
-    def test_normalization__raises__if_shape_is_modified(self):
-        N = math.Normalization({'x': np.array([[-1, 1],
-                                               [-2, 2]])})
-        x = np.array([-5, 2])
-        N.normalize('x', x)
-        N.normalize('x', x.reshape(1, -1))
-        with self.assertRaises(AssertionError):
-            N.normalize('x', x.reshape(-1, 1))
-
-    def test_normalization__computes_right_values(self):
-        N = math.Normalization({'x': np.array([[-1, 1],
-                                               [-2, 2]])})
-        x = np.array([-5, 2])
-        y = N.normalize('x', x)
-        z = N.denormalize('x', y)
-        np.testing.assert_allclose(y, [-2, 1])
-        np.testing.assert_allclose(x, z)
-
 
 if __name__ == '__main__':
     unittest.main()
