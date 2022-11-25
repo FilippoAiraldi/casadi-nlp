@@ -7,6 +7,7 @@ In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/release/LICENSE)
 ![Python 3.8](https://img.shields.io/badge/python->=3.8-green.svg)
 [![Downloads](https://pepy.tech/badge/csnlp)](https://pepy.tech/project/csnlp)
+[![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
 
 ---
 

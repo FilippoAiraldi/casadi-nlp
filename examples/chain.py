@@ -5,6 +5,15 @@ from csnlp import Nlp
 import casadi as cs
 import numpy as np
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+
+
+def plot_chain(ax: Axes, x: cs.DM, y: cs.DM) -> None:
+    ax.plot(x.full().flat, y.full().flat, 'o-')
+
+def plot_ground(ax: Axes) -> None:
+    xs = np.linspace(-2, 2, 100)
+    ax.plot(xs, np.cos(0.1 * xs) - 0.5, 'r--')
 
 
 N = 40
@@ -26,17 +35,14 @@ nlp.constraint('c1', p[:, 0], '==', [-2, 1])
 nlp.constraint('c2', p[:, -1], '==', [2, 1])
 nlp.init_solver()
 sol = nlp.solve()
-
-axs[0].plot(sol.value(x).full().flat, sol.value(y).full().flat, 'o-')
+plot_chain(axs[0], sol.value(x), sol.value(y))
 
 
 # Problem 2: adding ground constraints
 nlp.constraint('c3', y, '>=', cs.cos(0.1 * x) - 0.5)
 sol = nlp.solve(vals0={'p': sol.vals['p']})  # warm-starts the new solver run
-
-axs[1].plot(sol.value(x).full().flat, sol.value(y).full().flat, 'o-')
-xs = np.linspace(-2, 2, 100)
-axs[1].plot(xs, np.cos(0.1 * xs) - 0.5, 'r--')
+plot_chain(axs[1], sol.value(x), sol.value(y))
+plot_ground(axs[1])
 
 
 # Problem 3: Rest Length
@@ -46,9 +52,7 @@ nlp.minimize(V)
 sol = nlp.solve(vals0={
     'p': np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))
 })
-
-axs[2].plot(sol.value(x).full().flat, sol.value(y).full().flat, 'o-')
-xs = np.linspace(-2, 2, 100)
-axs[2].plot(xs, np.cos(0.1 * xs) - 0.5, 'r--')
+plot_chain(axs[2], sol.value(x), sol.value(y))
+plot_ground(axs[2])
 
 plt.show()
