@@ -375,6 +375,18 @@ class TestMpc(unittest.TestCase):
             self.assertEqual(x2_0.shape, (1, 1))
             self.assertEqual(x2_0.shape, mpc.initial_states['x2'].shape)
 
+    def test_state__raises__in_singleshooting_with_state_bounds(self):
+        for i in range(3):
+            nlp = Nlp(sym_type='MX')
+            mpc = Mpc(nlp=nlp, prediction_horizon=10, shooting='single')
+            with self.assertRaises(RuntimeError):
+                if i == 0:
+                    mpc.state('x1', 2, lb=0)
+                elif i == 1:
+                    mpc.state('x1', 2, ub=1)
+                else:
+                    mpc.state('x1', 2, lb=0, ub=1)
+
     def test_action__constructs_action_correctly(self):
         Np = 10
         for Nc in [Np // 2, Np]:
@@ -443,7 +455,8 @@ class TestMpc(unittest.TestCase):
         N = 10
         for i in range(2):
             nlp = Nlp(sym_type='SX')
-            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2)
+            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2,
+                      shooting='multi')
             x1, _ = mpc.state('x1', 2)
             x2, _ = mpc.state('x2', 3)
             u1, _ = mpc.action('u1', 3)
@@ -462,6 +475,36 @@ class TestMpc(unittest.TestCase):
             for k in range(N):
                 self.assertIn(f'dyn_{k}', mpc.constraints.keys())
             self.assertEqual(mpc.ng, (1 + N) * 5)
+
+    def test_dynamics__in_singleshooting__creates_states(self):
+        N = 10
+        for i in range(2):
+            nlp = Nlp(sym_type='SX')
+            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2,
+                      shooting='single')
+            mpc.state('x1', 2)
+            x1 = cs.SX.sym('x1', 2)
+            mpc.state('x2', 3)
+            x2 = cs.SX.sym('x2', 3)
+            u1, _ = mpc.action('u1', 3)
+            u2, _ = mpc.action('u2', 1)
+            x = cs.vertcat(x1[:, 0], x2[:, 0])
+            u = cs.vertcat(u1[:, 0], u2[:, 0])
+            x_next = x + cs.vertcat(u, u2[:, 0])
+            if i == 0:
+                F = cs.Function('F', [x, u], [x_next], ['x', 'u'], ['x+'])
+            else:
+                d = mpc.disturbance('d')
+                x_next += d[:, 0]
+                F = cs.Function(
+                    'F', [x, u, d], [x_next], ['x', 'u', 'd'], ['x+'])
+            mpc.dynamics = F
+            for k in range(N):
+                self.assertNotIn(f'dyn_{k}', mpc.constraints.keys())
+            self.assertIn('x1', mpc.states.keys())
+            self.assertIn('x2', mpc.states.keys())
+            self.assertEqual(mpc.states['x1'].shape, (2, N + 1))
+            self.assertEqual(mpc.states['x2'].shape, (3, N + 1))
 
 
 if __name__ == '__main__':

@@ -157,8 +157,9 @@ class Mpc(Wrapper):
         ValueError
             Raises if there exists already a state with the same name.
         RuntimeError
-            Raises if lower or upper bounds have been specified, since these
-            can only be set after the dynamics via the `constraint` method.
+            Raises in single shooting if lower or upper bounds have been
+            specified, since these can only be set after the dynamics have been
+            set via the `constraint` method.
         '''
         if self._is_multishooting:
             x = self.nlp.variable(
