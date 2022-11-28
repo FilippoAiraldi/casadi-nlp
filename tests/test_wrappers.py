@@ -5,24 +5,25 @@ from itertools import product
 import casadi as cs
 import numpy as np
 
-sys.path.insert(1, 'src')
+sys.path.insert(1, "src")
 from csnlp import Nlp
 from csnlp.solutions import subsevalf
 from csnlp.util.math import log
 from csnlp.wrappers import Mpc, NlpSensitivity, Wrapper
 
 OPTS = {
-    'expand': True, 'print_time': False,
-    'ipopt': {
-        'max_iter': 500,
-        'tol': 1e-7,
-        'barrier_tol_factor': 5,
-        'sb': 'yes',
+    "expand": True,
+    "print_time": False,
+    "ipopt": {
+        "max_iter": 500,
+        "tol": 1e-7,
+        "barrier_tol_factor": 5,
+        "sb": "yes",
         # for debugging
-        'print_level': 0,
-        'print_user_options': 'no',
-        'print_options_documentation': 'no'
-    }
+        "print_level": 0,
+        "print_user_options": "no",
+        "print_options_documentation": "no",
+    },
 }
 
 
@@ -38,12 +39,12 @@ class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x')[0]
-            y = nlp.variable('y')[0]
-            _, lam = nlp.constraint('c1', x**2 + y**2, '==', 1)
-            for f in [-x - y, (x + y)**2]:
+            x = nlp.variable("x")[0]
+            y = nlp.variable("y")[0]
+            _, lam = nlp.constraint("c1", x**2 + y**2, "==", 1)
+            for f in [-x - y, (x + y) ** 2]:
                 nlp.minimize(f)
                 L = f + lam * (x**2 + y**2 - 1)
                 x_ = np.random.randn(*x.shape)
@@ -51,17 +52,17 @@ class TestNlpSensitivity(unittest.TestCase):
                 lam_ = np.random.randn(*lam.shape)
                 np.testing.assert_allclose(
                     subsevalf(nlp.lagrangian, [x, y, lam], [x_, y_, lam_]),
-                    subsevalf(L, [x, y, lam], [x_, y_, lam_])
+                    subsevalf(L, [x, y, lam], [x_, y_, lam_]),
                 )
 
     def test_lagrangian__is_correct__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
         lbx = 1 / n * 1e-6
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            p, lam_lbx, _ = nlp.variable('p', (n, 1), lb=lbx)
-            c1, lam_g = nlp.constraint('c1', cs.sum1(p), '==', 1)
+            p, lam_lbx, _ = nlp.variable("p", (n, 1), lb=lbx)
+            c1, lam_g = nlp.constraint("c1", cs.sum1(p), "==", 1)
             f = cs.sum1(p * log(p, 2))
             nlp.minimize(f)
             L = f + lam_g * c1 + lam_lbx.T @ (lbx - p)
@@ -69,18 +70,17 @@ class TestNlpSensitivity(unittest.TestCase):
             lam_lbx_ = np.random.randn(*lam_lbx.shape)
             lam_g_ = np.random.randn(*lam_g.shape)
             np.testing.assert_allclose(
-                subsevalf(nlp.lagrangian,
-                          [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_]),
-                subsevalf(L, [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_])
+                subsevalf(nlp.lagrangian, [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_]),
+                subsevalf(L, [p, lam_lbx, lam_g], [p_, lam_lbx_, lam_g_]),
             )
 
     def test_lagrangian__is_correct__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x, lam_lbx, lam_ubx = nlp.variable('x', (2, 1), lb=0, ub=1)
-            c1, lam_h = nlp.constraint('c1', x[0] + x[1]**2, '<=', 2)
-            f = - x[0] * x[1]
+            x, lam_lbx, lam_ubx = nlp.variable("x", (2, 1), lb=0, ub=1)
+            c1, lam_h = nlp.constraint("c1", x[0] + x[1] ** 2, "<=", 2)
+            f = -x[0] * x[1]
             nlp.minimize(f)
             L = f + lam_h * c1 + lam_lbx.T @ (0 - x) + lam_ubx.T @ (x - 1)
             x_ = np.random.rand(*x.shape)
@@ -88,19 +88,21 @@ class TestNlpSensitivity(unittest.TestCase):
             lam_ubx_ = np.random.randn(*lam_ubx.shape)
             lam_h_ = np.random.randn(*lam_h.shape)
             np.testing.assert_allclose(
-                subsevalf(nlp.lagrangian,
-                          [x, lam_lbx, lam_ubx, lam_h],
-                          [x_, lam_lbx_, lam_ubx_, lam_h_]),
-                subsevalf(L, [x, lam_lbx, lam_ubx, lam_h],
-                          [x_, lam_lbx_, lam_ubx_, lam_h_])
+                subsevalf(
+                    nlp.lagrangian,
+                    [x, lam_lbx, lam_ubx, lam_h],
+                    [x_, lam_lbx_, lam_ubx_, lam_h_],
+                ),
+                subsevalf(
+                    L, [x, lam_lbx, lam_ubx, lam_h], [x_, lam_lbx_, lam_ubx_, lam_h_]
+                ),
             )
 
     def test_kkt__returns_tau_correctly(self):
-        for sym_type, flag in product(('MX', 'SX'), (True, False)):
-            nlp = NlpSensitivity(
-                Nlp(sym_type=sym_type), include_barrier_term=flag)
-            x = nlp.variable('x')[0]
-            nlp.constraint('c', x, '<=', 1)
+        for sym_type, flag in product(("MX", "SX"), (True, False)):
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type), include_barrier_term=flag)
+            x = nlp.variable("x")[0]
+            nlp.constraint("c", x, "<=", 1)
             nlp.minimize(x)
             _, tau = nlp.kkt
             if flag:
@@ -110,11 +112,11 @@ class TestNlpSensitivity(unittest.TestCase):
 
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
-        for sym_type in ('MX', 'SX'):
+        for sym_type in ("MX", "SX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x')[0]
-            y = nlp.variable('y')[0]
-            nlp.constraint('c1', x**2 + y**2, '==', 1)
+            x = nlp.variable("x")[0]
+            y = nlp.variable("y")[0]
+            nlp.constraint("c1", x**2 + y**2, "==", 1)
             nlp.minimize(-x - y)
             nlp.init_solver(OPTS)
             sol = nlp.solve()
@@ -123,71 +125,65 @@ class TestNlpSensitivity(unittest.TestCase):
 
     def test_kkt__computes_kkt_conditions_correctly__example_1b(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x')[0]
-            y = nlp.variable('y')[0]
-            nlp.constraint('c1', x**2 + y**2, '==', 1)
-            nlp.minimize((x + y)**2)
+            x = nlp.variable("x")[0]
+            y = nlp.variable("y")[0]
+            nlp.constraint("c1", x**2 + y**2, "==", 1)
+            nlp.minimize((x + y) ** 2)
             nlp.init_solver(OPTS)
-            sol = nlp.solve(vals0={
-                'x': 0.5,
-                'y': np.sqrt(1 - 0.5**2)
-            })
+            sol = nlp.solve(vals0={"x": 0.5, "y": np.sqrt(1 - 0.5**2)})
             kkt, _ = nlp.kkt
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_2(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_2
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x')[0]
-            y = nlp.variable('y')[0]
-            nlp.constraint('c1', x**2 + y**2, '==', 3)
+            x = nlp.variable("x")[0]
+            y = nlp.variable("y")[0]
+            nlp.constraint("c1", x**2 + y**2, "==", 3)
             nlp.minimize(x**2 * y)
             nlp.init_solver(OPTS)
-            sol = nlp.solve(vals0={
-                'x': np.sqrt(3 - 0.8**2),
-                'y': -0.8
-            })
+            sol = nlp.solve(vals0={"x": np.sqrt(3 - 0.8**2), "y": -0.8})
             kkt, _ = nlp.kkt
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_3(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
         n = 50
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            p = nlp.variable('p', (n, 1), lb=1 / n * 1e-6)[0]
-            nlp.constraint('c1', cs.sum1(p), '==', 1)
+            p = nlp.variable("p", (n, 1), lb=1 / n * 1e-6)[0]
+            nlp.constraint("c1", cs.sum1(p), "==", 1)
             nlp.minimize(cs.sum1(p * log(p, 2)))
             nlp.init_solver(OPTS)
-            sol = nlp.solve(vals0={'p': np.random.rand(n)})
+            sol = nlp.solve(vals0={"p": np.random.rand(n)})
             kkt, tau = nlp.kkt
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_4(self):
         # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x')[0]
-            nlp.constraint('c1', x**2, '==', 1)
+            x = nlp.variable("x")[0]
+            nlp.constraint("c1", x**2, "==", 1)
             nlp.minimize(x**2)
             nlp.init_solver(OPTS)
-            sol = nlp.solve(vals0={'x': 1 + 0.1 * np.random.rand()})
+            sol = nlp.solve(vals0={"x": 1 + 0.1 * np.random.rand()})
             kkt, _ = nlp.kkt
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_5(self):
         # https://personal.math.ubc.ca/~israel/m340/kkt2.pdf
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x', (2, 1), lb=0)[0]
-            nlp.constraint('c1', x[0] + x[1]**2, '<=', 2)
-            nlp.minimize(- x[0] * x[1])
+            x = nlp.variable("x", (2, 1), lb=0)[0]
+            nlp.constraint("c1", x[0] + x[1] ** 2, "<=", 2)
+            nlp.minimize(-x[0] * x[1])
             nlp.init_solver(OPTS)
-            sol = nlp.solve(vals0={'x': [1, 1]})
+            sol = nlp.solve(vals0={"x": [1, 1]})
             kkt, tau = nlp.kkt
             kkt = subsevalf(kkt, tau, sol.barrier_parameter, eval=False)
             np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-7)
@@ -202,18 +198,17 @@ class TestNlpSensitivity(unittest.TestCase):
         #     problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
         #     Online Optimization of Large Scale Systems, 3–16. Springer,
         #     Berlin, Heidelberg.
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            z = nlp.variable('z', (2, 1))[0]
-            p = nlp.parameter('p')
+            z = nlp.variable("z", (2, 1))[0]
+            p = nlp.parameter("p")
             nlp.minimize(-((0.5 + p) * cs.sqrt(z[0]) + (0.5 - p) * z[1]))
-            _, lam = nlp.constraint('c1', cs.sum1(z), '<=', 1)
-            nlp.constraint('c2', z[0], '>=', 0.1)
+            _, lam = nlp.constraint("c1", cs.sum1(z), "<=", 1)
+            nlp.constraint("c2", z[0], ">=", 0.1)
             nlp.init_solver(OPTS)
-            sol = nlp.solve(pars={'p': 0}, vals0={'z': [0.1, 0.9]})
+            sol = nlp.solve(pars={"p": 0}, vals0={"z": [0.1, 0.9]})
 
-            np.testing.assert_allclose(
-                sol.vals['z'], [[0.25], [0.75]], rtol=1e-5)
+            np.testing.assert_allclose(sol.vals["z"], [[0.25], [0.75]], rtol=1e-5)
             np.testing.assert_allclose(sol.value(lam), 0.5)
 
             kkt, tau = nlp.kkt
@@ -235,18 +230,18 @@ class TestNlpSensitivity(unittest.TestCase):
         #     problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
         #     Online Optimization of Large Scale Systems, 3–16. Springer,
         #     Berlin, Heidelberg.
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            z = nlp.variable('z', (2, 1))[0]
-            p = nlp.parameter('p')
+            z = nlp.variable("z", (2, 1))[0]
+            p = nlp.parameter("p")
             nlp.minimize(cs.sumsqr(z + [1, -2]))
-            _, lam1 = nlp.constraint('c1', -z[0] + p, '<=', 0)
-            _, lam2 = nlp.constraint('c2', 2 * z[0] + z[1], '<=', 6)
+            _, lam1 = nlp.constraint("c1", -z[0] + p, "<=", 0)
+            _, lam2 = nlp.constraint("c2", 2 * z[0] + z[1], "<=", 6)
             nlp.init_solver(OPTS)
-            sol = nlp.solve(pars={'p': 1})
+            sol = nlp.solve(pars={"p": 1})
 
             np.testing.assert_allclose(sol.f, 4)
-            np.testing.assert_allclose(sol.vals['z'], [[1], [2]], rtol=1e-7)
+            np.testing.assert_allclose(sol.vals["z"], [[1], [2]], rtol=1e-7)
             np.testing.assert_allclose(sol.value(lam1), 4, atol=1e-7)
             np.testing.assert_allclose(sol.value(lam2), 0, atol=1e-7)
 
@@ -257,13 +252,16 @@ class TestNlpSensitivity(unittest.TestCase):
             S1 = nlp.parametric_sensitivity()[0]
             S2 = nlp.parametric_sensitivity(solution=sol)[0]
             np.testing.assert_allclose(
-                sol.value(S1).full().flat, [1, 0, 2, 0], atol=1e-5)
+                sol.value(S1).full().flat, [1, 0, 2, 0], atol=1e-5
+            )
             np.testing.assert_allclose(S2.flat, [1, 0, 2, 0], atol=1e-5)
 
-            Fp1, Fpp1 = (sol.value(o).item() for o in
-                         nlp.parametric_sensitivity(expr=nlp.f))
-            Fp2, Fpp2 = (o.item() for o in
-                         nlp.parametric_sensitivity(expr=nlp.f, solution=sol))
+            Fp1, Fpp1 = (
+                sol.value(o).item() for o in nlp.parametric_sensitivity(expr=nlp.f)
+            )
+            Fp2, Fpp2 = (
+                o.item() for o in nlp.parametric_sensitivity(expr=nlp.f, solution=sol)
+            )
             np.testing.assert_allclose(Fp1, 4, atol=1e-7)
             np.testing.assert_allclose(Fp2, 4, atol=1e-7)
             np.testing.assert_allclose(Fpp1, 2, atol=1e-7)
@@ -271,12 +269,12 @@ class TestNlpSensitivity(unittest.TestCase):
 
     def test_licq__computes_qualification_correctly__example_1(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#LICQ
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x', (2, 1))[0]
-            nlp.constraint('c1', cs.sum1(x), '<=', 1)
-            nlp.constraint('c2', cs.sumsqr(x), '<=', 1)
-            nlp.minimize(x[0]**2 + (x[1] - 1)**2)  # any objective
+            x = nlp.variable("x", (2, 1))[0]
+            nlp.constraint("c1", cs.sum1(x), "<=", 1)
+            nlp.constraint("c2", cs.sumsqr(x), "<=", 1)
+            nlp.minimize(x[0] ** 2 + (x[1] - 1) ** 2)  # any objective
 
             x_ = cs.DM([[0], [1]])
             d = subsevalf(nlp.licq, x, x_).full()
@@ -285,12 +283,12 @@ class TestNlpSensitivity(unittest.TestCase):
 
     def test_licq__computes_qualification_correctly__example_2(self):
         # https://de.wikipedia.org/wiki/Linear_independence_constraint_qualification#MFCQ_ohne_LICQ
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x', (2, 1))[0]
-            nlp.constraint('c1', x[1], '>=', 0)
-            nlp.constraint('c2', x[0]**4 - x[1], '<=', 1)
-            nlp.minimize(x[0]**2 + x[1]**2)  # any objective
+            x = nlp.variable("x", (2, 1))[0]
+            nlp.constraint("c1", x[1], ">=", 0)
+            nlp.constraint("c2", x[0] ** 4 - x[1], "<=", 1)
+            nlp.minimize(x[0] ** 2 + x[1] ** 2)  # any objective
 
             x_ = cs.DM([[0], [0]])
             d = subsevalf(nlp.licq, x, x_).full()
@@ -303,32 +301,33 @@ class TestNlpSensitivity(unittest.TestCase):
         p_values_and_solutions = [
             (1.25, (-0.442401495488, 0.400036517837, 3.516850030791)),
             (1.4, (-0.350853791920, 0.766082818877, 1.401822559490)),
-            (2, (-0.000000039328, 0, 0))
+            (2, (-0.000000039328, 0, 0)),
         ]
 
         def z(x):
             return x[1, :] - x[0, :]
 
-        for sym_type in ('SX', 'MX'):
+        for sym_type in ("SX", "MX"):
             nlp = NlpSensitivity(Nlp(sym_type=sym_type))
-            x = nlp.variable('x', (2, 1), lb=[[0], [-np.inf]])[0]
-            p = nlp.parameter('p', (2, 1))
-            nlp.minimize((1 - x[0])**2 + p[0] * (x[1] - x[0]**2)**2)
-            g = (x[0] + 0.5)**2 + x[1]**2
-            nlp.constraint('c1', (p[1] / 2)**2, '<=', g)
-            nlp.constraint('c2', g, '<=', p[1]**2)
+            x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
+            p = nlp.parameter("p", (2, 1))
+            nlp.minimize((1 - x[0]) ** 2 + p[0] * (x[1] - x[0] ** 2) ** 2)
+            g = (x[0] + 0.5) ** 2 + x[1] ** 2
+            nlp.constraint("c1", (p[1] / 2) ** 2, "<=", g)
+            nlp.constraint("c2", g, "<=", p[1] ** 2)
             nlp.init_solver(OPTS)
 
             Z1_ = z(x)
-            J1_, H1_ = (np.squeeze(o) for o in
-                        nlp.parametric_sensitivity(expr=Z1_))
+            J1_, H1_ = (np.squeeze(o) for o in nlp.parametric_sensitivity(expr=Z1_))
             for p, (Z, J, H) in p_values_and_solutions:
-                sol = nlp.solve(pars={'p': [0.2, p]})
+                sol = nlp.solve(pars={"p": [0.2, p]})
                 Z1 = sol.value(Z1_)
                 J1 = sol.value(J1_)
                 H1 = sol.value(H1_)
-                J2, H2 = (np.squeeze(o) for o in
-                          nlp.parametric_sensitivity(expr=Z1_, solution=sol))
+                J2, H2 = (
+                    np.squeeze(o)
+                    for o in nlp.parametric_sensitivity(expr=Z1_, solution=sol)
+                )
                 np.testing.assert_allclose(J1, J2, atol=1e-7)
                 np.testing.assert_allclose(H1, H2, atol=1e-7)
                 np.testing.assert_allclose(Z, Z1, atol=1e-4)
@@ -341,7 +340,7 @@ class TestNlpSensitivity(unittest.TestCase):
 class TestMpc(unittest.TestCase):
     def test_init__raises__with_invalid_args(self):
         with self.assertRaises(ValueError):
-            Mpc(nlp=None, shooting='ciao', prediction_horizon=1)
+            Mpc(nlp=None, shooting="ciao", prediction_horizon=1)
         with self.assertRaises(ValueError):
             Mpc(nlp=None, prediction_horizon=0)
         with self.assertRaises(ValueError):
@@ -356,99 +355,99 @@ class TestMpc(unittest.TestCase):
 
     def test_state__constructs_state_correctly(self):
         N = 10
-        for shooting in ('single', 'multi'):
-            nlp = Nlp(sym_type='MX')
+        for shooting in ("single", "multi"):
+            nlp = Nlp(sym_type="MX")
             mpc = Mpc(nlp=nlp, prediction_horizon=N, shooting=shooting)
-            x1, x1_0 = mpc.state('x1', 2)
-            if shooting == 'multi':
+            x1, x1_0 = mpc.state("x1", 2)
+            if shooting == "multi":
                 self.assertEqual(x1.shape, (2, N + 1))
-                self.assertEqual(x1.shape, mpc.states['x1'].shape)
-                self.assertEqual(mpc.constraints['x1_0'].shape, (2, 1))
+                self.assertEqual(x1.shape, mpc.states["x1"].shape)
+                self.assertEqual(mpc.constraints["x1_0"].shape, (2, 1))
             else:
                 self.assertIsNone(x1)
             self.assertEqual(x1_0.shape, (2, 1))
-            self.assertEqual(x1_0.shape, mpc.initial_states['x1'].shape)
-            x2, x2_0 = mpc.state('x2', 1)
-            if shooting == 'multi':
+            self.assertEqual(x1_0.shape, mpc.initial_states["x1"].shape)
+            x2, x2_0 = mpc.state("x2", 1)
+            if shooting == "multi":
                 self.assertEqual(x2.shape, (1, N + 1))
-                self.assertEqual(x2.shape, mpc.states['x2'].shape)
-                self.assertEqual(mpc.constraints['x2_0'].shape, (1, 1))
+                self.assertEqual(x2.shape, mpc.states["x2"].shape)
+                self.assertEqual(mpc.constraints["x2_0"].shape, (1, 1))
             else:
                 self.assertIsNone(x2)
             self.assertEqual(x2_0.shape, (1, 1))
-            self.assertEqual(x2_0.shape, mpc.initial_states['x2'].shape)
+            self.assertEqual(x2_0.shape, mpc.initial_states["x2"].shape)
 
     def test_state__raises__in_singleshooting_with_state_bounds(self):
         for i in range(3):
-            nlp = Nlp(sym_type='MX')
-            mpc = Mpc(nlp=nlp, prediction_horizon=10, shooting='single')
+            nlp = Nlp(sym_type="MX")
+            mpc = Mpc(nlp=nlp, prediction_horizon=10, shooting="single")
             with self.assertRaises(RuntimeError):
                 if i == 0:
-                    mpc.state('x1', 2, lb=0)
+                    mpc.state("x1", 2, lb=0)
                 elif i == 1:
-                    mpc.state('x1', 2, ub=1)
+                    mpc.state("x1", 2, ub=1)
                 else:
-                    mpc.state('x1', 2, lb=0, ub=1)
+                    mpc.state("x1", 2, lb=0, ub=1)
 
     def test_action__constructs_action_correctly(self):
         Np = 10
         for Nc in [Np // 2, Np]:
-            nlp = Nlp(sym_type='SX')
+            nlp = Nlp(sym_type="SX")
             mpc = Mpc(nlp=nlp, prediction_horizon=Np, control_horizon=Nc)
-            u1, u1_exp = mpc.action('u1', 2)
+            u1, u1_exp = mpc.action("u1", 2)
             self.assertEqual(u1.shape, (2, Nc))
-            self.assertEqual(u1.shape, mpc.actions['u1'].shape)
+            self.assertEqual(u1.shape, mpc.actions["u1"].shape)
             self.assertEqual(u1_exp.shape, (2, Np))
-            self.assertEqual(u1_exp.shape, mpc.actions_expanded['u1'].shape)
-            u2, u2_exp = mpc.action('u2', 1)
+            self.assertEqual(u1_exp.shape, mpc.actions_expanded["u1"].shape)
+            u2, u2_exp = mpc.action("u2", 1)
             self.assertEqual(u2.shape, (1, Nc))
-            self.assertEqual(u2.shape, mpc.actions['u2'].shape)
+            self.assertEqual(u2.shape, mpc.actions["u2"].shape)
             self.assertEqual(u2_exp.shape, (1, Np))
-            self.assertEqual(u2_exp.shape, mpc.actions_expanded['u2'].shape)
+            self.assertEqual(u2_exp.shape, mpc.actions_expanded["u2"].shape)
             for i in range(Nc - 1, Np):
                 self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
                 self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))
 
     def test_constraint__constructs_slack_correctly(self):
-        nlp = Nlp(sym_type='MX')
+        nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
-        x, _ = mpc.state('x')
-        _, _, slack = mpc.constraint('c0', x, '>=', 5, soft=True)
+        x, _ = mpc.state("x")
+        _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
         self.assertIn(slack.name(), mpc._slack_names)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
 
     def test_disturbance__constructs_disturbance_correctly(self):
         N = 10
-        nlp = Nlp(sym_type='MX')
+        nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=N)
-        d1 = mpc.disturbance('d1', 2)
+        d1 = mpc.disturbance("d1", 2)
         self.assertEqual(d1.shape, (2, N))
-        self.assertEqual(d1.shape, mpc.disturbances['d1'].shape)
-        d2 = mpc.disturbance('d2', 20)
+        self.assertEqual(d1.shape, mpc.disturbances["d1"].shape)
+        d2 = mpc.disturbance("d2", 20)
         self.assertEqual(d2.shape, (20, N))
-        self.assertEqual(d2.shape, mpc.disturbances['d2'].shape)
+        self.assertEqual(d2.shape, mpc.disturbances["d2"].shape)
 
     def test_dynamics__raises__if_dynamics_already_set(self):
-        nlp = Nlp(sym_type='MX')
+        nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
         mpc._dynamics = 5
         with self.assertRaises(RuntimeError):
             mpc.dynamics = 6
 
     def test_dynamics__raises__if_dynamics_arguments_are_invalid(self):
-        x1 = cs.SX.sym('x1', 2)
-        x2 = cs.SX.sym('x2', 3)
+        x1 = cs.SX.sym("x1", 2)
+        x2 = cs.SX.sym("x2", 3)
         x = cs.vertcat(x1, x2)
-        u1 = cs.SX.sym('u1', 3)
-        u2 = cs.SX.sym('u2', 1)
+        u1 = cs.SX.sym("u1", 3)
+        u2 = cs.SX.sym("u2", 1)
         u = cs.vertcat(u1, u2)
-        d = cs.SX.sym('d')
-        p = cs.SX.sym('p')
+        d = cs.SX.sym("d")
+        p = cs.SX.sym("p")
         x_next = x + cs.vertcat(u, u2)
-        F1 = cs.Function('F', [x], [x_next])
-        F2 = cs.Function('F', [x, u, d, p], [x_next + d + p])
-        nlp = Nlp(sym_type='MX')
+        F1 = cs.Function("F", [x], [x_next])
+        F2 = cs.Function("F", [x, u, d, p], [x_next + d + p])
+        nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10, control_horizon=5)
         for F in (F1, F2):
             with self.assertRaises(ValueError):
@@ -457,58 +456,58 @@ class TestMpc(unittest.TestCase):
     def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self):
         N = 10
         for i in range(2):
-            nlp = Nlp(sym_type='SX')
-            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2,
-                      shooting='multi')
-            x1, _ = mpc.state('x1', 2)
-            x2, _ = mpc.state('x2', 3)
-            u1, _ = mpc.action('u1', 3)
-            u2, _ = mpc.action('u2', 1)
+            nlp = Nlp(sym_type="SX")
+            mpc = Mpc(
+                nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="multi"
+            )
+            x1, _ = mpc.state("x1", 2)
+            x2, _ = mpc.state("x2", 3)
+            u1, _ = mpc.action("u1", 3)
+            u2, _ = mpc.action("u2", 1)
             x = cs.vertcat(x1[:, 0], x2[:, 0])
             u = cs.vertcat(u1[:, 0], u2[:, 0])
             x_next = x + cs.vertcat(u, u2[:, 0])
             if i == 0:
-                F = cs.Function('F', [x, u], [x_next], ['x', 'u'], ['x+'])
+                F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x+"])
             else:
-                d = mpc.disturbance('d')
+                d = mpc.disturbance("d")
                 x_next += d[:, 0]
-                F = cs.Function(
-                    'F', [x, u, d], [x_next], ['x', 'u', 'd'], ['x+'])
+                F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
             mpc.dynamics = F
             for k in range(N):
-                self.assertIn(f'dyn_{k}', mpc.constraints.keys())
+                self.assertIn(f"dyn_{k}", mpc.constraints.keys())
             self.assertEqual(mpc.ng, (1 + N) * 5)
 
     def test_dynamics__in_singleshooting__creates_states(self):
         N = 10
         for i in range(2):
-            nlp = Nlp(sym_type='SX')
-            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2,
-                      shooting='single')
-            mpc.state('x1', 2)
-            x1 = cs.SX.sym('x1', 2)
-            mpc.state('x2', 3)
-            x2 = cs.SX.sym('x2', 3)
-            u1, _ = mpc.action('u1', 3)
-            u2, _ = mpc.action('u2', 1)
+            nlp = Nlp(sym_type="SX")
+            mpc = Mpc(
+                nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="single"
+            )
+            mpc.state("x1", 2)
+            x1 = cs.SX.sym("x1", 2)
+            mpc.state("x2", 3)
+            x2 = cs.SX.sym("x2", 3)
+            u1, _ = mpc.action("u1", 3)
+            u2, _ = mpc.action("u2", 1)
             x = cs.vertcat(x1[:, 0], x2[:, 0])
             u = cs.vertcat(u1[:, 0], u2[:, 0])
             x_next = x + cs.vertcat(u, u2[:, 0])
             if i == 0:
-                F = cs.Function('F', [x, u], [x_next], ['x', 'u'], ['x+'])
+                F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x+"])
             else:
-                d = mpc.disturbance('d')
+                d = mpc.disturbance("d")
                 x_next += d[:, 0]
-                F = cs.Function(
-                    'F', [x, u, d], [x_next], ['x', 'u', 'd'], ['x+'])
+                F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
             mpc.dynamics = F
             for k in range(N):
-                self.assertNotIn(f'dyn_{k}', mpc.constraints.keys())
-            self.assertIn('x1', mpc.states.keys())
-            self.assertIn('x2', mpc.states.keys())
-            self.assertEqual(mpc.states['x1'].shape, (2, N + 1))
-            self.assertEqual(mpc.states['x2'].shape, (3, N + 1))
+                self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
+            self.assertIn("x1", mpc.states.keys())
+            self.assertIn("x2", mpc.states.keys())
+            self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
+            self.assertEqual(mpc.states["x2"].shape, (3, N + 1))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

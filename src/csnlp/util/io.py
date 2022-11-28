@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 
 def is_pickleable(obj: Any) -> bool:
-    '''
+    """
     Checks whether the object is pickeable.
 
     Parameters
@@ -16,7 +16,7 @@ def is_pickleable(obj: Any) -> bool:
     -------
     pickleable : bool
         A flag indicating if pickleable or not.
-    '''
+    """
     try:
         pickle.dumps(obj)
         return True
@@ -25,7 +25,7 @@ def is_pickleable(obj: Any) -> bool:
 
 
 def save(filename: str, **data: Any) -> str:
-    '''
+    """
     Saves data to a pickle file.
 
     Parameters
@@ -40,10 +40,10 @@ def save(filename: str, **data: Any) -> str:
     -------
     filename : str
         The complete name of the file where the data was written to.
-    '''
-    if not filename.endswith('.pkl'):
-        filename = f'{filename}.pkl'
-    with open(filename, 'wb') as f:
+    """
+    if not filename.endswith(".pkl"):
+        filename = f"{filename}.pkl"
+    with open(filename, "wb") as f:
         pickled = pickle.dumps(data)
         optimized = pickletools.optimize(pickled)
         f.write(optimized)
@@ -51,7 +51,7 @@ def save(filename: str, **data: Any) -> str:
 
 
 def load(filename: str) -> Dict[str, Any]:
-    '''
+    """
     Loads data from pickle.
 
     Parameters
@@ -64,10 +64,10 @@ def load(filename: str) -> Dict[str, Any]:
     -------
     data : dict
         The saved data in the shape of a dictionary.
-    '''
-    if not filename.endswith('.pkl'):
-        filename = f'{filename}.pkl'
-    with open(filename, 'rb') as f:
+    """
+    if not filename.endswith(".pkl"):
+        filename = f"{filename}.pkl"
+    with open(filename, "rb") as f:
         data = pickle.load(f)
     if isinstance(data, dict) and len(data.keys()) == 1:
         data = data[next(iter(data.keys()))]

@@ -8,7 +8,7 @@ from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 @dataclass(frozen=True)
 class Solution:
-    '''Class containing information on the solution of an NLP solver's run.'''
+    """Class containing information on the solution of an NLP solver's run."""
 
     f: float
     vars: Union[CasadiStructured, Dict[str, cs.SX], Dict[str, cs.MX]]
@@ -18,25 +18,23 @@ class Solution:
 
     @property
     def status(self) -> str:
-        '''Gets the status of the solver at this solution.'''
-        return self.stats['return_status']
+        """Gets the status of the solver at this solution."""
+        return self.stats["return_status"]
 
     @property
     def success(self) -> bool:
-        '''Gets whether the run was run successfully.'''
-        return self.stats['success']
+        """Gets whether the run was run successfully."""
+        return self.stats["success"]
 
     @property
     def barrier_parameter(self) -> float:
-        '''Gets the IPOPT barrier parameter at the optimal solution'''
-        return self.stats['iterations']['mu'][-1]
+        """Gets the IPOPT barrier parameter at the optimal solution"""
+        return self.stats["iterations"]["mu"][-1]
 
     def value(
-        self,
-        x: Union[cs.SX, cs.MX],
-        eval: bool = True
+        self, x: Union[cs.SX, cs.MX], eval: bool = True
     ) -> Union[cs.SX, cs.MX, cs.DM]:
-        '''Computes the value of the expression substituting the values of this
+        """Computes the value of the expression substituting the values of this
         solution in the expression.
 
         Parameters
@@ -57,23 +55,29 @@ class Solution:
         RuntimeError
             Raises if `eval=True` but there are symbolic variables that are
             still free since they are outside the solution's variables.
-        '''
+        """
         return self._get_value(x, eval=eval)
 
 
 def subsevalf(
     expr: Union[cs.SX, cs.MX, np.ndarray],
-    old: Union[cs.SX, cs.MX,
-               Dict[str, Union[cs.SX, cs.MX]],
-               Iterable[Union[cs.SX, cs.MX]],
-               CasadiStructured],
-    new: Union[cs.SX, cs.MX,
-               Dict[str, Union[cs.SX, cs.MX]],
-               Iterable[Union[cs.SX, cs.MX]],
-               CasadiStructured],
-    eval: bool = True
+    old: Union[
+        cs.SX,
+        cs.MX,
+        Dict[str, Union[cs.SX, cs.MX]],
+        Iterable[Union[cs.SX, cs.MX]],
+        CasadiStructured,
+    ],
+    new: Union[
+        cs.SX,
+        cs.MX,
+        Dict[str, Union[cs.SX, cs.MX]],
+        Iterable[Union[cs.SX, cs.MX]],
+        CasadiStructured,
+    ],
+    eval: bool = True,
 ) -> Union[cs.SX, cs.DM, np.ndarray]:
-    '''
+    """
     Substitutes the old variables with the new ones in the symbolic expression,
     and evaluates it, if required.
 
@@ -104,7 +108,7 @@ def subsevalf(
         Raises if `eval=True` but there are symbolic variables that are still
         free, i.e., the expression cannot be evaluated numerically since it is
         still (partially) symbolic.
-    '''
+    """
     if isinstance(expr, np.ndarray):
         out = np.empty(expr.shape, dtype=object)
         for i in np.ndindex(expr.shape):
@@ -122,7 +126,7 @@ def subsevalf(
         for o, n in zip(old, new):
             expr = cs.substitute(expr, o, n)
     else:
-        raise TypeError(f'Invalid type {old.__class__.__name__} for old.')
+        raise TypeError(f"Invalid type {old.__class__.__name__} for old.")
 
     if eval:
         expr = cs.evalf(expr)

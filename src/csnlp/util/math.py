@@ -10,10 +10,9 @@ SQRT2 = sqrt(2)
 
 
 def log(
-    x: Union[cs.SX, cs.MX, cs.DM],
-    base: Union[None, cs.SX, cs.MX, cs.DM] = None
+    x: Union[cs.SX, cs.MX, cs.DM], base: Union[None, cs.SX, cs.MX, cs.DM] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Logarithm. With one argument, return the natural logarithm of `x` (to
+    """Logarithm. With one argument, return the natural logarithm of `x` (to
     base `e`). With two arguments, return the logarithm of x to the given base,
     calculated as `log(x) / log(base)`.
 
@@ -28,15 +27,14 @@ def log(
     -------
     Union[cs.SX, cs.MX, cs.DM]
         The logarithm. of `x` with base `base`.
-    '''
+    """
     return cs.log(x) if base is None else cs.log(x) / cs.log(base)
 
 
 def prod(
-    x: Union[cs.SX, cs.MX, cs.DM],
-    axis: Optional[int] = None
+    x: Union[cs.SX, cs.MX, cs.DM], axis: Optional[int] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Computes the product of all the elements in `x` (CasADi version of
+    """Computes the product of all the elements in `x` (CasADi version of
     `numpy.prod`).
 
     Parameters
@@ -52,7 +50,7 @@ def prod(
     -------
     Union[cs.SX, cs.MX, cs.DM]
         Product of the elements.
-    '''
+    """
     if axis is None:
         x = cs.vec(x)
         axis = 0
@@ -65,10 +63,9 @@ def prod(
 
 
 def quad_form(
-    A: Union[cs.SX, cs.MX, cs.DM],
-    x: Union[cs.SX, cs.MX, cs.DM]
+    A: Union[cs.SX, cs.MX, cs.DM], x: Union[cs.SX, cs.MX, cs.DM]
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Calculates quadratic form `x.T*A*x`.
+    """Calculates quadratic form `x.T*A*x`.
 
     Parameters
     ----------
@@ -90,7 +87,7 @@ def quad_form(
          - `A` is not squared
          - `A` and `x` cannot be multiplied together
          - `x` is not a vector.
-    '''
+    """
     if A.is_vector():
         A = cs.diag(A)
     return cs.bilin(A, x, x)
@@ -99,9 +96,9 @@ def quad_form(
 def norm_cdf(
     x: Union[cs.SX, cs.MX, cs.DM],
     loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
-    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1)
+    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1),
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Computes the cdf of a normal distribution. See `scipy.stats.norm.cdf`.
+    """Computes the cdf of a normal distribution. See `scipy.stats.norm.cdf`.
 
     Parameters
     ----------
@@ -116,16 +113,16 @@ def norm_cdf(
     -------
     Union[cs.SX, cs.MX, cs.DM]
         The cdf of the normal distribution.
-    '''
+    """
     return 0.5 * (1 + cs.erf((x - loc) / SQRT2 / scale))
 
 
 def norm_ppf(
     p: Union[cs.SX, cs.MX, cs.DM],
     loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
-    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1)
+    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1),
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    '''Computes the quantile (invese of cdf) of a normal distribution. See
+    """Computes the quantile (invese of cdf) of a normal distribution. See
     `scipy.stats.norm.ppf`.
 
     Parameters
@@ -141,12 +138,12 @@ def norm_ppf(
     -------
     Union[cs.SX, cs.MX, cs.DM]
         The quantile of the normal distribution.
-    '''
+    """
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
 
 
 def nchoosek(n: Union[int, np.ndarray], k: int) -> Union[int, np.ndarray]:
-    '''Emulates the `nchoosek` function from Matlab. Returns the binomial
+    """Emulates the `nchoosek` function from Matlab. Returns the binomial
     coefficient, i.e.,  the number of combinations of `n` items taken `k` at a
     time. If `n` is an array, then it is flatten and all possible combinations
     of its elements are returned.
@@ -163,14 +160,16 @@ def nchoosek(n: Union[int, np.ndarray], k: int) -> Union[int, np.ndarray]:
     int or array_like
         Depending on the type of input `n`, the output is either the total
         number of combinations or the combinations in a matrix.
-    '''
-    return (comb(n, k, exact=True)
-            if isinstance(n, int) else
-            np.row_stack(list(combinations(np.asarray(n).flatten(), k))))
+    """
+    return (
+        comb(n, k, exact=True)
+        if isinstance(n, int)
+        else np.row_stack(list(combinations(np.asarray(n).flatten(), k)))
+    )
 
 
 def monomial_powers(d: int, k: int) -> np.ndarray:
-    '''Computes the powers of all `d`-dimensional monomials of degree `k`.
+    """Computes the powers of all `d`-dimensional monomials of degree `k`.
 
     Parameters
     ----------
@@ -184,11 +183,13 @@ def monomial_powers(d: int, k: int) -> np.ndarray:
     np.ndarray
         An array containing in each row the power of each index in order to
         obtain the desired monomial of power `k`.
-    '''
+    """
     m = nchoosek(k + d - 1, d - 1)
-    dividers = np.column_stack((
-        np.zeros((m, 1), dtype=int),
-        np.row_stack(nchoosek(np.arange(1, k + d), d - 1)),
-        np.full((m, 1), k + d, dtype=int)
-    ))
+    dividers = np.column_stack(
+        (
+            np.zeros((m, 1), dtype=int),
+            np.row_stack(nchoosek(np.arange(1, k + d), d - 1)),
+            np.full((m, 1), k + d, dtype=int),
+        )
+    )
     return np.flipud(np.diff(dividers, axis=1) - 1).astype(int)

@@ -12,7 +12,7 @@ from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 
 class NlpSensitivity(Wrapper):
-    '''
+    """
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute
     its derivates. See [1] for nonlinear programming sensitivity analysis.
 
@@ -22,14 +22,10 @@ class NlpSensitivity(Wrapper):
         optimization of parametric nonlinear programming problems. In M.
         Grotschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of
         Large Scale Systems, 3–16. Springer, Berlin, Heidelberg.
-    '''
+    """
 
-    def __init__(
-        self,
-        nlp: Nlp,
-        include_barrier_term: bool = True
-    ) -> None:
-        '''Instantiates the wrapper for performing NLP sensitivities.
+    def __init__(self, nlp: Nlp, include_barrier_term: bool = True) -> None:
+        """Instantiates the wrapper for performing NLP sensitivities.
 
         Parameters
         ----------
@@ -40,27 +36,29 @@ class NlpSensitivity(Wrapper):
             represents the barrier function of the interior-point solver.
             Otherwise, no additional variable is added. See property `kkt` for
             more details. By default `True`.
-        '''
+        """
         super().__init__(nlp)
         self.include_barrier_term = include_barrier_term
-        self._tau = self.nlp._csXX.sym('tau') if include_barrier_term else 0
+        self._tau = self.nlp._csXX.sym("tau") if include_barrier_term else 0
 
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
-        '''Gets the Lagrangian of the NLP problem (usually, `L`).'''
+        """Gets the Lagrangian of the NLP problem (usually, `L`)."""
         h_lbx, lam_h_lbx = self.nlp.h_lbx
         h_ubx, lam_h_ubx = self.nlp.h_ubx
-        return (self.nlp._f +
-                cs.dot(self.nlp._lam_g, self.nlp._g) +
-                cs.dot(self.nlp._lam_h, self.nlp._h) +
-                cs.dot(lam_h_lbx, h_lbx) +
-                cs.dot(lam_h_ubx, h_ubx))
+        return (
+            self.nlp._f
+            + cs.dot(self.nlp._lam_g, self.nlp._g)
+            + cs.dot(self.nlp._lam_h, self.nlp._h)
+            + cs.dot(lam_h_lbx, h_lbx)
+            + cs.dot(lam_h_ubx, h_ubx)
+        )
 
     @cached_property
     def kkt(
-        self
+        self,
     ) -> Union[Tuple[cs.SX, Optional[cs.SX]], Tuple[cs.MX, Optional[cs.MX]]]:
-        '''Gets the KKT conditions of the NLP problem in vector form, i.e.,
+        """Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
                             |      dLdx     |
                         K = |       G       |
@@ -81,80 +79,80 @@ class NlpSensitivity(Wrapper):
 
         Note: The order of the KKT conditions can be adjusted via the
         `_PRIMAL_DUAL_ORDER` dict.
-        '''
+        """
         items = {
-            'g': self.nlp._g,
-            'h': (self.nlp._lam_h * self.nlp._h) + self._tau,
-            'h_lbx': (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
-            'h_ubx': (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau
+            "g": self.nlp._g,
+            "h": (self.nlp._lam_h * self.nlp._h) + self._tau,
+            "h_lbx": (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
+            "h_ubx": (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau,
         }
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp._x).T,
             *(items.pop(v) for v in _DUAL_VARIABLES_ORDER)
         )
-        assert not items, 'Internal error. _DUAL_VARIABLES_ORDER modified.'
+        assert not items, "Internal error. _DUAL_VARIABLES_ORDER modified."
         return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property
     def jacobians(self) -> Dict[str, Union[cs.SX, cs.MX]]:
-        '''Computes various partial derivatives, which are then grouped in a
+        """Computes various partial derivatives, which are then grouped in a
         dict with the following entries
             - `L-p`: lagrangian w.r.t. parameters
             - `g-x`: equality constraints w.r.t. primal variables
             - `h-x`: inequality constraints w.r.t. primal variables
             - `K-p`: kkt conditions w.r.t. parameters
             - `K-y`: kkt conditions w.r.t. primal-dual variables
-        '''
+        """
         K = self.kkt[0]
         y, idx = self._y_idx
         return {
-            'L-p': cs.jacobian(self.lagrangian, self.nlp._p),
-            'g-x': cs.jacobian(self.nlp._g, self.nlp._x),
-            'h-x': cs.jacobian(self.nlp._h, self.nlp._x),
-            'K-p': cs.jacobian(K, self.nlp._p),
-            'K-y': cs.jacobian(K, y)[:, idx],
+            "L-p": cs.jacobian(self.lagrangian, self.nlp._p),
+            "g-x": cs.jacobian(self.nlp._g, self.nlp._x),
+            "h-x": cs.jacobian(self.nlp._h, self.nlp._x),
+            "K-p": cs.jacobian(K, self.nlp._p),
+            "K-y": cs.jacobian(K, y)[:, idx],
         }
 
     @cached_property
     def hessians(self) -> Dict[str, Union[cs.SX, cs.MX]]:
-        '''Computes various partial hessians, which are then grouped in a
+        """Computes various partial hessians, which are then grouped in a
         dict with the following entries
             - `L-pp`: lagrangian w.r.t. parameters (twice)
             - `L-xx`: lagrangian w.r.t. primal variables (twice)
             - `L-px`: lagrangian w.r.t. parameters and then primal variables
-        '''
+        """
         L = self.lagrangian
         Lpp, Lp = cs.hessian(L, self.nlp._p)
         Lpx = cs.jacobian(Lp, self.nlp._x)
         return {
-            'L-pp': Lpp,
-            'L-xx': cs.hessian(L, self.nlp._x)[0],
-            'L-px': Lpx,
+            "L-pp": Lpp,
+            "L-xx": cs.hessian(L, self.nlp._x)[0],
+            "L-px": Lpx,
         }
 
     @cached_property
     def hojacobians(self) -> Dict[str, np.ndarray]:
-        '''Computes various 3D jacobians, which are then grouped in a dict with
+        """Computes various 3D jacobians, which are then grouped in a dict with
         the following entries
             - `K-pp`: kkt conditions w.r.t. parameters (twice)
             - `K-yp`: kkt conditions w.r.t. parameters and primal variables
             - `K-yy`: kkt conditions w.r.t. primal variables (twice)
             - `K-py`: kkt conditions w.r.t. primal variables and parameters
-        '''
+        """
         jacobians = self.jacobians
-        Kp = jacobians['K-p']
-        Ky = jacobians['K-y']
+        Kp = jacobians["K-p"]
+        Ky = jacobians["K-y"]
         y, idx = self._y_idx
         return {
-            'K-pp': hojacobian(Kp, self.nlp._p)[..., 0],
-            'K-yp': hojacobian(Ky, self.nlp._p)[..., 0],
-            'K-yy': hojacobian(Ky, y)[..., idx, 0],
-            'K-py': hojacobian(Kp, y)[..., idx, 0],
+            "K-pp": hojacobian(Kp, self.nlp._p)[..., 0],
+            "K-yp": hojacobian(Ky, self.nlp._p)[..., 0],
+            "K-yy": hojacobian(Ky, y)[..., idx, 0],
+            "K-py": hojacobian(Kp, y)[..., idx, 0],
         }
 
     @property
     def licq(self) -> Union[np.ndarray, cs.SX, cs.MX]:
-        '''Gets the symbolic matrix for LICQ, defined as
+        """Gets the symbolic matrix for LICQ, defined as
         ```
                     LICQ = [ dgdx^T, dhdx^T ]^T
         ```
@@ -169,17 +167,15 @@ class NlpSensitivity(Wrapper):
 
             2) lower and upper bound inequality constraints are not included in
                `h` since they are by nature linear independent.
-        '''
-        return cs.vertcat(self.jacobians['g-x'], self.jacobians['h-x'])
+        """
+        return cs.vertcat(self.jacobians["g-x"], self.jacobians["h-x"])
 
     def parametric_sensitivity(
         self,
         expr: Union[cs.SX, cs.MX] = None,
         solution: Optional[Solution] = None,
-    ) -> Union[
-        Tuple[np.ndarray, np.ndarray], Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]
-    ]:
-        '''Performs the (symbolic or numerical) sensitivity of the NLP w.r.t.
+    ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
+        """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t.
         its parametrization, according to [1].
 
         Parameters
@@ -213,10 +209,10 @@ class NlpSensitivity(Wrapper):
             problems. In M. Grotschel, S.O. Krumke, and J. Rambau (eds.),
             Online Optimization of Large Scale Systems, 3–16. Springer, Berlin,
             Heidelberg.
-        '''
+        """
         # first order sensitivity, a.k.a., dydp
-        Ky = self.jacobians['K-y']
-        Kp = self.jacobians['K-p']
+        Ky = self.jacobians["K-y"]
+        Kp = self.jacobians["K-p"]
         if solution is None:
             dydp = -cs.inv(Ky) @ Kp
         else:
@@ -226,16 +222,14 @@ class NlpSensitivity(Wrapper):
 
         # second order sensitivity, a.k.a., d2ydp2
         dydp = cs2array(dydp)
-        Kpp = self.hojacobians['K-pp']
-        Kpy = self.hojacobians['K-py']
-        Kyp = self.hojacobians['K-yp']
-        Kyy = self.hojacobians['K-yy']
+        Kpp = self.hojacobians["K-pp"]
+        Kpy = self.hojacobians["K-py"]
+        Kyp = self.hojacobians["K-yp"]
+        Kyy = self.hojacobians["K-yy"]
         M = (
-            Kpp + (
-                Kpy.transpose((0, 2, 1)) +
-                Kyp +
-                (Kyy @ dydp)
-            ).transpose((0, 2, 1)) @ dydp
+            Kpp
+            + (Kpy.transpose((0, 2, 1)) + Kyp + (Kyy @ dydp)).transpose((0, 2, 1))
+            @ dydp
         )
         if solution is None:
             A = cs2array(cs.inv(Ky))
@@ -253,10 +247,7 @@ class NlpSensitivity(Wrapper):
             d2ydp2 = d2ydp2.squeeze()
             if solution is not None:
                 return dydp, d2ydp2
-            return (
-                array2cs(dydp),
-                array2cs(d2ydp2) if d2ydp2.ndim <= 2 else d2ydp2
-            )
+            return (array2cs(dydp), array2cs(d2ydp2) if d2ydp2.ndim <= 2 else d2ydp2)
         Zshape = Z.shape
         Z = cs.vec(Z)
 
@@ -279,8 +270,8 @@ class NlpSensitivity(Wrapper):
         d2zdp2 = Zpp + T1 + dydp.T @ T2
 
         np_ = self.nlp.np
-        dzdp = dzdp.reshape(Zshape + (np_,), order='F')
-        d2zdp2 = d2zdp2.reshape(Zshape + (np_, np_), order='F')
+        dzdp = dzdp.reshape(Zshape + (np_,), order="F")
+        d2zdp2 = d2zdp2.reshape(Zshape + (np_, np_), order="F")
         if solution is not None:
             return solution.value(dzdp), solution.value(d2zdp2)
         return dzdp, d2zdp2
@@ -303,8 +294,8 @@ class NlpSensitivity(Wrapper):
 
     @property
     def _y_idx(self) -> Tuple[Union[cs.SX, cs.MX], Union[slice, np.ndarray]]:
-        '''Internal utility to return all the primal-dual variables and indices
-        that are associated to non-redundant entries in the kkt conditions.'''
+        """Internal utility to return all the primal-dual variables and indices
+        that are associated to non-redundant entries in the kkt conditions."""
         if self.nlp._csXX is cs.SX:
             y = self.nlp.primal_dual_vars()
             idx = slice(None)
@@ -316,9 +307,7 @@ class NlpSensitivity(Wrapper):
             h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
             h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
             n = self.nlp.nx + self.nlp.ng + self.nlp.nh
-            idx = np.concatenate((
-                np.arange(n),
-                h_lbx_idx + n,
-                h_ubx_idx + n + h_lbx_idx.size
-            ))
+            idx = np.concatenate(
+                (np.arange(n), h_lbx_idx + n, h_ubx_idx + n + h_lbx_idx.size)
+            )
         return y, idx
