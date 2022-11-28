@@ -1,14 +1,15 @@
+import warnings
 from functools import partial
 from itertools import count
-import warnings
-from typing import Any, Dict, Sequence, Literal, Optional, Tuple, Type, Union
+from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Type, Union
+
 import casadi as cs
 import numpy as npy
-from csnlp.solutions import Solution, subsevalf, DMStruct
-from csnlp.debug import NlpDebug
-from csnlp.util.funcs import cached_property, cache_clearer, np_random
-from csnlp.util.data import struct_symSX, dict2struct
 
+from csnlp.debug import NlpDebug
+from csnlp.solutions import DMStruct, Solution, subsevalf
+from csnlp.util.data import dict2struct, struct_symSX
+from csnlp.util.funcs import cache_clearer, cached_property, np_random
 
 '''This tuple dictates the order for operations related to dual variables.'''
 _DUAL_VARIABLES_ORDER = ('g', 'h', 'h_lbx', 'h_ubx')

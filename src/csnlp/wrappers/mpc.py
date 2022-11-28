@@ -1,9 +1,11 @@
-from typing import List, Literal, Tuple, Union, Dict, Optional
+from typing import Dict, List, Literal, Optional, Tuple, Union
+
 import casadi as cs
 import numpy as np
-from csnlp.wrappers.wrapper import Wrapper, Nlp
-from csnlp.util.funcs import cached_property, cache_clearer
+
 from csnlp.util.data import dict2struct, struct_symSX
+from csnlp.util.funcs import cache_clearer, cached_property
+from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 
 class Mpc(Wrapper):

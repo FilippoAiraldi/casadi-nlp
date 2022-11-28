@@ -1,11 +1,11 @@
 # Inspired by https://www.youtube.com/watch?v=JI-AyLv68Xs&t=918s
 
 
-import matplotlib.pyplot as plt
 import casadi as cs
+import matplotlib.pyplot as plt
 import numpy as np
-from csnlp import Nlp, wrappers
 
+from csnlp import Nlp, wrappers
 
 plt.style.use('bmh')
 

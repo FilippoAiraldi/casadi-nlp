@@ -1,5 +1,6 @@
-from functools import cached_property, _lru_cache_wrapper, wraps
+from functools import _lru_cache_wrapper, cached_property, wraps
 from typing import Callable, List, Optional, Tuple, Union
+
 import numpy as np
 
 

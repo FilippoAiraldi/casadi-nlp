@@ -1,11 +1,11 @@
 # Reproduces https://web.casadi.org/blog/opti/
 
 
-from csnlp import Nlp
 import casadi as cs
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
+from csnlp import Nlp
 
 nlp = Nlp()
 x = nlp.variable('x', (2, 1))[0]

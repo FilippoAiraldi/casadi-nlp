@@ -1,11 +1,12 @@
 # Reproduces https://web.casadi.org/blog/opti/
 
 
-from csnlp import Nlp
 import casadi as cs
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
+
+from csnlp import Nlp
 
 
 def plot_chain(ax: Axes, x: cs.DM, y: cs.DM) -> None:

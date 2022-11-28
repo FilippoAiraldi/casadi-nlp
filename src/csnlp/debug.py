@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from inspect import getframeinfo, stack
-from typing import List, Tuple
 from types import MappingProxyType
+from typing import List, Tuple
+
 from numpy import prod
 
 

@@ -1,12 +1,14 @@
-from typing import Dict, Tuple, Union, Optional
+from typing import Dict, Optional, Tuple, Union
+
 import casadi as cs
 import numpy as np
+
 from csnlp.nlp import _DUAL_VARIABLES_ORDER
-from csnlp.wrappers.wrapper import Wrapper, Nlp
 from csnlp.solutions import Solution
-from csnlp.util.funcs import cached_property, cache_clearer
-from csnlp.util.data import cs2array, array2cs
-from csnlp.util.array import hojacobian, hohessian
+from csnlp.util.array import hohessian, hojacobian
+from csnlp.util.data import array2cs, cs2array
+from csnlp.util.funcs import cache_clearer, cached_property
+from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 
 class NlpSensitivity(Wrapper):

@@ -1,7 +1,9 @@
-from typing import List, Union, Tuple
-import numpy as np
+from typing import List, Tuple, Union
+
 import casadi as cs
-from csnlp.util.data import cs2array, array2cs
+import numpy as np
+
+from csnlp.util.data import array2cs, cs2array
 
 
 def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:

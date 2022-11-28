@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Union, Iterable
-import numpy as np
+from typing import Any, Callable, Dict, Iterable, Union
+
 import casadi as cs
+import numpy as np
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 

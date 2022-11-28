@@ -1,11 +1,12 @@
 # Inspired by https://web.casadi.org/blog/nlp_sens/
 
 
+import casadi as cs
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from scipy import io
-import casadi as cs
-import numpy as np
+
 from csnlp import Nlp, wrappers
 
 

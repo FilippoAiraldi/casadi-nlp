@@ -1,10 +1,10 @@
+import random
 import sys
 import unittest
-import random
 from typing import Tuple
+
 sys.path.insert(1, 'src')
 from csnlp.debug import NlpDebug, NlpDebugEntry
-
 
 GROUPS = set(NlpDebug.types.keys())
 

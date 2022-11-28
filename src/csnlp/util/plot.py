@@ -1,14 +1,14 @@
 from typing import Union
-import numpy as np
+
 import casadi as cs
-from cycler import cycler
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import numpy as np
+from cycler import cycler
 from matplotlib.axes import Axes
-from matplotlib.image import AxesImage
 from matplotlib.figure import Figure
+from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
-
 
 MATLAB_COLORS = [
     '#0072BD', '#D95319', '#EDB120', '#7E2F8E', '#77AC30', '#4DBEEE', '#A2142F'

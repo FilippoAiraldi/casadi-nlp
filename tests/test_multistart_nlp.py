@@ -1,12 +1,13 @@
 import sys
 import unittest
+
 import casadi as cs
 import numpy as np
+
 sys.path.insert(1, 'src')
 from csnlp import MultistartNlp
 from csnlp.multistart_nlp import _n
 from csnlp.solutions import subsevalf
-
 
 OPTS = {
     'expand': True, 'print_time': False,

@@ -1,14 +1,15 @@
 import sys
 import unittest
 from itertools import product
+
 import casadi as cs
 import numpy as np
+
 sys.path.insert(1, 'src')
 from csnlp import Nlp
-from csnlp.wrappers import Wrapper, NlpSensitivity, Mpc
 from csnlp.solutions import subsevalf
 from csnlp.util.math import log
-
+from csnlp.wrappers import Mpc, NlpSensitivity, Wrapper
 
 OPTS = {
     'expand': True, 'print_time': False,

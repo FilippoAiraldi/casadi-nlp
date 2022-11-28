@@ -1,7 +1,8 @@
-from typing import Any, Dict, Union, Literal
-import numpy as np
+from typing import Any, Dict, Literal, Union
+
 import casadi as cs
-from casadi.tools import struct_symSX, struct_SX, entry
+import numpy as np
+from casadi.tools import entry, struct_SX, struct_symSX
 from casadi.tools.structure3 import DMStruct
 
 

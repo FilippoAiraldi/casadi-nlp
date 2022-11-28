@@ -1,8 +1,18 @@
 from functools import lru_cache
-from typing import Any, Dict, Iterable, Literal, List, Optional, Tuple, Union
+from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+
 import numpy as np
-from csnlp.nlp import \
-    Nlp, cs, subsevalf, Solution, DMStruct, cache_clearer, dict2struct, partial
+
+from csnlp.nlp import (
+    DMStruct,
+    Nlp,
+    Solution,
+    cache_clearer,
+    cs,
+    dict2struct,
+    partial,
+    subsevalf,
+)
 
 
 def _n(sym_name: str, scenario: int) -> str:

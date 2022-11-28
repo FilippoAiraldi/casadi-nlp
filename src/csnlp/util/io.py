@@ -1,6 +1,6 @@
-from typing import Any, Dict
 import pickle
 import pickletools
+from typing import Any, Dict
 
 
 def is_pickleable(obj: Any) -> bool:

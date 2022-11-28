@@ -1,4 +1,5 @@
 from typing import Any
+
 from csnlp.nlp import Nlp
 
 

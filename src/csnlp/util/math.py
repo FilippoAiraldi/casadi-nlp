@@ -1,11 +1,10 @@
-from math import sqrt
-from collections import UserDict
 from itertools import combinations
-from typing import Union, Optional, Mapping
+from math import sqrt
+from typing import Optional, Union
+
 import casadi as cs
 import numpy as np
 from scipy.special import comb
-
 
 SQRT2 = sqrt(2)
 
