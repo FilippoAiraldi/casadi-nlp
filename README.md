@@ -26,7 +26,7 @@ pip install csnlp
 
 **csnlp** has the following dependencies
 
-- Python 3.8
+- Python 3.8 or higher
 - [NumPy](https://pypi.org/project/numpy/)
 - [CasADi](https://pypi.org/project/casadi/)
 
