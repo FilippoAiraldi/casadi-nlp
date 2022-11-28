@@ -64,8 +64,7 @@ def z4(lam, p):
 
 
 # build the NLP
-sym_type = "MX"
-nlp = Nlp(sym_type=sym_type)
+nlp = Nlp(sym_type="MX")
 x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
 p = nlp.parameter("p", (2, 1))
 

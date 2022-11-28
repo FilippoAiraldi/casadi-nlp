@@ -637,9 +637,9 @@ class Nlp:
         name: str,
         ins: Union[Sequence[cs.SX], Sequence[cs.MX]],
         outs: Union[Sequence[cs.SX], Sequence[cs.MX]],
-        name_in: Sequence[str] = None,
-        name_out: Sequence[str] = None,
-        opts: Dict[Any, Any] = None,
+        name_in: Optional[Sequence[str]] = None,
+        name_out: Optional[Sequence[str]] = None,
+        opts: Optional[Dict[Any, Any]] = None,
     ) -> cs.Function:
         """Converts the optimization problem to an MX symbolic function. If the
         NLP is modelled in SX, the function will still be converted in MX since

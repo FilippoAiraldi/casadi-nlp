@@ -130,5 +130,4 @@ dmypy.json
 
 # Others
 .vscode
-mypy.ini
 Z_values.mat

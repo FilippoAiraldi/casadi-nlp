@@ -70,7 +70,11 @@ class MultistartNlp(Nlp):
 
     @lru_cache
     def _symbols(
-        self, i: int = None, vars: bool = False, pars: bool = False, dual: bool = False
+        self,
+        i: Optional[int] = None,
+        vars: bool = False,
+        pars: bool = False,
+        dual: bool = False,
     ) -> Dict[str, Union[cs.SX, cs.MX]]:
         """Internal utility to retrieve the symbols of the i-th scenario."""
         S: Dict[str, Union[cs.SX, cs.MX]] = {}

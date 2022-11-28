@@ -1,4 +1,4 @@
-from typing import List, Tuple, Union
+from typing import List, Optional, Tuple, Union
 
 import casadi as cs
 import numpy as np
@@ -63,7 +63,7 @@ def hohessian(
 def jaggedstack(
     arrays,
     axis: int = 0,
-    out: np.ndarray = None,
+    out: Optional[np.ndarray] = None,
     constant_values: Union[float, np.ndarray] = np.nan,
 ) -> np.ndarray:
     """Joins a sequence of arrays with different shapes along a new axis. To do

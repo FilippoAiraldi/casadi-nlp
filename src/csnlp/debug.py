@@ -53,8 +53,10 @@ class NlpDebug:
 
     def __init__(self) -> None:
         """Initializes the debug information collector."""
-        for s in self.__slots__:
-            self.__setattr__(s, [])
+        self._p_info: List[Tuple[range, NlpDebugEntry]] = []
+        self._x_info: List[Tuple[range, NlpDebugEntry]] = []
+        self._g_info: List[Tuple[range, NlpDebugEntry]] = []
+        self._h_info: List[Tuple[range, NlpDebugEntry]] = []
 
     def p_describe(self, index: int) -> NlpDebugEntry:
         """Returns debug information on the parameter at the given `index`.

@@ -1,17 +1,13 @@
-from typing import List
-
 import matplotlib.pyplot as plt
 import numpy as np
 
 try:
     from csnlp import MultistartNlp
-    from csnlp.solutions import Solution
 except ImportError:
     import sys
 
     sys.path.insert(1, "src")
     from csnlp import MultistartNlp
-    from csnlp.solutions import Solution
 
 
 plt.style.use("bmh")
@@ -45,8 +41,8 @@ xfs = [
 
 # use automatical multistart solver
 args = ([{"p0": 0, "p1": 1} for _ in x0s], [{"x": x0} for x0 in x0s])
-best_sol: Solution = nlp.solve_multi(*args)
-all_sols: List[Solution] = nlp.solve_multi(*args, return_all_sols=True)
+best_sol = nlp.solve_multi(*args)
+all_sols = nlp.solve_multi(*args, return_all_sols=True)
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)

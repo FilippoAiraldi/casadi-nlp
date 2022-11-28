@@ -222,7 +222,7 @@ class TestData(unittest.TestCase):
                     np.testing.assert_allclose(o, 0, atol=1e-9)
 
 
-TMPFILENAME = None
+TMPFILENAME: str = ""
 
 
 class TestIo(unittest.TestCase):

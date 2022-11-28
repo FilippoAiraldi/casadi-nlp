@@ -12,6 +12,7 @@ In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [
 [![Downloads](https://pepy.tech/badge/csnlp)](https://pepy.tech/project/csnlp)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ---
 

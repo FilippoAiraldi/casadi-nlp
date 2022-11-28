@@ -31,10 +31,9 @@ x_next = res["xf"]
 F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
 
 # build the MPC
-sym_type = "SX"
 shooting = "single"
-mpc = wrappers.Mpc[Nlp](
-    nlp=Nlp(sym_type=sym_type),
+mpc = wrappers.Mpc(
+    nlp=Nlp(sym_type="SX"),
     prediction_horizon=N,
     shooting=shooting,
 )
