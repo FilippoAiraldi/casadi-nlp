@@ -1,6 +1,5 @@
 import math as _math
 import os
-import sys
 import tempfile
 import unittest
 from functools import cached_property, lru_cache
@@ -11,7 +10,6 @@ import casadi as cs
 import numpy as np
 from scipy.stats import norm
 
-sys.path.insert(1, "src")
 from csnlp.solutions import subsevalf
 from csnlp.util import array, data, funcs, io, math
 

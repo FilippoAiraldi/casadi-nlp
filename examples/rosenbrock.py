@@ -5,13 +5,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-try:
-    from csnlp import Nlp
-except ImportError:
-    import sys
-
-    sys.path.insert(1, "src")
-    from csnlp import Nlp
+from csnlp import Nlp
 
 nlp = Nlp()
 x = nlp.variable("x", (2, 1))[0]

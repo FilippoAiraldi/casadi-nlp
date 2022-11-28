@@ -6,13 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 
-try:
-    from csnlp import Nlp
-except ImportError:
-    import sys
-
-    sys.path.insert(1, "src")
-    from csnlp import Nlp
+from csnlp import Nlp
 
 
 def plot_chain(ax: Axes, x: cs.DM, y: cs.DM) -> None:

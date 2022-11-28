@@ -1,14 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-try:
-    from csnlp import MultistartNlp
-except ImportError:
-    import sys
-
-    sys.path.insert(1, "src")
-    from csnlp import MultistartNlp
-
+from csnlp import MultistartNlp
 
 plt.style.use("bmh")
 

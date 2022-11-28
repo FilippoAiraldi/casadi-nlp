@@ -1,10 +1,8 @@
-import sys
 import unittest
 
 import casadi as cs
 import numpy as np
 
-sys.path.insert(1, "src")
 from csnlp import MultistartNlp
 from csnlp.multistart_nlp import _n
 from csnlp.solutions import subsevalf
@@ -16,7 +14,7 @@ OPTS = {
         "max_iter": 500,
         "sb": "yes",
         # for debugging
-        "print_level": 5,
+        "print_level": 0,
         "print_user_options": "no",
         "print_options_documentation": "no",
     },

@@ -1,11 +1,9 @@
-import sys
 import unittest
 from itertools import product
 
 import casadi as cs
 import numpy as np
 
-sys.path.insert(1, "src")
 from csnlp import Nlp
 from csnlp.solutions import subsevalf
 from csnlp.util.math import log
@@ -17,7 +15,7 @@ OPTS = {
         "max_iter": 500,
         "sb": "yes",
         # for debugging
-        "print_level": 1,
+        "print_level": 0,
         "print_user_options": "no",
         "print_options_documentation": "no",
     },

@@ -5,13 +5,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-try:
-    from csnlp import Nlp, wrappers
-except ImportError:
-    import sys
-
-    sys.path.insert(1, "src")
-    from csnlp import Nlp, wrappers
+from csnlp import Nlp, wrappers
 
 plt.style.use("bmh")
 

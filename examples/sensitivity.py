@@ -6,13 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.axes import Axes
 
-try:
-    from csnlp import Nlp, wrappers
-except ImportError:
-    import sys
-
-    sys.path.insert(1, "src")
-    from csnlp import Nlp, wrappers
+from csnlp import Nlp, wrappers
 
 
 def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float) -> None:

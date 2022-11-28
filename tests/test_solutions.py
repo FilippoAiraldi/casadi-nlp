@@ -1,11 +1,8 @@
-import sys
 import unittest
 from functools import partial
 
 import casadi as cs
 import numpy as np
-
-sys.path.insert(1, "src")
 from casadi.tools import entry, struct_MX, struct_SX
 
 from csnlp.solutions import Solution, subsevalf
