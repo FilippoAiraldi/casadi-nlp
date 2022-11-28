@@ -46,20 +46,20 @@ Similar to CasADi Opti, we instantiate a class that represents the NLP and allow
 from csnlp import Nlp
 
 nlp = Nlp()
-x = nlp.variable('x')[0]
-y = nlp.variable('y')[0]
-p = nlp.parameter('p')
+x = nlp.variable("x")[0]
+y = nlp.variable("y")[0]
+p = nlp.parameter("p")
 
-nlp.minimize((1 - x)**2 + 0.2 * (y - x**2)**2)
+nlp.minimize((1 - x) ** 2 + 0.2 * (y - x**2) ** 2)
 
-g = (x + 0.5)**2 + y**2
-nlp.constraint('c1', (p / 2)**2, '<=', g)
-nlp.constraint('c2', g, '<=', p**2)
+g = (x + 0.5) ** 2 + y**2
+nlp.constraint("c1", (p / 2) ** 2, "<=", g)
+nlp.constraint("c2", g, "<=", p**2)
 
 nlp.init_solver()  # initializes IPOPT under the hood
-sol = nlp.solve(pars={'p': 1.25})  # solves the NLP for parameter p=1.25
+sol = nlp.solve(pars={"p": 1.25})  # solves the NLP for parameter p=1.25
 
-x_opt = sol.vals['x']
+x_opt = sol.vals["x"]
 y_opt = sol.value(y)
 ```
 
