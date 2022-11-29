@@ -8,9 +8,8 @@ import numpy as npy
 
 from csnlp.debug import NlpDebug
 from csnlp.solutions import DMStruct, Solution, subsevalf
-from csnlp.util.data import dict2struct, is_casadi_object, struct_symSX
+from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property, np_random
-from csnlp.util.io import is_pickleable
 
 """This tuple dictates the order for operations related to dual variables."""
 _DUAL_VARIABLES_ORDER = ("g", "h", "h_lbx", "h_ubx")
@@ -760,16 +759,3 @@ class Nlp:
     def __repr__(self) -> str:
         """Returns the string representation of the NLP instance."""
         return f"{type(self).__name__}: {self.name}"
-
-    def __getstate__(self) -> Dict[str, Any]:
-        """Returns the instance's state to be pickled."""
-        warnings.warn(
-            f"to pickle {self.__class__.__name__} all references to CasADi and "
-            "unpickleable objects are removed.",
-            RuntimeWarning,
-        )
-        state = self.__dict__.copy()
-        for attr, val in self.__dict__.items():
-            if is_casadi_object(val) or not is_pickleable(val):
-                state.pop(attr)
-        return state
