@@ -592,13 +592,13 @@ class TestNlp(unittest.TestCase):
                 nlp.to_function("M", [p, xy], [xy], ["p", "xy"], ["xy"])
 
     def test_to_function__raises__with_free_variables(self):
+        a = 0.2
         for sym_type in ("SX", "MX"):
             nlp = Nlp(sym_type=sym_type)
             x = nlp.variable("x", lb=0)[0]
             y = nlp.variable("y")[0]
             xy = cs.vertcat(x, y)
             c = nlp._csXX.sym("c")
-            a = 0.2
             p = nlp.parameter("p")
             nlp.minimize((1 - x) ** 2 + a * (y - x**2) ** 2)
             nlp.init_solver(OPTS)
@@ -608,12 +608,12 @@ class TestNlp(unittest.TestCase):
                 nlp.to_function("M", [p, xy], [xy, c], ["xy"], ["xy"])
 
     def test_to_function__computes_correct_solution(self):
+        a = 0.2
         for sym_type in ("SX", "MX"):
             nlp = Nlp(sym_type=sym_type)
             x = nlp.variable("x", lb=0)[0]
             y = nlp.variable("y")[0]
             xy = cs.vertcat(x, y)
-            a = 0.2
             p = nlp.parameter("p")
             nlp.minimize((1 - x) ** 2 + a * (y - x**2) ** 2)
             g = (x + 0.5) ** 2 + y**2
