@@ -49,6 +49,11 @@ class Nlp:
             Name of the NLP scheme. If `None`, it is automatically assigned.
         seed : int, optional
             Random number generator seed.
+
+        Raises
+        ------
+        AttributeError
+            Raises if the specified CasADi's symbolic type is neither `'SX'` nor `'MX'`.
         """
         self.id = next(self.__ids)
         self.name = f"{self.__class__.__name__}{self.id}" if name is None else name
