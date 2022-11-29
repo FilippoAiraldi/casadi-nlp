@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Type
 
 from csnlp.nlp import Nlp
 
@@ -25,6 +25,23 @@ class Wrapper:
     def unwrapped(self) -> Nlp:
         """'Returns the original NLP of the wrapper."""
         return self.nlp.unwrapped
+
+    def is_wrapped(self, wrapper_type: Type["Wrapper"]) -> bool:
+        """Gets whether the NLP instance is wrapped or not by the given wrapper type.
+
+        Parameters
+        ----------
+        wrapper_type : type of Wrapper
+            Type of wrapper to check if the NLP is wrapped with.
+
+        Returns
+        -------
+        bool
+            `True` if wrapped by an instance of `wrapper_type`; `False`, otherwise.
+        """
+        if isinstance(self, wrapper_type):
+            return True
+        return self.nlp.is_wrapped(wrapper_type)
 
     def __getattr__(self, name) -> Any:
         """Reroutes attributes to the wrapped NLP instance."""

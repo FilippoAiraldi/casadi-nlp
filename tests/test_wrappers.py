@@ -42,6 +42,22 @@ class TestWrapper(unittest.TestCase):
         self.assertIn(Wrapper.__name__, S)
         self.assertIn(nlp.__repr__(), S)
 
+    def test_is_wrapped(self):
+        nlp = Nlp()
+        self.assertFalse(nlp.is_wrapped())
+
+        wrapped = Mpc(nlp=nlp, prediction_horizon=10)
+        self.assertTrue(wrapped.is_wrapped(Mpc))
+        self.assertFalse(wrapped.is_wrapped(NlpSensitivity))
+
+        wrapped = NlpSensitivity(nlp=nlp)
+        self.assertFalse(wrapped.is_wrapped(Mpc))
+        self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
+
+        wrapped = NlpSensitivity(nlp=Mpc(nlp=nlp, prediction_horizon=10))
+        self.assertTrue(wrapped.is_wrapped(Mpc))
+        self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
+
 
 class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):

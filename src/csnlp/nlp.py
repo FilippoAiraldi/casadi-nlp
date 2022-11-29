@@ -78,8 +78,12 @@ class Nlp:
 
     @property
     def unwrapped(self) -> "Nlp":
-        """Returns the base non-wrapped NLP."""
+        """Returns the original NLP of the wrapper."""
         return self
+
+    def is_wrapped(self, *args, **kwargs) -> bool:
+        """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
+        return False
 
     @property
     def np_random(self) -> npy.random.Generator:
