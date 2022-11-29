@@ -161,7 +161,7 @@ class NlpDebug:
         AttributeError
             Raises in case the given group is invalid.
         """
-        trackback = getframeinfo(stack()[2][0])
+        traceback = getframeinfo(stack()[2][0])
         info: List[Tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
@@ -171,12 +171,12 @@ class NlpDebug:
                     name=name,
                     type=self.types[group],
                     shape=shape,
-                    filename=trackback.filename,
-                    function=trackback.function,
-                    lineno=trackback.lineno,
+                    filename=traceback.filename,
+                    function=traceback.function,
+                    lineno=traceback.lineno,
                     context=(
-                        "; ".join(trackback.code_context).strip()
-                        if trackback.code_context is not None
+                        "; ".join(traceback.code_context).strip()
+                        if traceback.code_context is not None
                         else ""
                     ),
                 ),

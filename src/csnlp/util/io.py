@@ -1,5 +1,5 @@
 import pickle
-import pickletools
+from pickletools import optimize
 from typing import Any, Dict
 
 
@@ -45,7 +45,7 @@ def save(filename: str, **data: Any) -> str:
         filename = f"{filename}.pkl"
     with open(filename, "wb") as f:
         pickled = pickle.dumps(data)
-        optimized = pickletools.optimize(pickled)
+        optimized = optimize(pickled)
         f.write(optimized)
     return filename
 
