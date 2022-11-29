@@ -77,6 +77,11 @@ class Nlp:
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
+    def sym_type(self) -> Union[Type[cs.SX], Type[cs.MX]]:
+        """Gets the CasADi symbolic type for this NLP."""
+        return self._csXX
+
+    @property
     def unwrapped(self) -> "Nlp":
         """Returns the original NLP of the wrapper."""
         return self

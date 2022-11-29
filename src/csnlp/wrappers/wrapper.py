@@ -43,8 +43,10 @@ class Wrapper:
             return True
         return self.nlp.is_wrapped(wrapper_type)
 
-    def __getattr__(self, name) -> Any:
+    def __getattr__(self, name: str) -> Any:
         """Reroutes attributes to the wrapped NLP instance."""
+        if name.startswith("_"):
+            raise AttributeError(f"Accessing private attribute '{name}' is prohibited.")
         return getattr(self.nlp, name)
 
     def __str__(self) -> str:

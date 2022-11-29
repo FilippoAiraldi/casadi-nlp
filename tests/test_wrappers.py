@@ -26,6 +26,15 @@ OPTS = {
 
 
 class TestWrapper(unittest.TestCase):
+    def test_attr__raises__when_accessing_private_attrs(self):
+        nlp = Nlp()
+        nlp._x
+        wrapped = Wrapper(nlp)
+        with self.assertRaisesRegex(
+            AttributeError, "Accessing private attribute '_x' is prohibited."
+        ):
+            wrapped._x
+
     def test_unwrapped__unwraps_nlp_correctly(self):
         nlp = Nlp()
         self.assertIs(nlp, nlp.unwrapped)
@@ -130,7 +139,7 @@ class TestNlpSensitivity(unittest.TestCase):
             nlp.minimize(x)
             _, tau = nlp.kkt
             if flag:
-                self.assertIsInstance(tau, nlp._csXX)
+                self.assertIsInstance(tau, nlp.unwrapped.sym_type)
             else:
                 self.assertIsNone(tau)
 

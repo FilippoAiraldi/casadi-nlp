@@ -39,7 +39,7 @@ class NlpSensitivity(Wrapper):
         """
         super().__init__(nlp)
         self.include_barrier_term = include_barrier_term
-        self._tau = self.nlp._csXX.sym("tau") if include_barrier_term else 0
+        self._tau = nlp.unwrapped._csXX.sym("tau") if include_barrier_term else 0
 
     @cached_property
     def lagrangian(self) -> Union[cs.SX, cs.MX]:
