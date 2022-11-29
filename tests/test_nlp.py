@@ -1,3 +1,4 @@
+import pickle
 import unittest
 from copy import deepcopy
 from itertools import product
@@ -632,6 +633,20 @@ class TestNlp(unittest.TestCase):
 
             np.testing.assert_allclose(xy1, [0.719011, 0.276609], atol=1e-4)
             np.testing.assert_allclose(xy2, [0.719011, 0.276609], atol=1e-4)
+
+    def test_can_be_pickled(self):
+        a = 0.2
+        for sym_type in ("SX", "MX"):
+            nlp = Nlp(sym_type=sym_type)
+            x = nlp.variable("x", lb=0)[0]
+            y = nlp.variable("y")[0]
+            p = nlp.parameter("p")
+            nlp.minimize((1 - x) ** 2 + a * (y - x**2) ** 2)
+            g = (x + 0.5) ** 2 + y**2
+            nlp.constraint("c1", (p / 2) ** 2, "<=", g)
+            nlp.constraint("c2", g, "<=", p**2)
+            nlp.init_solver(OPTS)
+            pickle.dumps(nlp)
 
 
 if __name__ == "__main__":

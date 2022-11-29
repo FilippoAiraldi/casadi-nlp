@@ -10,12 +10,13 @@ from csnlp.debug import NlpDebug
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property, np_random
+from csnlp.util.io import SupportsCopyAndPickle
 
 """This tuple dictates the order for operations related to dual variables."""
 _DUAL_VARIABLES_ORDER = ("g", "h", "h_lbx", "h_ubx")
 
 
-class Nlp:
+class Nlp(SupportsCopyAndPickle):
     """
     The generic NLP class is a controller that solves a (possibly, nonlinear)
     optimization problem to yield a (possibly, sub-) optimal solution.
@@ -55,6 +56,7 @@ class Nlp:
         AttributeError
             Raises if the specified CasADi's symbolic type is neither `'SX'` nor `'MX'`.
         """
+        super().__init__()
         self.id = next(self.__ids)
         self.name = f"{self.__class__.__name__}{self.id}" if name is None else name
         self._csXX: Union[Type[cs.SX], Type[cs.MX]] = getattr(cs, sym_type)

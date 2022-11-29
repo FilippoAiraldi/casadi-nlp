@@ -1,3 +1,4 @@
+import pickle
 import unittest
 from itertools import product
 
@@ -369,6 +370,18 @@ class TestNlpSensitivity(unittest.TestCase):
                 np.testing.assert_allclose(H, H1[1, 1], atol=1e-4)
                 np.testing.assert_allclose(H, H2[1, 1], atol=1e-4)
 
+    def test_can_be_pickled(self):
+        for sym_type in ("SX", "MX"):
+            nlp = NlpSensitivity(Nlp(sym_type=sym_type))
+            x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
+            p = nlp.parameter("p", (2, 1))
+            nlp.minimize((1 - x[0]) ** 2 + p[0] * (x[1] - x[0] ** 2) ** 2)
+            g = (x[0] + 0.5) ** 2 + x[1] ** 2
+            nlp.constraint("c1", (p[1] / 2) ** 2, "<=", g)
+            nlp.constraint("c2", g, "<=", p[1] ** 2)
+            nlp.init_solver(OPTS)
+            pickle.dumps(nlp)
+
 
 class TestMpc(unittest.TestCase):
     def test_init__raises__with_invalid_args(self):
@@ -540,6 +553,17 @@ class TestMpc(unittest.TestCase):
             self.assertIn("x2", mpc.states.keys())
             self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
             self.assertEqual(mpc.states["x2"].shape, (3, N + 1))
+
+    def test_can_be_pickled(self):
+        N = 10
+        for sym_type in ("SX", "MX"):
+            nlp = Nlp(sym_type=sym_type)
+            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2)
+            mpc.state("x1", 2)
+            mpc.state("x2", 3)
+            mpc.action("u1", 3)
+            mpc.action("u2", 1)
+            pickle.dumps(nlp)
 
 
 if __name__ == "__main__":

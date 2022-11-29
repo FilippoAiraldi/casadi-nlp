@@ -1,9 +1,10 @@
 from typing import Any, Type
 
 from csnlp.nlp import Nlp
+from csnlp.util.io import SupportsCopyAndPickle
 
 
-class Wrapper:
+class Wrapper(SupportsCopyAndPickle):
     """
     Wraps an NLP to allow a modular transformation of its methods. This class
     is the base class for all wrappers. The subclass could override some
@@ -19,6 +20,7 @@ class Wrapper:
         nlp : Nlp or subclass
             The NLP to wrap.
         """
+        super().__init__()
         self.nlp = nlp
 
     @property
