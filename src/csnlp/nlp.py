@@ -543,9 +543,7 @@ class Nlp:
         """
         if self._f is None:
             raise RuntimeError("NLP objective not set.")
-        if opts is None:
-            opts = {}
-        opts = opts.copy()
+        opts = {} if opts is None else opts.copy()
         con = cs.vertcat(self._g, self._h)
         nlp = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         self._solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)

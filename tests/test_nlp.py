@@ -24,8 +24,19 @@ OPTS = {
 
 class TestNlp(unittest.TestCase):
     def test_init__raises__with_invalid_sym_type(self):
-        with self.assertRaises(Exception):
+        with self.assertRaises(AttributeError):
             Nlp(sym_type="a_random_sym_type")
+
+    def test_init__saves_sym_type(self):
+        for sym_type, type_ in (("SX", cs.SX), ("MX", cs.MX)):
+            nlp = Nlp(sym_type=sym_type)
+            self.assertIs(nlp._csXX, type_)
+
+    def test_np_random__creates_rng_when_fetched(self):
+        nlp = Nlp(sym_type="SX")
+        rng = nlp.np_random
+        self.assertIsNotNone(rng)
+        self.assertIsInstance(rng, np.random.Generator)
 
     def test_parameter__creates_correct_parameter(self):
         shape1 = (4, 3)
@@ -420,7 +431,7 @@ class TestNlp(unittest.TestCase):
     def test_solve__raises__with_uninit_solver(self):
         for sym_type in ("SX", "MX"):
             nlp = Nlp(sym_type=sym_type)
-            with self.assertRaises(RuntimeError):
+            with self.assertRaisesRegex(RuntimeError, "Solver uninitialized."):
                 nlp.solve(None)
 
     def test_solve__raises__with_free_parameters(self):
@@ -429,7 +440,10 @@ class TestNlp(unittest.TestCase):
             x = nlp.variable("x")[0]
             p = nlp.parameter("p")
             nlp.minimize(p * (x**2))
-            with self.assertRaises(RuntimeError):
+            nlp.init_solver(OPTS)
+            with self.assertRaisesRegex(
+                RuntimeError, "Trying to solve the NLP with unspecified parameters: p."
+            ):
                 nlp.solve({})
 
     def test_solve__computes_correctly__example_0(self):

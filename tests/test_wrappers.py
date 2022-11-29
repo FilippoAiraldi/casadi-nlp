@@ -32,6 +32,16 @@ class TestWrapper(unittest.TestCase):
         wrapped = Wrapper(nlp)
         self.assertIs(nlp, wrapped.unwrapped)
 
+    def test_str_and_repr(self):
+        nlp = Nlp()
+        wrapped = Wrapper(nlp)
+        S = wrapped.__str__()
+        self.assertIn(Wrapper.__name__, S)
+        self.assertIn(nlp.__str__(), S)
+        S = wrapped.__repr__()
+        self.assertIn(Wrapper.__name__, S)
+        self.assertIn(nlp.__repr__(), S)
+
 
 class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):

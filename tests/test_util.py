@@ -224,6 +224,12 @@ TMPFILENAME: str = ""
 
 
 class TestIo(unittest.TestCase):
+    def test_is_pickleable__fails_with_casadi_obj(self):
+        self.assertTrue(io.is_pickleable(5))
+        self.assertTrue(io.is_pickleable({5}))
+        self.assertTrue(io.is_pickleable("hello"))
+        self.assertFalse(io.is_pickleable(cs.SX.sym("x")))
+
     def test_save_and_load__preserve_data_correctly(self):
         global TMPFILENAME
         TMPFILENAME = next(tempfile._get_candidate_names())
@@ -231,6 +237,15 @@ class TestIo(unittest.TestCase):
         io.save(TMPFILENAME, **data)
         data2 = io.load(TMPFILENAME)
         self.assertDictEqual(data, data2)
+
+    def test_save_and_load__one_key_dict_is_simplified(self):
+        global TMPFILENAME
+        TMPFILENAME = next(tempfile._get_candidate_names())
+        data = {"x": 5}
+        io.save(TMPFILENAME, **data)
+        data2 = io.load(TMPFILENAME)
+        self.assertIsNot(data2, dict)
+        self.assertEqual(data["x"], data2)
 
     def tearDown(self) -> None:
         try:
