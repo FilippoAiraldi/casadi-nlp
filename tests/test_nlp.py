@@ -1,4 +1,5 @@
 import unittest
+from copy import deepcopy
 from itertools import product
 
 import casadi as cs
@@ -607,10 +608,12 @@ class TestNlp(unittest.TestCase):
             with self.assertRaises(ValueError):
                 nlp.to_function("M", [p, xy], [xy, c], ["xy"], ["xy"])
 
-    def test_to_function__computes_correct_solution(self):
+    def test_to_function__computes_correct_solution__also_with_deepcopy(self):
         a = 0.2
-        for sym_type in ("SX", "MX"):
+        for sym_type, deepcopy_ in product(("SX", "MX"), (False, True)):
             nlp = Nlp(sym_type=sym_type)
+            if deepcopy_:
+                nlp = deepcopy(nlp)
             x = nlp.variable("x", lb=0)[0]
             y = nlp.variable("y")[0]
             xy = cs.vertcat(x, y)
