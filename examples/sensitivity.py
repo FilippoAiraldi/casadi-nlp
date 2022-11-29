@@ -8,6 +8,8 @@ from matplotlib.axes import Axes
 
 from csnlp import Nlp, wrappers
 
+plt.style.use("bmh")
+
 
 def plot_nlp(ax: Axes, a: float, b: float, x: float, y: float) -> None:
     X, Y = np.meshgrid(*[np.linspace(-1.5, 2, 100)] * 2)
@@ -112,6 +114,7 @@ for p0, clr in zip(p_values, ["r", "g", "b"]):
             t,
             z0[i] + j0[i][1] * (t - p0) + 0.5 * h0[i][1, 1] * (t - p0) ** 2,
             color=clr,
+            ls="--",
         )
 
 for i in np.ndindex(axs.shape):
