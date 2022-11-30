@@ -1,5 +1,6 @@
 from typing import Any, Type
 
+from csnlp.nlp import Nlp
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 
