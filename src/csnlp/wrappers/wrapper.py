@@ -1,16 +1,17 @@
 from typing import Any, Type
 
-from csnlp.nlp import Nlp
-from csnlp.util.io import SupportsCopyAndPickle
+from csnlp.util.io import SupportsDeepcopyAndPickle
 
 
-class Wrapper(SupportsCopyAndPickle):
+class Wrapper(SupportsDeepcopyAndPickle):
     """
     Wraps an NLP to allow a modular transformation of its methods. This class
     is the base class for all wrappers. The subclass could override some
     methods to change the behavior of the original environment without touching
     the original code.
     """
+
+    __slots__ = "nlp"
 
     def __init__(self, nlp: Nlp) -> None:
         """Wraps an NLP instance.

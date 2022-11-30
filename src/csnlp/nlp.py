@@ -10,13 +10,13 @@ from csnlp.debug import NlpDebug
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property, np_random
-from csnlp.util.io import SupportsCopyAndPickle
+from csnlp.util.io import SupportsDeepcopyAndPickle
 
 """This tuple dictates the order for operations related to dual variables."""
 _DUAL_VARIABLES_ORDER = ("g", "h", "h_lbx", "h_ubx")
 
 
-class Nlp(SupportsCopyAndPickle):
+class Nlp(SupportsDeepcopyAndPickle):
     """
     The generic NLP class is a controller that solves a (possibly, nonlinear)
     optimization problem to yield a (possibly, sub-) optimal solution.

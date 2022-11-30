@@ -611,9 +611,9 @@ class TestNlp(unittest.TestCase):
 
     def test_to_function__computes_correct_solution__also_with_deepcopy(self):
         a = 0.2
-        for sym_type, deepcopy_ in product(("SX", "MX"), (False, True)):
+        for sym_type, copy in product(("SX", "MX"), (False, True)):
             nlp = Nlp(sym_type=sym_type)
-            if deepcopy_:
+            if copy:
                 nlp = deepcopy(nlp)
             x = nlp.variable("x", lb=0)[0]
             y = nlp.variable("y")[0]

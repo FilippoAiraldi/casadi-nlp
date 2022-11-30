@@ -28,7 +28,7 @@ def is_pickleable(obj: Any) -> bool:
         return False
 
 
-class SupportsCopyAndPickle:
+class SupportsDeepcopyAndPickle:
     """Class that defines a `__getstate__` that is compatible both with
     `deepcopy` and `pickle`.
 
