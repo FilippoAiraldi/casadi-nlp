@@ -1,9 +1,7 @@
 from collections import UserDict
-from typing import Dict, Tuple, TypeVar
+from typing import Any, Dict, Tuple
 
 import numpy as np
-
-T = TypeVar("T")
 
 
 class Scaler(UserDict):
@@ -16,12 +14,12 @@ class Scaler(UserDict):
     algebraic operations.
     """
 
-    def __init__(self, d: Dict[str, Tuple[T, T]] = None):
+    def __init__(self, d: Dict[str, Tuple[Any, Any]] = None):
         """Initializes the scaling class.
 
         Parameters
         ----------
-        d : Dict[str, Tuple[T, T]], optional
+        d : Dict[str, Tuple[array_like, array_like]], optional
             A possible non-empty dict of variable group names with the corresponding
             scaling range.
         """
@@ -30,7 +28,7 @@ class Scaler(UserDict):
             for k, v in d.items():
                 self.register(k, *v)
 
-    def register(self, name: str, loc: T = 0, scale: T = 1) -> None:
+    def register(self, name: str, loc: Any = 0, scale: Any = 1) -> None:
         """Registers a new variable's loc and scale for normalization, but raises if
         duplicates occur.
 
@@ -69,7 +67,7 @@ class Scaler(UserDict):
         """
         return name in self.data
 
-    def scale(self, name: str, x: T) -> T:
+    def scale(self, name: str, x: Any) -> Any:
         """Scales the value `x` according to the ranges of `name`.
 
         Parameters
@@ -94,7 +92,7 @@ class Scaler(UserDict):
         assert np.shape(out) == np.shape(x), "Scaling altered input shape."
         return out
 
-    def unscale(self, name: str, x: T) -> T:
+    def unscale(self, name: str, x: Any) -> Any:
         """Unscales the value `x` according to the ranges of `name`.
 
         Parameters
@@ -136,7 +134,7 @@ class MinMaxScaler(Scaler):
     algebraic operations.
     """
 
-    def register(self, name: str, min: T = 0, max: T = 1) -> None:
+    def register(self, name: str, min: Any = 0, max: Any = 1) -> None:
         """Registers a new variable's min and max for normalization, but raises if
         duplicates occur.
 

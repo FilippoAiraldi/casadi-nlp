@@ -376,7 +376,7 @@ class TestScaling(unittest.TestCase):
     def test_str_and_repr(self):
         N = scaling.Scaler({"x": [-1, 1]})
         for S in [N.__str__(), N.__repr__()]:
-            self.assertIn("scaling", S.lower())
+            self.assertIn(scaling.Scaler.__name__, S)
 
     def test_register__raises__when_registering_duplicate_ranges(self):
         N = scaling.Scaler({"x": [-1, 1]})
