@@ -614,7 +614,7 @@ class TestNlp(unittest.TestCase):
         for sym_type, copy in product(("SX", "MX"), (False, True)):
             nlp = Nlp(sym_type=sym_type)
             if copy:
-                nlp = deepcopy(nlp)
+                nlp = nlp.copy()
             x = nlp.variable("x", lb=0)[0]
             y = nlp.variable("y")[0]
             xy = cs.vertcat(x, y)
@@ -646,7 +646,11 @@ class TestNlp(unittest.TestCase):
             nlp.constraint("c1", (p / 2) ** 2, "<=", g)
             nlp.constraint("c2", g, "<=", p**2)
             nlp.init_solver(OPTS)
-            pickle.dumps(nlp)
+
+            with nlp.pickleable():
+                nlp2 = pickle.loads(pickle.dumps(nlp))
+
+            self.assertEqual(nlp.name, nlp2.name)
 
 
 if __name__ == "__main__":

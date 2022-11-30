@@ -68,6 +68,16 @@ class TestWrapper(unittest.TestCase):
         self.assertTrue(wrapped.is_wrapped(Mpc))
         self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
 
+        with wrapped.pickleable():
+            wrapped_pickled = pickle.loads(pickle.dumps(wrapped))
+        wrapped_copied = wrapped.copy()
+
+        self.assertEqual(wrapped.name, wrapped_pickled.name)
+        self.assertEqual(repr(wrapped), repr(wrapped_pickled))
+        self.assertEqual(wrapped.name, wrapped_copied.name)
+        self.assertEqual(str(wrapped), str(wrapped_copied))
+        self.assertEqual(repr(wrapped), repr(wrapped_copied))
+
 
 class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):
@@ -380,7 +390,11 @@ class TestNlpSensitivity(unittest.TestCase):
             nlp.constraint("c1", (p[1] / 2) ** 2, "<=", g)
             nlp.constraint("c2", g, "<=", p[1] ** 2)
             nlp.init_solver(OPTS)
-            pickle.dumps(nlp)
+
+            with nlp.pickleable():
+                nlp2 = pickle.loads(pickle.dumps(nlp))
+
+            self.assertIn(repr(nlp), repr(nlp2))
 
 
 class TestMpc(unittest.TestCase):
@@ -557,13 +571,18 @@ class TestMpc(unittest.TestCase):
     def test_can_be_pickled(self):
         N = 10
         for sym_type in ("SX", "MX"):
-            nlp = Nlp(sym_type=sym_type)
-            mpc = Mpc(nlp=nlp, prediction_horizon=N, control_horizon=N // 2)
+            mpc = Mpc(
+                nlp=Nlp(sym_type=sym_type), prediction_horizon=N, control_horizon=N // 2
+            )
             mpc.state("x1", 2)
             mpc.state("x2", 3)
             mpc.action("u1", 3)
             mpc.action("u2", 1)
-            pickle.dumps(nlp)
+
+            with mpc.pickleable():
+                mpc2 = pickle.loads(pickle.dumps(mpc))
+
+            self.assertIn(repr(mpc), repr(mpc2))
 
 
 if __name__ == "__main__":

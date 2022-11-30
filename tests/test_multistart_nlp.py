@@ -1,4 +1,6 @@
+import pickle
 import unittest
+from itertools import product
 
 import casadi as cs
 import numpy as np
@@ -54,7 +56,7 @@ class TestMultistartNlp(unittest.TestCase):
 
     def test_solve__computes_right_solution(self):
         N = 3
-        for sym_type in ("SX", "MX"):
+        for sym_type, copy in product(("SX", "MX"), (False, True)):
             nlp = MultistartNlp(starts=N, sym_type=sym_type)
             x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
             nlp.parameter("p")
@@ -65,6 +67,8 @@ class TestMultistartNlp(unittest.TestCase):
                 + cs.exp(-100 * (x - 1.5) ** 2)
             )
             nlp.init_solver(OPTS)
+            if copy:
+                nlp = nlp.copy()
 
             # solve manually
             x0s = [0.9, 0.5, 1.1]
@@ -86,6 +90,25 @@ class TestMultistartNlp(unittest.TestCase):
                 np.testing.assert_allclose(f, sol.value(nlp.f))
             np.testing.assert_allclose(best_sol.f, min(fs))
             np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
+
+    def test_is_pickleable(self):
+        N = 3
+        nlp = MultistartNlp(starts=N, sym_type="SX")
+        x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
+        nlp.parameter("p")
+        nlp.minimize(
+            -0.3 * x**2
+            - cs.exp(-10 * x**2)
+            + cs.exp(-100 * (x - 1) ** 2)
+            + cs.exp(-100 * (x - 1.5) ** 2)
+        )
+        nlp.init_solver(OPTS)
+
+        with nlp.pickleable():
+            nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
+
+        self.assertEqual(nlp.name, nlp2.name)
+        self.assertEqual(nlp._multi_nlp.name, nlp2._multi_nlp.name)
 
 
 if __name__ == "__main__":

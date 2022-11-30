@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from typing import Any, Type
 
 from csnlp.nlp import Nlp
@@ -44,6 +45,16 @@ class Wrapper(SupportsDeepcopyAndPickle):
         if isinstance(self, wrapper_type):
             return True
         return self.nlp.is_wrapped(wrapper_type)
+
+    @contextmanager
+    def fullstate(self) -> None:
+        with super().fullstate(), self.nlp.fullstate():
+            yield
+
+    @contextmanager
+    def pickleable(self) -> None:
+        with super().pickleable(), self.nlp.pickleable():
+            yield
 
     def __getattr__(self, name: str) -> Any:
         """Reroutes attributes to the wrapped NLP instance."""

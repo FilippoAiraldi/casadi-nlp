@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 from functools import lru_cache
 from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
 
@@ -62,6 +63,16 @@ class MultistartNlp(Nlp):
         super().__init__(*args, **kwargs)
         self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
         self._vars_per_start: Dict[int, Dict[str, Union[cs.SX, cs.MX]]] = {}
+
+    @contextmanager
+    def fullstate(self) -> None:
+        with super().fullstate(), self._multi_nlp.fullstate():
+            yield
+
+    @contextmanager
+    def pickleable(self) -> None:
+        with super().pickleable(), self._multi_nlp.pickleable():
+            yield
 
     @property
     def starts(self) -> int:

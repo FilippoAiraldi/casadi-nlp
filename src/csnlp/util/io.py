@@ -1,7 +1,8 @@
 import pickle
+from contextlib import contextmanager
+from copy import deepcopy
 from pickletools import optimize
-from traceback import walk_stack
-from typing import Any, Dict
+from typing import Any, Dict, Optional, TypeVar
 from warnings import warn
 
 from csnlp.util.data import is_casadi_object
@@ -28,31 +29,65 @@ def is_pickleable(obj: Any) -> bool:
         return False
 
 
+T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
+
+
 class SupportsDeepcopyAndPickle:
-    """Class that defines a `__getstate__` that is compatible both with
-    `deepcopy` and `pickle`.
+    """Class that defines a `__getstate__` that is compatible with both
+    `deepcopy` and `pickle`, as well as any other operation that requires the instance's
+    state.
 
-    When pickled, it automatically removes states that
-    cannot be pickled (e.g., CasADi objects); otherwise, the full state is
-    returned. Exceptions for which the full state must be returned by
-    `__getstate__` can be extended via the attribute `nonpickle_exceptions`."""
+    When pickled, use the context manager `pickleable` in order to automatically remove
+    states that cannot be pickled (e.g., CasADi objects); otherwise, use `fullstate`
+    for, e.g., `deepcopy`ing the class instance."""
 
-    nonpickle_exceptions = {"deepcopy"}
+    _GETFULLSTATE: Optional[bool] = None
+
+    @contextmanager
+    def pickleable(self) -> None:
+        """Context manager that makes the class pickleable by automatically removing
+        unpickleable states (opposite of `fullstate`)."""
+        self._GETFULLSTATE = False
+        yield
+        self._GETFULLSTATE = None
+
+    @contextmanager
+    def fullstate(self) -> None:
+        """Context manager that makes the class return the full state without removing
+        unpickleable states (opposite of `pickleable`)."""
+        self._GETFULLSTATE = True
+        yield
+        self._GETFULLSTATE = None
+
+    def copy(self: T) -> T:
+        """Creates a deepcopy of this instance.
+
+        Returns
+        -------
+        `SupportsDeepcopyAndPickle` or its subclass
+            A deepcopy of this instance.
+        """
+        with self.fullstate():
+            return deepcopy(self)
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns the instance's state to be pickled or copied."""
+        if self._GETFULLSTATE is None:
+            raise RuntimeError(
+                f"Trying to get the state of {self.__class__.__name__} without using "
+                "context manager `pickleable` or `fullstate`."
+            )
         state = self.__dict__.copy()
-        for frame, _ in walk_stack(None):
-            if frame.f_code.co_name in self.nonpickle_exceptions:
-                return state
-        warn(
-            f"to pickle {self.__class__.__name__} all references to CasADi and "
-            "unpickleable objects are removed.",
-            RuntimeWarning,
-        )
-        for attr, val in self.__dict__.items():
-            if is_casadi_object(val) or not is_pickleable(val):
-                state.pop(attr)
+        state["_GETFULLSTATE"] = None
+        if not self._GETFULLSTATE:
+            warn(
+                f"to pickle {self.__class__.__name__} all references to CasADi and "
+                "unpickleable objects are removed.",
+                RuntimeWarning,
+            )
+            for attr, val in self.__dict__.items():
+                if is_casadi_object(val) or not is_pickleable(val):
+                    state.pop(attr)
         return state
 
 
