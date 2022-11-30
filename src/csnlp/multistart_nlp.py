@@ -157,8 +157,8 @@ class MultistartNlp(Nlp):
         symbols = self._symbols(vars=True, pars=True)
         for i in range(self._starts):
             symbols_i = self._symbols(i, vars=True, pars=True)
-            expr = subsevalf(expr, symbols, symbols_i, eval=False)
-            self._multi_nlp.constraint(_n(name, i), expr, op, 0, soft, simplify=False)
+            expr_i = subsevalf(expr, symbols, symbols_i, eval=False)
+            self._multi_nlp.constraint(_n(name, i), expr_i, op, 0, soft, simplify=False)
         return out
 
     def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
