@@ -8,7 +8,7 @@ import numpy as np
 from csnlp import Nlp
 from csnlp.solutions import subsevalf
 from csnlp.util.math import log
-from csnlp.wrappers import Mpc, NlpSensitivity, Wrapper
+from csnlp.wrappers import Mpc, NlpSensitivity, NonRetroactiveWrapper, Wrapper
 
 OPTS = {
     "expand": True,
@@ -77,6 +77,20 @@ class TestWrapper(unittest.TestCase):
         self.assertEqual(wrapped.name, wrapped_copied.name)
         self.assertEqual(str(wrapped), str(wrapped_copied))
         self.assertEqual(repr(wrapped), repr(wrapped_copied))
+
+
+class TestNonRetroactiveWrapper(unittest.TestCase):
+    def test_init__raises__with_variable_already_defined(self):
+        nlp = Nlp()
+        nlp.variable("x")
+        with self.assertRaisesRegex(ValueError, "Nlp already defined."):
+            NonRetroactiveWrapper(nlp)
+
+    def test_init__raises__with_parameter_already_defined(self):
+        nlp = Nlp()
+        nlp.parameter("p")
+        with self.assertRaisesRegex(ValueError, "Nlp already defined."):
+            NonRetroactiveWrapper(nlp)
 
 
 class TestNlpSensitivity(unittest.TestCase):
@@ -399,17 +413,23 @@ class TestNlpSensitivity(unittest.TestCase):
 
 class TestMpc(unittest.TestCase):
     def test_init__raises__with_invalid_args(self):
-        with self.assertRaises(ValueError):
-            Mpc(nlp=None, shooting="ciao", prediction_horizon=1)
-        with self.assertRaises(ValueError):
-            Mpc(nlp=None, prediction_horizon=0)
-        with self.assertRaises(ValueError):
-            Mpc(nlp=None, prediction_horizon=10, control_horizon=-2)
+        nlp = Nlp()
+        with self.assertRaisesRegex(ValueError, "Invalid shooting method."):
+            Mpc(nlp, shooting="ciao", prediction_horizon=1)
+        with self.assertRaisesRegex(
+            ValueError, "Prediction horizon must be positive and > 0."
+        ):
+            Mpc(nlp, prediction_horizon=0)
+        with self.assertRaisesRegex(
+            ValueError, "Control horizon must be positive and > 0."
+        ):
+            Mpc(nlp, prediction_horizon=10, control_horizon=-2)
 
     def test_init__initializes_control_horizon_properly(self):
         N = 10
-        mpc1 = Mpc(nlp=None, prediction_horizon=N)
-        mpc2 = Mpc(nlp=None, prediction_horizon=N, control_horizon=N * 2)
+        nlp = Nlp()
+        mpc1 = Mpc(nlp, prediction_horizon=N)
+        mpc2 = Mpc(nlp, prediction_horizon=N, control_horizon=N * 2)
         self.assertEqual(mpc1.control_horizon, N)
         self.assertEqual(mpc2.control_horizon, N * 2)
 

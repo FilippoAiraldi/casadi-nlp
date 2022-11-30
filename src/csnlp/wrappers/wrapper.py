@@ -6,11 +6,14 @@ from csnlp.util.io import SupportsDeepcopyAndPickle
 
 
 class Wrapper(SupportsDeepcopyAndPickle):
-    """
-    Wraps an NLP to allow a modular transformation of its methods. This class
-    is the base class for all wrappers. The subclass could override some
-    methods to change the behavior of the original environment without touching
-    the original code.
+    """Wraps an NLP to allow a modular transformation of its methods. This class is the
+    base class for all wrappers. The subclass could override some methods to change the
+    behavior of the original environment without touching the original code.
+
+    The base class is retroactive, in the sense that it can be applied to any NLP
+    instance that already defines variables, parameters, and/or objective.
+    Use `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is
+    defined.
     """
 
     def __init__(self, nlp: Nlp) -> None:
@@ -69,3 +72,33 @@ class Wrapper(SupportsDeepcopyAndPickle):
     def __repr__(self) -> str:
         """Returns the wrapped NLP representation."""
         return f"<{self.__class__.__name__}: {self.nlp.__repr__()}>"
+
+
+class NonRetroactiveWrapper(Wrapper):
+    """Same as `Wrapper`, but the wrapped NLP instance must have no variable, parameter
+    or objective specified; in other words, the wrapper must wrap the NLP before it gets
+    defined."""
+
+    def __init__(self, nlp: Nlp) -> None:
+        """Initializes the non-retroactive wrapper around an NLP.
+
+        Parameters
+        ----------
+        nlp : Nlp
+            The NLP instance to be wrapped.
+
+        Raises
+        ------
+        ValueError
+            Raises if the objective, variables, dual variables, parameters or
+            constraints are already defined in this NLP instance.
+        """
+        super().__init__(nlp)
+        if (
+            self.nlp._f is not None
+            or self.nlp._vars
+            or self.nlp._dual_vars
+            or self.nlp._pars
+            or self.nlp._cons
+        ):
+            raise ValueError("Nlp already defined.")

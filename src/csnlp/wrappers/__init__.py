@@ -1,5 +1,5 @@
-__all__ = ["Wrapper", "NlpSensitivity", "Mpc"]
+__all__ = ["Wrapper", "NonRetroactiveWrapper", "NlpSensitivity", "Mpc"]
 
 from csnlp.wrappers.mpc import Mpc
 from csnlp.wrappers.sensitivity import NlpSensitivity
-from csnlp.wrappers.wrapper import Wrapper
+from csnlp.wrappers.wrapper import NonRetroactiveWrapper, Wrapper

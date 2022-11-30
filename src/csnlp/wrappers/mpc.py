@@ -5,10 +5,10 @@ import numpy as np
 
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property
-from csnlp.wrappers.wrapper import Nlp, Wrapper
+from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 
-class Mpc(Wrapper):
+class Mpc(NonRetroactiveWrapper):
     """A wrapper to easily turn the NLP scheme into an MPC controller. Most of
     the theory for MPC is taken from [1].
 
