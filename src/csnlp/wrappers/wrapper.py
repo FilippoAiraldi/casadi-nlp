@@ -12,8 +12,6 @@ class Wrapper(SupportsDeepcopyAndPickle):
     the original code.
     """
 
-    __slots__ = "nlp"
-
     def __init__(self, nlp: Nlp) -> None:
         """Wraps an NLP instance.
 
