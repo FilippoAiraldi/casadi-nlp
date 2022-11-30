@@ -91,7 +91,8 @@ class Mpc(NonRetroactiveWrapper):
     def states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the states of the MPC controller."""
         if self._is_multishooting:
-            return dict2struct({n: self.nlp._vars[n] for n in self._state_names})
+            vars = self.nlp.variables
+            return dict2struct({n: vars[n] for n in self._state_names})
         return dict2struct(self._state_exprs, entry_type="expr")
 
     @cached_property
@@ -102,7 +103,8 @@ class Mpc(NonRetroactiveWrapper):
     @cached_property
     def actions(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the control actions of the MPC controller."""
-        return dict2struct({n: self.nlp._vars[n] for n in self._action_names})
+        vars = self.nlp.variables
+        return dict2struct({n: vars[n] for n in self._action_names})
 
     @cached_property
     def actions_expanded(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -112,7 +114,8 @@ class Mpc(NonRetroactiveWrapper):
     @cached_property
     def slacks(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the slack variables of the MPC controller."""
-        return dict2struct({n: self.nlp._vars[n] for n in self._slack_names})
+        vars = self.nlp.variables
+        return dict2struct({n: vars[n] for n in self._slack_names})
 
     @cached_property
     def disturbances(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -298,12 +301,14 @@ class Mpc(NonRetroactiveWrapper):
         self, F: cs.Function, n_in: int, n_out: int
     ) -> None:
         # utility to create dynamics constraints with multiple shooting
-        X = cs.vertcat(*(self.nlp._vars[n] for n in self._state_names))
+        vars = self.nlp.variables
+        X = cs.vertcat(*(vars[n] for n in self._state_names))
         U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
         if n_in < 3:
             get_args = lambda k: (X[:, k], U[:, k])
         else:
-            D = cs.vertcat(*(self.nlp._pars[n] for n in self._disturbance_names))
+            pars = self.nlp.parameters
+            D = cs.vertcat(*(pars[n] for n in self._disturbance_names))
             get_args = lambda k: (X[:, k], U[:, k], D[:, k])
         for k in range(self._prediction_horizon):
             x_next = F(*get_args(k))
@@ -315,12 +320,13 @@ class Mpc(NonRetroactiveWrapper):
     def _set_singleshooting_dynamics(
         self, F: cs.Function, n_in: int, n_out: int
     ) -> None:
-        Xk = cs.vertcat(*(self.nlp._pars[f"{n}_0"] for n in self._state_names))
+        pars = self.nlp.parameters
+        Xk = cs.vertcat(*(pars[f"{n}_0"] for n in self._state_names))
         U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
         if n_in < 3:
             get_args = lambda k: (U[:, k],)
         else:
-            D = cs.vertcat(*(self.nlp._pars[n] for n in self._disturbance_names))
+            D = cs.vertcat(*(pars[n] for n in self._disturbance_names))
             get_args = lambda k: (U[:, k], D[:, k])
 
         X = [Xk]
@@ -333,6 +339,6 @@ class Mpc(NonRetroactiveWrapper):
 
         i = 0
         for name in self._state_names:
-            dim = self.nlp._pars[f"{name}_0"].shape[0]
+            dim = pars[f"{name}_0"].shape[0]
             self._state_exprs[name] = X[i : i + dim, :]
             i += dim
