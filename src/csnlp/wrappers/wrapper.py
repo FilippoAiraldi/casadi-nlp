@@ -94,11 +94,12 @@ class NonRetroactiveWrapper(Wrapper):
             constraints are already defined in this NLP instance.
         """
         super().__init__(nlp)
+        unlp = nlp.unwrapped
         if (
-            self.nlp._f is not None
-            or self.nlp._vars
-            or self.nlp._dual_vars
-            or self.nlp._pars
-            or self.nlp._cons
+            unlp._f is not None
+            or unlp._vars
+            or unlp._dual_vars
+            or unlp._pars
+            or unlp._cons
         ):
             raise ValueError("Nlp already defined.")
