@@ -93,19 +93,22 @@ class MultistartNlp(Nlp):
             S.update(
                 self._vars
                 if i is None
-                else {k: self._multi_nlp._vars[_n(k, i)] for k in self._vars}
+                else {k: self._multi_nlp.unwrapped._vars[_n(k, i)] for k in self._vars}
             )
         if pars:
             S.update(
                 self._pars
                 if i is None
-                else {k: self._multi_nlp._pars[_n(k, i)] for k in self._pars}
+                else {k: self._multi_nlp.unwrapped._pars[_n(k, i)] for k in self._pars}
             )
         if dual:
             S.update(
                 self._dual_vars
                 if i is None
-                else {k: self._multi_nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
+                else {
+                    k: self._multi_nlp.unwrapped._dual_vars[_n(k, i)]
+                    for k in self._dual_vars
+                }
             )
         return S
 
