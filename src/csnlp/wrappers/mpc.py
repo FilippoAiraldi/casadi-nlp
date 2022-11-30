@@ -182,7 +182,7 @@ class Mpc(Wrapper):
         dim: int = 1,
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf,
-    ) -> Union[cs.SX, cs.MX]:
+    ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
         """Adds a control action variable to the MPC controller along the whole
         control horizon. Automatically expands this action to be of the same
         length of the prediction horizon by padding with the final action.
@@ -261,8 +261,19 @@ class Mpc(Wrapper):
 
     @property
     def dynamics(self) -> Optional[cs.Function]:
-        """Gets the prediction model's dynamics of the MPC controller. If not
-        set, returns `None`."""
+        """Dynamics of the controller's prediction model, i.e., a CasADi function of the
+        form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where `x,u,d` are the state, action,
+        disturbances respectively, and `x+` is the next state. The function can have
+        multiple outputs, in which case `x+` is assumed to be the first one.
+
+        Raises
+        ------
+        ValueError
+            When setting, raises if the dynamics do not accept 2 or 3 input arguments.
+        RuntimeError
+            When setting, raises if the dynamics have been already set; or if the
+            function `F` does not take accept the expected input sizes.
+        """
         return self._dynamics
 
     @dynamics.setter
