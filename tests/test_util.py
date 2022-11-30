@@ -374,12 +374,12 @@ class TestMath(unittest.TestCase):
 
 class TestScaling(unittest.TestCase):
     def test_str_and_repr(self):
-        N = scaling.Scaling({"x": [-1, 1]})
+        N = scaling.Scaler({"x": [-1, 1]})
         for S in [N.__str__(), N.__repr__()]:
             self.assertIn("scaling", S.lower())
 
     def test_register__raises__when_registering_duplicate_ranges(self):
-        N = scaling.Scaling({"x": [-1, 1]})
+        N = scaling.Scaler({"x": [-1, 1]})
         with self.assertRaises(KeyError):
             N.register("x", 0, 2)
         with self.assertRaises(KeyError):
@@ -387,12 +387,12 @@ class TestScaling(unittest.TestCase):
         N.register("y", 0, 2)
 
     def test_can_scale__only_valid_ranges(self):
-        N = scaling.Scaling({"x": [-1, 1]})
+        N = scaling.Scaler({"x": [-1, 1]})
         self.assertTrue(N.can_scale("x"))
         self.assertFalse(N.can_scale("u"))
 
     def test_scaling__scale_unscale__computes_right_values(self):
-        N = scaling.Scaling({"x1": (-5, 2), "x2": ([-1, 7], [2, 10])})
+        N = scaling.Scaler({"x1": (-5, 2), "x2": ([-1, 7], [2, 10])})
         x1 = 4
         y1 = N.scale("x1", x1)
         z1 = N.unscale("x1", y1)
@@ -406,7 +406,7 @@ class TestScaling(unittest.TestCase):
         np.testing.assert_equal(x2, z2)
 
     def test_minmaxscaling_scale_unscale__computes_right_values(self):
-        N = scaling.MinMaxScaling(
+        N = scaling.MinMaxScaler(
             {"x1": (-5, 2), "x2": (np.array([-1, 7]), np.array([2, 10]))}
         )
         x1 = 4

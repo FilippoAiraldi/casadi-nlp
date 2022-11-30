@@ -6,7 +6,7 @@ import numpy as np
 T = TypeVar("T")
 
 
-class Scaling(UserDict):
+class Scaler(UserDict):
     """Class for scaling of quantities. It suffices to register the scale of each the
     variable, and then it can be easily (un-)scaled according to
     ```
@@ -126,7 +126,7 @@ class Scaling(UserDict):
         return f"<{self.__class__.__name__}: {super().__str__()}>"
 
 
-class MinMaxScaling(Scaling):
+class MinMaxScaler(Scaler):
     """Class for scaling of quantities. It suffices to register the scale of each the
     variable, and then it can be easily (un-)scaled according to
     ```
