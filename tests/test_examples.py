@@ -5,6 +5,7 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
+from csnlp.util.scaling import Scaler
 from csnlp import MultistartNlp, Nlp, wrappers
 
 OPTS = {
@@ -172,6 +173,66 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_j"], j0, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
+    def test__scaling(self):
+        def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
+            x, u = cs.SX.sym("x", 3), cs.SX.sym("u")
+            x_next = x + cs.vertcat(x[1], u / x[2] - g, -alpha * u) * dt
+            return cs.Function("F", [x, u], [x_next], ["x", "u"], ["x+"])
+
+        N = 100
+        T = 100
+        K = 3
+        dt = T / N
+        m0 = 500000
+        yT = 100000
+        g = 9.81
+        alpha = 1 / (300 * g)
+        seed = 69
+        nlp = MultistartNlp(sym_type="SX", starts=K, seed=seed)
+
+        y_nom = 1e5
+        v_nom = 2e3
+        m_nom = 3e5
+        x_nom = cs.vertcat(y_nom, v_nom, m_nom)
+        u_nom = 1e8
+        scaler = Scaler()
+        scaler.register("x", scale=x_nom)
+        scaler.register("x_0", scale=x_nom)
+        scaler.register("u", scale=u_nom)
+        nlp = wrappers.NlpScaling(nlp, scaler=scaler)
+
+        mpc = wrappers.Mpc(nlp, prediction_horizon=N)
+        x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
+        y = x[0, :]
+        v = x[1, :]
+        m = x[2, :]
+        u, _ = mpc.action("u", lb=0, ub=5e7)
+        F = get_dynamics(g, alpha, dt)
+        mpc.dynamics = F
+        x0 = cs.vertcat(0, 0, m0)
+        mpc.constraint("yT", y[-1], "==", yT)
+        mpc.minimize(m[0] - m[-1])
+        mpc.init_solver(OPTS)
+        x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
+
+        pars = [{"x_0": x0}] * K
+        vals0=[
+            {
+                "x": x_init + mpc.unwrapped.np_random.random(x_init.shape) * 1e4,
+                "u": mpc.unwrapped.np_random.random() * 1e8,
+            }
+            for _ in range(K)
+        ]
+        us, fs = [], []
+        for i in range(K + 1):
+            sol = mpc.solve(pars[i], vals0[i]) if i != K else mpc.solve_multi(pars, vals0)
+            fs.append(sol.f)
+            us.append(sol.value(u))
+        us, fs = np.array(us).squeeze(), np.array(fs).squeeze()
+
+        np.testing.assert_almost_equal(fs[-1], fs[:-1].min(), decimal=2)
+        np.testing.assert_allclose(RESULTS["scaling_fs"], fs, rtol=1e-6, atol=1e-7)
+        np.testing.assert_allclose(RESULTS["scaling_us"], us, rtol=1e-6, atol=1e-7)
 
 if __name__ == "__main__":
     unittest.main()

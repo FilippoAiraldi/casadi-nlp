@@ -29,7 +29,6 @@ g = 9.81  # gravity 9.81 [m/s^2]
 alpha = 1 / (300 * g)  # kg/(N*s)
 
 # solver options
-seed = 69
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
 
 # plotting
