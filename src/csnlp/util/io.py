@@ -1,6 +1,8 @@
 import pickle
 from contextlib import contextmanager
 from copy import deepcopy
+from functools import cached_property
+from inspect import getmembers
 from pickletools import optimize
 from typing import Any, Dict, Optional, TypeVar
 from warnings import warn
@@ -59,8 +61,15 @@ class SupportsDeepcopyAndPickle:
         yield
         self._GETFULLSTATE = None
 
-    def copy(self: T) -> T:
+    def copy(self: T, invalidate_caches: bool = True) -> T:
         """Creates a deepcopy of this instance.
+
+        Parameters
+        ----------
+        invalidate_caches : bool, optional
+            If `True`, methods decorated with `csnlp.util.funcs.invalidate_cache` are
+            called to clear cached properties/lru caches in the copied instance.
+            Otherwise, caches in the copy are not invalidated.
 
         Returns
         -------
@@ -68,7 +77,16 @@ class SupportsDeepcopyAndPickle:
             A deepcopy of this instance.
         """
         with self.fullstate():
-            return deepcopy(self)
+            new = deepcopy(self)
+        if invalidate_caches:
+            # basically do again what csnlp.util.funcs.invalidate_cache does
+            for membername, member in getmembers(type(new)):
+                if hasattr(member, "cache_clear"):
+                    getattr(new, membername).cache_clear()
+                elif isinstance(member, cached_property):
+                    if membername in new.__dict__:
+                        del new.__dict__[membername]
+        return new
 
     def __getstate__(self) -> Dict[str, Any]:
         """Returns the instance's state to be pickled or copied."""
