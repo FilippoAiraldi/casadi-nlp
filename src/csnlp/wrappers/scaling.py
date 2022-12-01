@@ -7,7 +7,7 @@ import numpy as np
 from csnlp.multistart_nlp import MultistartNlp
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cache_clearer, cached_property
+from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
@@ -30,7 +30,7 @@ class NlpScaling(NonRetroactiveWrapper):
         """Gets the unscaled parameters of the NLP scheme."""
         return dict2struct(self._unscaled_pars, entry_type="expr")
 
-    @cache_clearer(unscaled_variables)
+    @invalidate_cache(unscaled_variables)
     def variable(
         self,
         name: str,
@@ -55,7 +55,7 @@ class NlpScaling(NonRetroactiveWrapper):
         self._unscaled_vars[name] = uvar
         return var, lam_lb, lam_ub
 
-    @cache_clearer(unscaled_parameters)
+    @invalidate_cache(unscaled_parameters)
     def parameter(
         self, name: str, shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:

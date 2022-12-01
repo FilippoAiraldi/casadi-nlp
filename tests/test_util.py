@@ -30,7 +30,7 @@ class Dummy:
         self.counter2 += 1
         return self.counter2
 
-    @funcs.cache_clearer(prop1, method2)
+    @funcs.invalidate_cache(prop1, method2)
     def clear_cache(self) -> None:
         return
 
@@ -45,7 +45,7 @@ class Dummy2(Dummy):
         self.counter3 += 1
         return self.counter3
 
-    @funcs.cache_clearer(prop3)
+    @funcs.invalidate_cache(prop3)
     def clear_cache(self) -> None:
         return super().clear_cache()
 
@@ -53,7 +53,7 @@ class Dummy2(Dummy):
 class TestFuncs(unittest.TestCase):
     def test_cache_clearer__raises__with_invalid_type(self):
         with self.assertRaises(TypeError):
-            funcs.cache_clearer(5)
+            funcs.invalidate_cache(5)
 
     def test_cache_clearer__clears_property_cache(self):
         dummy = Dummy()

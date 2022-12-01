@@ -8,9 +8,9 @@ from csnlp.nlp import (
     DMStruct,
     Nlp,
     Solution,
-    cache_clearer,
     cs,
     dict2struct,
+    invalidate_cache,
     partial,
     subsevalf,
 )
@@ -112,7 +112,7 @@ class MultistartNlp(Nlp):
             )
         return S
 
-    @cache_clearer(_symbols)
+    @invalidate_cache(_symbols)
     def parameter(
         self, name: str, shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:
@@ -121,7 +121,7 @@ class MultistartNlp(Nlp):
             self._multi_nlp.parameter(_n(name, i), shape)
         return out
 
-    @cache_clearer(_symbols)
+    @invalidate_cache(_symbols)
     def variable(
         self,
         name: str,
@@ -134,7 +134,7 @@ class MultistartNlp(Nlp):
             self._multi_nlp.variable(_n(name, i), shape, lb, ub)
         return out
 
-    @cache_clearer(_symbols)
+    @invalidate_cache(_symbols)
     def constraint(
         self,
         name: str,

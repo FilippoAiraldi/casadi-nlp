@@ -9,7 +9,7 @@ import numpy as npy
 from csnlp.debug import NlpDebug
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cache_clearer, cached_property, np_random
+from csnlp.util.funcs import cached_property, invalidate_cache, np_random
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 """This tuple dictates the order for operations related to dual variables."""
@@ -317,7 +317,7 @@ class Nlp(SupportsDeepcopyAndPickle):
         """
         return cs.vertcat(self._x, self.lam_all if all else self.lam)
 
-    @cache_clearer(parameters)
+    @invalidate_cache(parameters)
     def parameter(
         self, name: str, shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:
@@ -351,7 +351,7 @@ class Nlp(SupportsDeepcopyAndPickle):
             self.init_solver(self._solver_opts)  # resets solver
         return par
 
-    @cache_clearer(variables, dual_variables, h_lbx, h_ubx, lam, lam_all)
+    @invalidate_cache(variables, dual_variables, h_lbx, h_ubx, lam, lam_all)
     def variable(
         self,
         name: str,
@@ -415,7 +415,7 @@ class Nlp(SupportsDeepcopyAndPickle):
             self.init_solver(self._solver_opts)  # resets solver
         return var, lam_lb, lam_ub
 
-    @cache_clearer(constraints, dual_variables, lam, lam_all)
+    @invalidate_cache(constraints, dual_variables, lam, lam_all)
     def constraint(
         self,
         name: str,

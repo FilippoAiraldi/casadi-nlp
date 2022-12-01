@@ -4,7 +4,7 @@ import casadi as cs
 import numpy as np
 
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cache_clearer, cached_property
+from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 
@@ -122,7 +122,7 @@ class Mpc(NonRetroactiveWrapper):
         """Gets the disturbance parameters of the MPC controller."""
         return dict2struct({n: self.nlp._pars[n] for n in self._disturbance_names})
 
-    @cache_clearer(states, initial_states)
+    @invalidate_cache(states, initial_states)
     def state(
         self,
         name: str,
@@ -178,7 +178,7 @@ class Mpc(NonRetroactiveWrapper):
         self._state_names.append(name)
         return x, x0
 
-    @cache_clearer(actions, actions_expanded)
+    @invalidate_cache(actions, actions_expanded)
     def action(
         self,
         name: str,
@@ -217,7 +217,7 @@ class Mpc(NonRetroactiveWrapper):
         self._action_names.append(name)
         return u, u_exp
 
-    @cache_clearer(disturbances)
+    @invalidate_cache(disturbances)
     def disturbance(self, name: str, dim: int = 1) -> Union[cs.SX, cs.MX]:
         """Adds a disturbance parameter to the MPC controller along the whole
         prediction horizon.
@@ -239,7 +239,7 @@ class Mpc(NonRetroactiveWrapper):
         self._disturbance_names.append(name)
         return out
 
-    @cache_clearer(slacks)
+    @invalidate_cache(slacks)
     def constraint(
         self,
         name: str,
@@ -316,7 +316,7 @@ class Mpc(NonRetroactiveWrapper):
                 x_next = x_next[0]
             self.constraint(f"dyn_{k}", X[:, k + 1], "==", x_next)
 
-    @cache_clearer(states)
+    @invalidate_cache(states)
     def _set_singleshooting_dynamics(
         self, F: cs.Function, n_in: int, n_out: int
     ) -> None:

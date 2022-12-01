@@ -7,7 +7,7 @@ from csnlp.nlp import _DUAL_VARIABLES_ORDER
 from csnlp.solutions import Solution
 from csnlp.util.array import hohessian, hojacobian
 from csnlp.util.data import array2cs, cs2array
-from csnlp.util.funcs import cache_clearer, cached_property
+from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 
@@ -276,19 +276,19 @@ class NlpSensitivity(Wrapper):
             return solution.value(dzdp), solution.value(d2zdp2)
         return dzdp, d2zdp2
 
-    @cache_clearer(jacobians, hessians, hojacobians)
+    @invalidate_cache(jacobians, hessians, hojacobians)
     def parameter(self, *args, **kwargs):
         return self.nlp.parameter(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
     def variable(self, *args, **kwargs):
         return self.nlp.variable(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
     def constraint(self, *args, **kwargs):
         return self.nlp.constraint(*args, **kwargs)
 
-    @cache_clearer(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
     def minimize(self, *args, **kwargs):
         return self.nlp.minimize(*args, **kwargs)
 
