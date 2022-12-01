@@ -1,10 +1,10 @@
-from typing import Dict, Tuple, Union
+from typing import Dict, Literal, Tuple, Union
 from warnings import warn
 
 import casadi as cs
 import numpy as np
 
-from csnlp.solutions import DMStruct, Solution
+from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property
 from csnlp.util.scaling import Scaler
@@ -16,20 +16,20 @@ class NlpScaling(NonRetroactiveWrapper):
         super().__init__(nlp)
         self.scaler = scaler
         self.warns = warns
-        self.scaled_vars: Dict[str, Union[cs.SX, cs.MX]] = {}
-        self.scaled_pars: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._unscaled_vars: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._unscaled_pars: Dict[str, Union[cs.SX, cs.MX]] = {}
 
     @cached_property
-    def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
-        """Gets the usncaled primal variables of the NLP scheme."""
-        return dict2struct(self.nlp.unwrapped._vars, entry_type="expr")
+    def unscaled_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+        """Gets the unscaled variables of the NLP scheme."""
+        return dict2struct(self._unscaled_vars, entry_type="expr")
 
     @cached_property
-    def parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    def unscaled_parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the unscaled parameters of the NLP scheme."""
-        return dict2struct(self.nlp.unwrapped._pars, entry_type="expr")
+        return dict2struct(self._unscaled_pars, entry_type="expr")
 
-    @cache_clearer(variables)
+    @cache_clearer(unscaled_variables)
     def variable(
         self,
         name: str,
@@ -49,13 +49,12 @@ class NlpScaling(NonRetroactiveWrapper):
 
         var, lam_lb, lam_ub = self.nlp.variable(name, shape, lb, ub)
 
-        # unscale var and return it
+        # unscale var and return
         uvar = self.scaler.unscale(name, var)
-        self.nlp.unwrapped._vars[name] = uvar
-        self.scaled_vars[name] = var
-        return uvar, lam_lb, lam_ub
+        self._unscaled_vars[name] = uvar
+        return var, lam_lb, lam_ub
 
-    @cache_clearer(parameters)
+    @cache_clearer(unscaled_parameters)
     def parameter(
         self, name: str, shape: Tuple[int, int] = (1, 1)
     ) -> Union[cs.SX, cs.MX]:
@@ -66,11 +65,37 @@ class NlpScaling(NonRetroactiveWrapper):
                 warn(f"Scaling for parameter {name} not found.", RuntimeWarning)
             return par
 
-        # unscale par and return it
+        # unscale par and return
         upar = self.scaler.unscale(name, par)
-        self.nlp.unwrapped._pars[name] = upar
-        self.scaled_pars[name] = par
-        return upar
+        self._unscaled_pars[name] = upar
+        return par
+
+    def constraint(
+        self,
+        name: str,
+        lhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        op: Literal["==", ">=", "<="],
+        rhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        soft: bool = False,
+        simplify: bool = True,
+    ) -> Union[
+        Tuple[cs.SX, cs.SX],
+        Tuple[cs.MX, cs.MX],
+        Tuple[cs.SX, cs.SX, cs.SX],
+        Tuple[cs.MX, cs.MX, cs.MX],
+    ]:
+        """See `Nlp.constraint` method."""
+        e = lhs - rhs
+        e = subsevalf(e, self.nlp.variables, self.unscaled_variables, eval=False)
+        e = subsevalf(e, self.nlp.parameters, self.unscaled_parameters, eval=False)
+        return self.nlp.constraint(name, e, op, 0, soft=soft, simplify=simplify)
+
+    def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
+        """See `Nlp.minimize` method."""
+        o = objective
+        o = subsevalf(o, self.nlp.variables, self.unscaled_variables, eval=False)
+        o = subsevalf(o, self.nlp.parameters, self.unscaled_parameters, eval=False)
+        return self.nlp.minimize(o)
 
     def solve(
         self,
@@ -78,45 +103,17 @@ class NlpScaling(NonRetroactiveWrapper):
         vals0: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
     ) -> Solution:
         """See `Nlp.solve` method."""
-
-        # NOTE: swapping the unscaled expressions with the scaled variables is required
-        # because in Nlp.solve we cannot assign parameter/variable values from
-        # expressions (e.g., 100 * x = 10), but only from assignments (e.g., x = 0.1).
-        # In turn, this requires to scale the input pars and vals0.
-
-        # swap vars (expr) with scaled vars (variables)
-        self.nlp.unwrapped._vars, self.scaled_vars = (
-            self.scaled_vars,
-            self.nlp.unwrapped._vars,
-        )
-        self.nlp.unwrapped._pars, self.scaled_pars = (
-            self.scaled_pars,
-            self.nlp.unwrapped._pars,
-        )
-
-        # scale parameters and initial conditions and solve
         scaler = self.scaler
-        pars = {
+        scaled_pars = {
             name: scaler.scale(name, pars[name])
             if scaler.can_scale(name)
             else pars[name]
             for name in pars.keys()
         }
-        vals0 = {
+        scaled_vals0 = {
             name: scaler.scale(name, vals0[name])
             if scaler.can_scale(name)
             else vals0[name]
             for name in vals0.keys()
         }
-        sol = self.nlp.solve(pars, vals0)
-
-        # swap back to vars (expr) with scaled vars (variables)
-        self.nlp.unwrapped._vars, self.scaled_vars = (
-            self.scaled_vars,
-            self.nlp.unwrapped._vars,
-        )
-        self.nlp.unwrapped._pars, self.scaled_pars = (
-            self.scaled_pars,
-            self.nlp.unwrapped._pars,
-        )
-        return sol
+        return self.nlp.solve(scaled_pars, scaled_vals0)

@@ -39,12 +39,13 @@ axs[2, 0].set_ylabel("Speed [m/s]")
 axs[3, 0].set_ylabel("Mass [kg]")
 axs[3, 0].set_xlabel("Time [s]")
 axs[3, 1].set_xlabel("Time [s]")
+axs[4, 1].set_ylabel("Primal/dual feasibility")
 axs[4, 1].set_xlabel("Iteration number")
 
 
 for i, SCALED in enumerate((False, True)):
     # create mpc
-    nlp = Nlp(sym_type="SX", name="scaled" if SCALED else "unscaled")
+    nlp = Nlp(sym_type="SX")
     if SCALED:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
         # wrapped in it, and only then in the MPC.
@@ -68,7 +69,8 @@ for i, SCALED in enumerate((False, True)):
     u, _ = mpc.action("u", lb=0, ub=5e7)
 
     # dynamics
-    mpc.dynamics = get_dynamics(g, alpha, dt)
+    F = get_dynamics(g, alpha, dt)
+    mpc.dynamics = F
 
     # boundary conditions
     x0 = cs.vertcat(0, 0, m0)
@@ -77,7 +79,7 @@ for i, SCALED in enumerate((False, True)):
     # objective
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
-    x_initial = cs.repmat([0, 0, 100000], 1, N + 1)
+    x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
     sol: Solution = mpc.solve(pars={"x_0": x0}, vals0={"x": x_initial, "u": 0})
 
     # plotting
@@ -89,8 +91,8 @@ for i, SCALED in enumerate((False, True)):
     axs[3, i].plot(time, x[2, :].flat)
     if SCALED:
         axs2 = [axs[j, i].twinx() for j in range(4)]
-        u_scaled: np.ndarray = sol.value(mpc.scaled_vars["u"]).full()
-        x_scaled: np.ndarray = sol.value(mpc.scaled_vars["x"]).full()
+        u_scaled: np.ndarray = sol.value(mpc.unscaled_variables["u"]).full()
+        x_scaled: np.ndarray = sol.value(mpc.unscaled_variables["x"]).full()
         axs2[0].step(time[:-1], u_scaled.flat, "r--", where="post")
         axs2[1].plot(time, x_scaled[0, :].flat, "r--")
         axs2[2].plot(time, x_scaled[1, :].flat, "r--")
@@ -101,6 +103,5 @@ for i, SCALED in enumerate((False, True)):
     axs[4, i].semilogy(
         sol.stats["iterations"]["inf_pr"], "-", sol.stats["iterations"]["inf_du"], "-"
     )
-    axs[4, i].legend(["Primal feasibility", "Dual feasibility"])
 
 plt.show()
