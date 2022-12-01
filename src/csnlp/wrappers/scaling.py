@@ -1,9 +1,10 @@
-from typing import Dict, Literal, Tuple, Union
+from typing import Dict, Iterable, List, Literal, Tuple, Union
 from warnings import warn
 
 import casadi as cs
 import numpy as np
 
+from csnlp.multistart_nlp import MultistartNlp
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cache_clearer, cached_property
@@ -103,17 +104,40 @@ class NlpScaling(NonRetroactiveWrapper):
         vals0: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
     ) -> Solution:
         """See `Nlp.solve` method."""
+        if pars is not None:
+            pars = self._scale_struct(pars)
+        if vals0 is not None:
+            vals0 = self._scale_struct(vals0)
+        return self.nlp.solve(pars, vals0)
+
+    def solve_multi(
+        self,
+        pars: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
+        vals0: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
+        return_all_sols: bool = False,
+        return_multi_sol: bool = False,
+    ) -> Union[Solution, List[Solution]]:
+        """See `MultistartNlp.solve` method."""
+        assert isinstance(
+            self.nlp, MultistartNlp
+        ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
+        if pars is not None:
+            pars = (self._scale_struct(pars_i) for pars_i in pars)
+        if vals0 is not None:
+            vals0 = (self._scale_struct(vals0_i) for vals0_i in vals0)
+        return self.nlp.solve_multi(
+            pars,
+            vals0,
+            return_all_sols=return_all_sols,
+            return_multi_sol=return_multi_sol,
+        )
+
+    def _scale_struct(
+        self, d: Union[DMStruct, Dict[str, np.ndarray]]
+    ) -> Dict[str, np.ndarray]:
+        """Internal utility for scaling structures/dicts."""
         scaler = self.scaler
-        scaled_pars = {
-            name: scaler.scale(name, pars[name])
-            if scaler.can_scale(name)
-            else pars[name]
-            for name in pars.keys()
+        return {
+            name: scaler.scale(name, d[name]) if scaler.can_scale(name) else d[name]
+            for name in d.keys()
         }
-        scaled_vals0 = {
-            name: scaler.scale(name, vals0[name])
-            if scaler.can_scale(name)
-            else vals0[name]
-            for name in vals0.keys()
-        }
-        return self.nlp.solve(scaled_pars, scaled_vals0)
