@@ -19,7 +19,9 @@ OPTS = {
         "print_options_documentation": "no",
     },
 }
-RESULTS = io.loadmat(r"tests/examples_data.mat", simplify_cells=True)
+EXAMPLES_DATA_FILENAME = r"tests/examples_data.mat"
+RESULTS = io.loadmat(EXAMPLES_DATA_FILENAME, simplify_cells=True)
+# io.savemat(EXAMPLES_DATA_FILENAME, {**RESULTS, "multistart_nlp_fs": fs})
 
 
 @parameterized_class("sym_type", [("SX",), ("MX",)])
