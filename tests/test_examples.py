@@ -5,8 +5,8 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp.util.scaling import Scaler
 from csnlp import MultistartNlp, Nlp, wrappers
+from csnlp.util.scaling import Scaler
 
 OPTS = {
     "expand": True,
@@ -216,7 +216,7 @@ class TestExamples(unittest.TestCase):
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 
         pars = [{"x_0": x0}] * K
-        vals0=[
+        vals0 = [
             {
                 "x": x_init + mpc.unwrapped.np_random.random(x_init.shape) * 1e4,
                 "u": mpc.unwrapped.np_random.random() * 1e8,
@@ -225,7 +225,9 @@ class TestExamples(unittest.TestCase):
         ]
         us, fs = [], []
         for i in range(K + 1):
-            sol = mpc.solve(pars[i], vals0[i]) if i != K else mpc.solve_multi(pars, vals0)
+            sol = (
+                mpc.solve(pars[i], vals0[i]) if i != K else mpc.solve_multi(pars, vals0)
+            )
             fs.append(sol.f)
             us.append(sol.value(u))
         us, fs = np.array(us).squeeze(), np.array(fs).squeeze()
@@ -233,6 +235,7 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_almost_equal(fs[-1], fs[:-1].min(), decimal=2)
         np.testing.assert_allclose(RESULTS["scaling_fs"], fs, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["scaling_us"], us, rtol=1e-6, atol=1e-7)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,10 @@
 import pickle
 import unittest
-from parameterized import parameterized, parameterized_class
 import warnings
 
 import casadi as cs
 import numpy as np
+from parameterized import parameterized, parameterized_class
 
 from csnlp import Nlp
 from csnlp.solutions import subsevalf
@@ -622,8 +622,8 @@ class TestNlpScaling(unittest.TestCase):
         self.assertIn("x", nlp._unscaled_vars)
         x_ = scaler.unscale("x", x)
         np.testing.assert_allclose(cs.evalf(nlp._unscaled_vars["x"] - x_), 0)
-        np.testing.assert_allclose(nlp.lbx, scaler.scale('x', lb))
-        np.testing.assert_allclose(nlp.ubx, scaler.scale('x', ub))
+        np.testing.assert_allclose(nlp.lbx, scaler.scale("x", lb))
+        np.testing.assert_allclose(nlp.ubx, scaler.scale("x", ub))
 
 
 if __name__ == "__main__":
