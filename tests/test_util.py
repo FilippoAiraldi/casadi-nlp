@@ -4,10 +4,11 @@ import tempfile
 import unittest
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Dict
+from typing import Any, Dict, Optional, Tuple, Type, Union
 
 import casadi as cs
 import numpy as np
+from parameterized import parameterized
 from scipy.stats import norm
 
 from csnlp.solutions import subsevalf
@@ -98,52 +99,48 @@ class TestFuncs(unittest.TestCase):
         with self.assertRaises(ValueError):
             funcs.np_random(-1)
 
-    def test_np_random__initializes_rng_with_correct_seed(self):
-        for seed in (69, None):
-            rng, actual_seed = funcs.np_random(seed)
-            self.assertIsInstance(rng, np.random.Generator)
-            if seed is not None:
-                self.assertEqual(seed, actual_seed)
-            else:
-                self.assertIsInstance(actual_seed, int)
+    @parameterized.expand([(69,), (None,)])
+    def test_np_random__initializes_rng_with_correct_seed(self, seed: Optional[int]):
+        rng, actual_seed = funcs.np_random(seed)
+        self.assertIsInstance(rng, np.random.Generator)
+        if seed is not None:
+            self.assertEqual(seed, actual_seed)
+        else:
+            self.assertIsInstance(actual_seed, int)
 
 
 class TestArray(unittest.TestCase):
-    def test_hojacobian__computes_right_derivatives(self):
-        for shape in [(2, 2), (3, 1), (1, 3)]:
-            x = cs.SX.sym("x", *shape)
-            y = (
-                (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
-                if x.is_vector()
-                else (x * x.T - x)
-            )
-            J = array.hojacobian(y, x)
-            self.assertEqual(J.ndim, 4)
-            for index in np.ndindex(J.shape):
-                x_ = np.random.randn(*x.shape)
-                idx1, idx2 = index[:2], index[2:]
-                o = cs.evalf(
-                    cs.substitute(J[index] - cs.jacobian(y[idx1], x[idx2]), x, x_)
-                )
-                np.testing.assert_allclose(o, 0, atol=1e-9)
+    @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
+    def test_hojacobian__computes_right_derivatives(self, shape: Tuple[int, int]):
+        x = cs.SX.sym("x", *shape)
+        y = (
+            (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
+            if x.is_vector()
+            else (x * x.T - x)
+        )
+        J = array.hojacobian(y, x)
+        self.assertEqual(J.ndim, 4)
+        for index in np.ndindex(J.shape):
+            x_ = np.random.randn(*x.shape)
+            idx1, idx2 = index[:2], index[2:]
+            o = cs.evalf(cs.substitute(J[index] - cs.jacobian(y[idx1], x[idx2]), x, x_))
+            np.testing.assert_allclose(o, 0, atol=1e-9)
 
-    def test_hohessian__computes_right_derivatives(self):
-        for shape in [(2, 2), (3, 1), (1, 3)]:
-            x = cs.SX.sym("x", *shape)
-            y = (
-                (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
-                if x.is_vector()
-                else (x * x.T - x)
-            )
-            H, _ = array.hohessian(y, x)
-            self.assertEqual(H.ndim, 6)
-            for i in np.ndindex(y.shape):
-                x_ = np.random.randn(*x.shape)
-                H_ = data.cs2array(cs.hessian(y[i], x)[0])
-                o = cs.evalf(
-                    cs.substitute(H[i].reshape(H_.shape, order="F") - H_, x, x_)
-                )
-                np.testing.assert_allclose(o, 0, atol=1e-9)
+    @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
+    def test_hohessian__computes_right_derivatives(self, shape: Tuple[int, int]):
+        x = cs.SX.sym("x", *shape)
+        y = (
+            (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
+            if x.is_vector()
+            else (x * x.T - x)
+        )
+        H, _ = array.hohessian(y, x)
+        self.assertEqual(H.ndim, 6)
+        for i in np.ndindex(y.shape):
+            x_ = np.random.randn(*x.shape)
+            H_ = data.cs2array(cs.hessian(y[i], x)[0])
+            o = cs.evalf(cs.substitute(H[i].reshape(H_.shape, order="F") - H_, x, x_))
+            np.testing.assert_allclose(o, 0, atol=1e-9)
 
     def test_jaggedstack__raises__with_empty_array(self):
         with self.assertRaises(ValueError):
@@ -162,15 +159,17 @@ class TestArray(unittest.TestCase):
 
 
 class TestData(unittest.TestCase):
-    def test_is_casadi_object__guesses_correctly(self):
-        for o, flag in [
+    @parameterized.expand(
+        [
             (5.0, False),
             (unittest.TestCase(), False),
             (cs.DM(5), True),
             (cs.SX.sym("x"), True),
             (cs.MX.sym("x"), True),
-        ]:
-            self.assertEqual(data.is_casadi_object(o), flag)
+        ]
+    )
+    def test_is_casadi_object__guesses_correctly(self, obj: Any, result: bool):
+        self.assertEqual(data.is_casadi_object(obj), result)
 
     def test_dict2struct__with_DM__returns_numerical_struct(self):
         d = {
@@ -201,23 +200,23 @@ class TestData(unittest.TestCase):
         self.assertIsInstance(s, Dict)
         self.assertDictEqual(d, s)
 
-    def test_cs2array_array2cs__convert_properly(self):
-        for sym_type, shape in product(
-            [cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]
-        ):
-            x = sym_type.sym("x", *shape)
-            a = data.cs2array(x)
-            y = data.array2cs(a)
-            for i in np.ndindex(shape):
-                if sym_type is cs.SX:
-                    self.assertTrue(cs.is_equal(x[i], a[i]))
-                    self.assertTrue(cs.is_equal(x[i], y[i]))
-                else:
-                    x_ = cs.DM(np.random.rand(*x.shape))
-                    o = cs.evalf(cs.substitute(x[i] - a[i], x, x_))
-                    np.testing.assert_allclose(o, 0, atol=1e-9)
-                    o = cs.evalf(cs.substitute(y[i] - a[i], x, x_))
-                    np.testing.assert_allclose(o, 0, atol=1e-9)
+    @parameterized.expand(product([cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]))
+    def test_cs2array_array2cs__convert_properly(
+        self, sym_type: Union[Type[cs.SX], Type[cs.MX]], shape: Tuple[int, int]
+    ):
+        x = sym_type.sym("x", *shape)
+        a = data.cs2array(x)
+        y = data.array2cs(a)
+        for i in np.ndindex(shape):
+            if sym_type is cs.SX:
+                self.assertTrue(cs.is_equal(x[i], a[i]))
+                self.assertTrue(cs.is_equal(x[i], y[i]))
+            else:
+                x_ = cs.DM(np.random.rand(*x.shape))
+                o = cs.evalf(cs.substitute(x[i] - a[i], x, x_))
+                np.testing.assert_allclose(o, 0, atol=1e-9)
+                o = cs.evalf(cs.substitute(y[i] - a[i], x, x_))
+                np.testing.assert_allclose(o, 0, atol=1e-9)
 
 
 TMPFILENAME: str = ""
@@ -261,24 +260,23 @@ class TestMath(unittest.TestCase):
         self.assertEqual(math.log(x), _math.log(x))
         self.assertEqual(math.log(x, base), _math.log(x, base))
 
-    def test_prod(self):
+    @parameterized.expand([(-2,), (-1,), (0,), (1,), (None,)])
+    def test_prod(self, axis: Optional[int]):
         shape = (4, 5)
-        for ax in (-2, -1, 0, 1, None):
-            x_sx = cs.SX.sym("X", *shape)
-            x_mx = cs.MX.sym("X", *shape)
-            x = np.random.randn(*shape) * 2
-            p_sx = subsevalf(math.prod(x_sx, axis=ax), x_sx, x)
-            p_mx = subsevalf(math.prod(x_mx, axis=ax), x_mx, x)
-            p = np.prod(x, axis=ax, keepdims=True)
+        x_sx = cs.SX.sym("X", *shape)
+        x_mx = cs.MX.sym("X", *shape)
+        x = np.random.randn(*shape) * 2
+        p_sx = subsevalf(math.prod(x_sx, axis=axis), x_sx, x)
+        p_mx = subsevalf(math.prod(x_mx, axis=axis), x_mx, x)
+        p = np.prod(x, axis=axis, keepdims=True)
+        np.testing.assert_allclose(p, p_sx)
+        np.testing.assert_allclose(p, p_mx)
 
-            np.testing.assert_allclose(p, p_sx)
-            np.testing.assert_allclose(p, p_mx)
-
-    def test_quad_form(self):
-        n = 5
-        for m in (1, n):
-            x_sx = cs.SX.sym("X", n, 1)
-            x_mx = cs.MX.sym("X", n, 1)
+    @parameterized.expand([(1,), (5,), (10,)])
+    def test_quad_form(self, n: int):
+        x_sx = cs.SX.sym("X", n, 1)
+        x_mx = cs.MX.sym("X", n, 1)
+        for m in [1, n]:
             A_sx = cs.SX.sym("A", n, m)
             A_mx = cs.MX.sym("A", n, m)
             x = np.random.randn(n, 1) * 2
@@ -342,8 +340,8 @@ class TestMath(unittest.TestCase):
         np.testing.assert_allclose(cdf, cdf_sx, atol=1e-7, rtol=1e-5)
         np.testing.assert_allclose(cdf, cdf_mx, atol=1e-7, rtol=1e-5)
 
-    def test_nchoosek__computes_correct_combinations(self):
-        for (inp, out) in [
+    @parameterized.expand(
+        [
             ((1, 1), 1),
             ((5, 4), 5),
             (
@@ -359,17 +357,21 @@ class TestMath(unittest.TestCase):
                 ),
             ),
             ((np.array([10, 20, 30]), 2), np.array([[10, 20], [10, 30], [20, 30]])),
-        ]:
-            out_ = math.nchoosek(*inp)
-            np.testing.assert_allclose(out_, out)
+        ]
+    )
+    def test_nchoosek__computes_correct_combinations(
+        self, inp: Tuple[int, int], out: int
+    ):
+        out_ = math.nchoosek(*inp)
+        np.testing.assert_allclose(out_, out)
 
-    def test_monomial_powers__computes_correct_powers(self):
-        for ((n, k), out) in [((1, 4), 4), ((10, 1), np.eye(10)), ((4, 3), None)]:
-            p = math.monomial_powers(n, k)
-            self.assertEqual(p.shape[1], n)
-            np.testing.assert_allclose(p.sum(axis=1), k)
-            if out is not None:
-                np.testing.assert_allclose(p, out)
+    @parameterized.expand([(1, 4, 4), (10, 1, np.eye(10)), (4, 3, None)])
+    def test_monomial_powers__computes_correct_powers(self, n, k, out):
+        p = math.monomial_powers(n, k)
+        self.assertEqual(p.shape[1], n)
+        np.testing.assert_allclose(p.sum(axis=1), k)
+        if out is not None:
+            np.testing.assert_allclose(p, out)
 
 
 class TestScaling(unittest.TestCase):

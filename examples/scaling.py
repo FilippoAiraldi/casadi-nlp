@@ -96,8 +96,8 @@ for i, SCALED in enumerate((False, True)):
         axs2[2].plot(time, x_scaled[1, :].flat, "r--")
         axs2[3].plot(time, x_scaled[2, :].flat, "r--")
         for ax in axs2:
-            ax.spines['right'].set_color('r')
-            ax.tick_params(axis='y', colors='r')
+            ax.spines["right"].set_color("r")
+            ax.tick_params(axis="y", colors="r")
     axs[4, i].semilogy(
         sol.stats["iterations"]["inf_pr"], "-", sol.stats["iterations"]["inf_du"], "-"
     )

@@ -1,9 +1,9 @@
 import pickle
 import unittest
-from itertools import product
 
 import casadi as cs
 import numpy as np
+from parameterized import parameterized, parameterized_class
 
 from csnlp import MultistartNlp
 from csnlp.multistart_nlp import _n
@@ -23,14 +23,15 @@ OPTS = {
 }
 
 
+@parameterized_class("sym_type", [("SX",), ("MX",)])
 class TestMultistartNlp(unittest.TestCase):
     def test_init__raises__with_invalid_number_of_starts(self):
         with self.assertRaises(ValueError):
-            MultistartNlp(starts=0)
+            MultistartNlp(starts=0, sym_type=self.sym_type)
 
     def test_variable_parameter_and_constraint__builds_correct_copies(self):
         N = 3
-        nlp = MultistartNlp(starts=N)
+        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x")[0]
         y = nlp.variable("y")[0]
         z = nlp.variable("z")[0]
@@ -45,7 +46,7 @@ class TestMultistartNlp(unittest.TestCase):
 
     def test_minimize__sums_objectives_in_unique_function(self):
         N = 3
-        nlp = MultistartNlp(starts=N)
+        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x")[0]
         nlp.minimize(cs.exp((x - 1) ** 2))
         x_ = cs.DM(np.random.randn(*x.shape))
@@ -54,46 +55,46 @@ class TestMultistartNlp(unittest.TestCase):
         f2 = subsevalf(nlp._multi_nlp.f, nlp._multi_nlp._vars, x_dict)
         self.assertAlmostEqual(f1, f2 / N)
 
-    def test_solve__computes_right_solution(self):
+    @parameterized.expand([(False,), (True,)])
+    def test_solve__computes_right_solution(self, copy: bool):
         N = 3
-        for sym_type, copy in product(("SX", "MX"), (False, True)):
-            nlp = MultistartNlp(starts=N, sym_type=sym_type)
-            x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
-            nlp.parameter("p")
-            nlp.minimize(
-                -0.3 * x**2
-                - cs.exp(-10 * x**2)
-                + cs.exp(-100 * (x - 1) ** 2)
-                + cs.exp(-100 * (x - 1.5) ** 2)
-            )
-            nlp.init_solver(OPTS)
-            if copy:
-                nlp = nlp.copy()
+        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
+        nlp.parameter("p")
+        nlp.minimize(
+            -0.3 * x**2
+            - cs.exp(-10 * x**2)
+            + cs.exp(-100 * (x - 1) ** 2)
+            + cs.exp(-100 * (x - 1.5) ** 2)
+        )
+        nlp.init_solver(OPTS)
+        if copy:
+            nlp = nlp.copy()
 
-            # solve manually
-            x0s = [0.9, 0.5, 1.1]
-            xfs, fs = [], []
-            for x0 in x0s:
-                sol = nlp.solve(pars={"p": 0}, vals0={"x": x0})
-                xfs.append(sol.vals["x"])
-                fs.append(sol.f)
+        # solve manually
+        x0s = [0.9, 0.5, 1.1]
+        xfs, fs = [], []
+        for x0 in x0s:
+            sol = nlp.solve(pars={"p": 0}, vals0={"x": x0})
+            xfs.append(sol.vals["x"])
+            fs.append(sol.f)
 
-            # solve with multistart
-            args = ([{"p": 0} for _ in x0s], [{"x": x0} for x0 in x0s])
-            best_sol = nlp.solve_multi(*args)
-            all_sols = nlp.solve_multi(*args, return_all_sols=True)
+        # solve with multistart
+        args = ([{"p": 0} for _ in x0s], [{"x": x0} for x0 in x0s])
+        best_sol = nlp.solve_multi(*args)
+        all_sols = nlp.solve_multi(*args, return_all_sols=True)
 
-            for xf, f, sol in zip(xfs, fs, all_sols):
-                np.testing.assert_allclose(xf, sol.vals["x"])
-                np.testing.assert_allclose(xf, sol.value(x))
-                np.testing.assert_allclose(f, sol.f)
-                np.testing.assert_allclose(f, sol.value(nlp.f))
-            np.testing.assert_allclose(best_sol.f, min(fs))
-            np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
+        for xf, f, sol in zip(xfs, fs, all_sols):
+            np.testing.assert_allclose(xf, sol.vals["x"])
+            np.testing.assert_allclose(xf, sol.value(x))
+            np.testing.assert_allclose(f, sol.f)
+            np.testing.assert_allclose(f, sol.value(nlp.f))
+        np.testing.assert_allclose(best_sol.f, min(fs))
+        np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
 
     def test_is_pickleable(self):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type="SX")
+        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         nlp.parameter("p")
         nlp.minimize(
