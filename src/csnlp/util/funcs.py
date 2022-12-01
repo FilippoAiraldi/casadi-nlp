@@ -75,7 +75,9 @@ def np_random(seed: Optional[int] = None) -> Tuple[np.random.Generator, int]:
     """Generates a random number generator from the seed and returns the Generator and
     seed.
 
-    Full credit to [OpenAI implementation](https://github.com/openai/gym/blob/6a04d49722724677610e36c1f92908e72f51da0c/gym/utils/seeding.py).
+    Full credit to OpenAI implementation at
+    https://github.com/openai/gym/blob/master/gym/utils/seeding.py.
+
 
     Parameters
     ----------

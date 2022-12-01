@@ -51,11 +51,11 @@ class Dummy2(Dummy):
 
 
 class TestFuncs(unittest.TestCase):
-    def test_cache_clearer__raises__with_invalid_type(self):
+    def test_invalidate_cache__raises__with_invalid_type(self):
         with self.assertRaises(TypeError):
             funcs.invalidate_cache(5)
 
-    def test_cache_clearer__clears_property_cache(self):
+    def test_invalidate_cache__clears_property_cache(self):
         dummy = Dummy()
         dummy.prop1
         dummy.prop1
@@ -76,7 +76,19 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy.counter1, 3)
         self.assertEqual(dummy.counter2, 3)
 
-    def test_cache_clearer__accepts_new_caches_to_clear(self):
+    def test_invalidate_cache__invalidates_only_current_object(self):
+        dummy1, dummy2 = Dummy(), Dummy()
+        dummy1.prop1
+        dummy2.prop1
+        self.assertEqual(dummy1.counter1, 1)
+        self.assertEqual(dummy2.counter1, 1)
+        dummy1.clear_cache()
+        dummy1.prop1
+        dummy2.prop1
+        self.assertEqual(dummy1.counter1, 2)
+        self.assertEqual(dummy2.counter1, 1)
+
+    def test_invalidate_cache__accepts_new_caches_to_clear(self):
         dummy = Dummy2()
         dummy.prop1
         dummy.prop1
