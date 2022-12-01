@@ -5,7 +5,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from csnlp import Nlp, wrappers
+from csnlp import MultistartNlp, wrappers
 from csnlp.solutions import Solution
 from csnlp.util.scaling import Scaler
 
@@ -21,6 +21,7 @@ def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
 # parameters
 N = 100  # number of control intervals
 T = 100  # Time horizon [s]
+K = 3  # Nlp multistarts
 dt = T / N
 m0 = 500000  # start mass [kg]
 yT = 100000  # final height [m]
@@ -28,6 +29,7 @@ g = 9.81  # gravity 9.81 [m/s^2]
 alpha = 1 / (300 * g)  # kg/(N*s)
 
 # solver options
+seed = 69
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
 
 # plotting
@@ -45,7 +47,7 @@ axs[4, 1].set_xlabel("Iteration number")
 
 for i, SCALED in enumerate((False, True)):
     # create mpc
-    nlp = Nlp(sym_type="SX")
+    nlp = MultistartNlp(sym_type="SX", starts=K, seed=69)
     if SCALED:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
         # wrapped in it, and only then in the MPC.
@@ -80,7 +82,16 @@ for i, SCALED in enumerate((False, True)):
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
     x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
-    sol: Solution = mpc.solve(pars={"x_0": x0}, vals0={"x": x_initial, "u": 0})
+    sol: Solution = mpc.solve_multi(
+        pars=({"x_0": x0} for _ in range(K)),
+        vals0=(
+            {
+                "x": x_initial + mpc.np_random.random(x_initial.shape) * 1e4,
+                "u": mpc.np_random.random() * 1e8,
+            }
+            for _ in range(K)
+        ),
+    )
 
     # plotting
     u: np.ndarray = sol.value(u).full()
