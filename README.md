@@ -84,7 +84,7 @@ Similarly, an NLP instance can be wrapped in an MPC wrapper that makes it easier
 
 ## Examples
 
-Our [examples](examples) subdirectory contains other applications of this package in NLP optimization, sensitivity analysis and optimal control.
+Our [examples](https://github.com/FilippoAiraldi/casadi-nlp/blob/dev/examples) subdirectory contains example applications of this package in NLP optimization, sensitivity analysis, scaling of NLPs, and optimal control.
 
 ---
 
