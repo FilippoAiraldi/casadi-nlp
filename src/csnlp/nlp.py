@@ -4,7 +4,6 @@ from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Type, TypeVar,
 
 import casadi as cs
 import numpy as np
-from typing_extensions import Never
 
 from csnlp.core.objective import HasObjective
 from csnlp.debug import NlpDebug
@@ -77,7 +76,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         """Returns the original NLP of the wrapper."""
         return self
 
-    def is_wrapped(self, *args: Never, **kwargs: Never) -> bool:
+    def is_wrapped(self, *args: Any, **kwargs: Any) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
 

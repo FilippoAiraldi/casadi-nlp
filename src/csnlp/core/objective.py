@@ -3,7 +3,6 @@ from typing import Any, Dict, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as npy
-from typing_extensions import Never
 
 from csnlp.core.constraints import HasConstraints
 from csnlp.core.parameters import HasParameters
@@ -89,7 +88,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         self._solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)
         self._solver_opts = opts
 
-    def refresh_solver(self, *args: Never, **kwargs: Never) -> None:
+    def refresh_solver(self, *args: Any, **kwargs: Any) -> None:
         """Refresh and resets the internal solver function (with the same options, if
         previously set)."""
         if self._solver is not None:
