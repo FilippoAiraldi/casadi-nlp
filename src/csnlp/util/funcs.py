@@ -27,10 +27,14 @@ def invalidate_cache(*callables: Callable) -> Callable:
 
     Raises
     ------
+    ValueError
+        Raises if no callable is passed to the function.
     TypeError
-        Raises if the given inputs are not instances of
-        `functools.cached_property` or `functools._lru_cache_wrapper`.
+        Raises if the given inputs are not instances of `functools.cached_property` or
+        `functools._lru_cache_wrapper`.
     """
+    if not callables:
+        raise ValueError("No callables were passed for cache invalidation.")
     cached_properties: List[cached_property] = []
     lru_caches: List[_lru_cache_wrapper] = []
     for p in callables:
