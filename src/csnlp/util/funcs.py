@@ -48,17 +48,47 @@ def invalidate_cache(*callables: Callable) -> Callable:
                 f"{p.__class__.__name__} instead."
             )
 
+    Ncp = len(cached_properties)
+    if Ncp == 0:
+        invalidate_cached_properties = None
+    elif Ncp == 1:
+        prop = cached_properties[0]
+
+        def invalidate_cached_properties(self):
+            propname = prop.attrname
+            if propname in self.__dict__:
+                del self.__dict__[propname]
+
+    else:
+
+        def invalidate_cached_properties(self):
+            for prop in cached_properties:
+                propname = prop.attrname
+                if propname in self.__dict__:
+                    del self.__dict__[propname]
+
+    Nlru = len(lru_caches)
+    if Nlru == 0:
+        invalidate_lru_caches = None
+    elif Nlru == 1:
+        lru_cache = lru_caches[0]
+
+        def invalidate_lru_caches():
+            lru_cache.cache_clear()
+
+    else:
+
+        def invalidate_lru_caches():
+            for lru_cache in lru_caches:
+                lru_cache.cache_clear()
+
     def decorating_function(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if args:
-                self = args[0]
-                for prop in cached_properties:
-                    n = prop.attrname
-                    if n is not None and n in self.__dict__:
-                        del self.__dict__[n]
-            for lru in lru_caches:
-                lru.cache_clear()
+            if invalidate_cached_properties is not None and args:
+                invalidate_cached_properties(args[0])
+            if invalidate_lru_caches is not None:
+                invalidate_lru_caches()
             return func(*args, **kwargs)
 
         return wrapper
