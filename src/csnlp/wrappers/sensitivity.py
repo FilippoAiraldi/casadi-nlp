@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, Union, TypeVar
+from typing import Dict, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np

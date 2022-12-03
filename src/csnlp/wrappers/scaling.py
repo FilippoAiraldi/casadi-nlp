@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Literal, Tuple, Union, TypeVar
+from typing import Dict, Iterable, List, Literal, Tuple, TypeVar, Union
 from warnings import warn
 
 import casadi as cs

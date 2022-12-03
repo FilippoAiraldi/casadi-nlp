@@ -1,11 +1,12 @@
 from contextlib import contextmanager
-from typing import Any, Type, TypeVar, Generic
+from typing import Any, Generic, Type, TypeVar
+
 import casadi as cs
 
 from csnlp.nlp import Nlp
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
-T = TypeVar('T', cs.SX, cs.MX)
+T = TypeVar("T", cs.SX, cs.MX)
 
 
 class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
