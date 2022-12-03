@@ -269,3 +269,6 @@ class MultistartNlp(Nlp[T], Generic[T]):
                 )
             )
         return sols if return_all_sols else sols[0]
+
+    def __call__(self, *args, **kwargs):
+        return self.solve_multi(*args, **kwargs)

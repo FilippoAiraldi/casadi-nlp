@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Literal, Tuple, TypeVar, Union
+from typing import Any, Dict, Iterable, List, Literal, Tuple, TypeVar, Union
 from warnings import warn
 
 import casadi as cs
@@ -127,6 +127,9 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             return_all_sols=return_all_sols,
             return_multi_sol=return_multi_sol,
         )
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return (self.solve_multi if self._is_multi else self.solve)(*args, **kwds)
 
     def _scale_struct(
         self, d: Union[DMStruct, Dict[str, np.ndarray]]

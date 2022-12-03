@@ -226,6 +226,9 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
             args.append(opts)
         return cs.Function(*args)
 
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return super().solve(*args, **kwargs)
+
     def __str__(self) -> str:
         """Returns the NLP name and a short description."""
         msg = "not initialized" if self._solver is None else "initialized"

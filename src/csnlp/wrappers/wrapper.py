@@ -68,6 +68,9 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
             raise AttributeError(f"Accessing private attribute '{name}' is prohibited.")
         return getattr(self.nlp, name)
 
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.nlp.__call__(*args, **kwds)
+
     def __str__(self) -> str:
         """Returns the wrapped NLP string."""
         return f"<{self.__class__.__name__}: {self.nlp.__str__()}>"

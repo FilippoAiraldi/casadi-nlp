@@ -44,9 +44,7 @@ class TestExamples(unittest.TestCase):
         nlp.constraint("c1", p[:, 0], "==", [-2, 1])
         nlp.constraint("c2", p[:, -1], "==", [2, 1])
         nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
-        sol = nlp.solve(
-            vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))}
-        )
+        sol = nlp(vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))})
         np.testing.assert_allclose(sol.vals["p"], RESULTS["chain_p"])
 
     def test__multistart_nlp(self):
@@ -225,9 +223,7 @@ class TestExamples(unittest.TestCase):
         ]
         us, fs = [], []
         for i in range(K + 1):
-            sol = (
-                mpc.solve(pars[i], vals0[i]) if i != K else mpc.solve_multi(pars, vals0)
-            )
+            sol = mpc.solve(pars[i], vals0[i]) if i != K else mpc(pars, vals0)
             fs.append(sol.f)
             us.append(sol.value(u))
         us, fs = np.array(us).squeeze(), np.array(fs).squeeze()
