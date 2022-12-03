@@ -1,20 +1,22 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Iterable, Union
+from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
+T = TypeVar("T", cs.SX, cs.MX)
+
 
 @dataclass(frozen=True)
-class Solution:
+class Solution(Generic[T]):
     """Class containing information on the solution of an NLP solver's run."""
 
     f: float
-    vars: Union[CasadiStructured, Dict[str, cs.SX], Dict[str, cs.MX]]
+    vars: Union[CasadiStructured, Dict[str, T]]
     vals: Union[DMStruct, Dict[str, cs.DM]]
     stats: Dict[str, Any]
-    _get_value: Callable[[Union[cs.SX, cs.MX], bool], cs.DM]
+    _get_value: Callable[[T, bool], cs.DM]
 
     @property
     def status(self) -> str:
@@ -31,15 +33,13 @@ class Solution:
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
 
-    def value(
-        self, x: Union[cs.SX, cs.MX], eval: bool = True
-    ) -> Union[cs.SX, cs.MX, cs.DM]:
+    def value(self, x: T, eval: bool = True) -> Union[T, cs.DM]:
         """Computes the value of the expression substituting the values of this
         solution in the expression.
 
         Parameters
         ----------
-        x : Union[cs.SX, cs.MX]
+        x : casadi.SX or MX
             The symbolic expression to be evaluated at the solution's values.
         eval : bool, optional
             Evaluates numerically the new expression. By default, `True`. See
@@ -47,7 +47,7 @@ class Solution:
 
         Returns
         -------
-        cs.SX or MX or DM
+        casadi.SX or MX or DM
             The expression evaluated with the solution's values.
 
         Raises
@@ -60,23 +60,21 @@ class Solution:
 
 
 def subsevalf(
-    expr: Union[cs.SX, cs.MX, np.ndarray],
+    expr: Union[T, np.ndarray],
     old: Union[
-        cs.SX,
-        cs.MX,
-        Dict[str, Union[cs.SX, cs.MX]],
-        Iterable[Union[cs.SX, cs.MX]],
+        T,
+        Dict[str, T],
+        Iterable[T],
         CasadiStructured,
     ],
     new: Union[
-        cs.SX,
-        cs.MX,
-        Dict[str, Union[cs.SX, cs.MX]],
-        Iterable[Union[cs.SX, cs.MX]],
+        T,
+        Dict[str, T],
+        Iterable[T],
         CasadiStructured,
     ],
     eval: bool = True,
-) -> Union[cs.SX, cs.DM, np.ndarray]:
+) -> Union[T, cs.DM, np.ndarray]:
     """
     Substitutes the old variables with the new ones in the symbolic expression,
     and evaluates it, if required.

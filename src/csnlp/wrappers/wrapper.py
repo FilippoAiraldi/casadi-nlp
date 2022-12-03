@@ -1,22 +1,24 @@
 from contextlib import contextmanager
-from typing import Any, Type
+from typing import Any, Type, TypeVar, Generic
+import casadi as cs
 
 from csnlp.nlp import Nlp
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
+T = TypeVar('T', cs.SX, cs.MX)
 
-class Wrapper(SupportsDeepcopyAndPickle):
+
+class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
     """Wraps an NLP to allow a modular transformation of its methods. This class is the
     base class for all wrappers. The subclass could override some methods to change the
     behavior of the original environment without touching the original code.
 
     The base class is retroactive, in the sense that it can be applied to any NLP
-    instance that already defines variables, parameters, and/or objective.
-    Use `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is
-    defined.
+    instance that already defines variables, parameters, and/or objective. Use
+    `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is defined.
     """
 
-    def __init__(self, nlp: Nlp) -> None:
+    def __init__(self, nlp: Nlp[T]) -> None:
         """Wraps an NLP instance.
 
         Parameters
@@ -28,11 +30,11 @@ class Wrapper(SupportsDeepcopyAndPickle):
         self.nlp = nlp
 
     @property
-    def unwrapped(self) -> Nlp:
+    def unwrapped(self) -> Nlp[T]:
         """'Returns the original NLP of the wrapper."""
         return self.nlp.unwrapped
 
-    def is_wrapped(self, wrapper_type: Type["Wrapper"]) -> bool:
+    def is_wrapped(self, wrapper_type: Type["Wrapper[T]"]) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type.
 
         Parameters
@@ -74,12 +76,12 @@ class Wrapper(SupportsDeepcopyAndPickle):
         return f"<{self.__class__.__name__}: {self.nlp.__repr__()}>"
 
 
-class NonRetroactiveWrapper(Wrapper):
+class NonRetroactiveWrapper(Wrapper[T], Generic[T]):
     """Same as `Wrapper`, but the wrapped NLP instance must have no variable, parameter
     or objective specified; in other words, the wrapper must wrap the NLP before it gets
     defined."""
 
-    def __init__(self, nlp: Nlp) -> None:
+    def __init__(self, nlp: Nlp[T]) -> None:
         """Initializes the non-retroactive wrapper around an NLP.
 
         Parameters

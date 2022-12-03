@@ -23,7 +23,7 @@ m = 40 / N
 D = 70 * N / 2
 g = 9.81
 L = 1
-nlp = Nlp()
+nlp = Nlp[cs.SX]()
 fig, axs = plt.subplots(1, 3, sharey=True, constrained_layout=True, figsize=(7, 2))
 
 

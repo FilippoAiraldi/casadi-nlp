@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Dict, List, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -7,21 +7,22 @@ from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
+T = TypeVar("T", cs.SX, cs.MX)
 
-class Mpc(NonRetroactiveWrapper):
-    """A wrapper to easily turn the NLP scheme into an MPC controller. Most of
-    the theory for MPC is taken from [1].
+
+class Mpc(NonRetroactiveWrapper[T]):
+    """A wrapper to easily turn the NLP scheme into an MPC controller. Most of the
+    theory for MPC is taken from [1].
 
     References
     ----------
-    [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive
-        Control: theory, computation, and design (Vol. 2). Madison, WI: Nob
-        Hill Publishing.
+    [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
+        theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
     """
 
     def __init__(
         self,
-        nlp: Nlp,
+        nlp: Nlp[T],
         prediction_horizon: int,
         control_horizon: Optional[int] = None,
         shooting: Literal["single", "multi"] = "multi",
@@ -33,27 +34,24 @@ class Mpc(NonRetroactiveWrapper):
         nlp : Nlp
             NLP scheme to be wrapped
         prediction_horizon : int
-            A positive integer for the prediction horizon of the MPC
-            controller.
+            A positive integer for the prediction horizon of the MPC controller.
         control_horizon : int, optional
-            A positive integer for the control horizon of the MPC controller.
-            If not given, it is set equal to the control horizon.
+            A positive integer for the control horizon of the MPC controller. If not
+            given, it is set equal to the control horizon.
         shooting : 'single' or 'multi', optional
-            Type of approach in the direct shooting for parametrizing the
-            control trajectory. See [1, Section 8.5]. By default, direct
-            multiple shooting is used.
+            Type of approach in the direct shooting for parametrizing the control
+            trajectory. See [1, Section 8.5]. By default, direct shooting is used.
 
         Raises
         ------
         ValueError
-            Raises if the shooting method is invalid; or if any of the horizons
-            are invalid.
+            Raises if the shooting method is invalid; or if any of the horizons are
+            invalid.
 
         References
         ----------
-        [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive
-            Control: theory, computation, and design (Vol. 2). Madison, WI: Nob
-            Hill Publishing.
+        [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
+            theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
         """
         super().__init__(nlp)
         if shooting not in {"single", "multi"}:
@@ -70,11 +68,11 @@ class Mpc(NonRetroactiveWrapper):
             self._control_horizon = control_horizon
         self._state_names: List[str] = []
         if not self._is_multishooting:
-            self._state_exprs: Dict[str, Union[cs.SX, cs.MX]] = {}
+            self._state_exprs: Dict[str, T] = {}
         self._action_names: List[str] = []
         self._slack_names: List[str] = []
         self._disturbance_names: List[str] = []
-        self._actions_exp: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._actions_exp: Dict[str, T] = {}
         self._dynamics: cs.Function = None
 
     @property
@@ -129,10 +127,10 @@ class Mpc(NonRetroactiveWrapper):
         dim: int = 1,
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf,
-    ) -> Union[Tuple[Optional[cs.SX], cs.SX], Tuple[Optional[cs.MX], cs.MX]]:
-        """Adds a state variable to the MPC controller along the whole
-        prediction horizon. Automatically creates the constraint on the initial
-        conditions for this state.
+    ) -> Tuple[Optional[T], T]:
+        """Adds a state variable to the MPC controller along the whole prediction
+        horizon. Automatically creates the constraint on the initial conditions for this
+        state.
 
         Parameters
         ----------
@@ -147,11 +145,10 @@ class Mpc(NonRetroactiveWrapper):
 
         Returns
         -------
-        state : casadi.SX, MX or None
-            The state symbolic variable. If `shooting=single`, then `None` is
-            returned since the state will only be available once the dynamics
-            are set.
-        initial state : casadi.SX, MX
+        state : casadi.SX or MX or None
+            The state symbolic variable. If `shooting=single`, then `None` is returned
+            since the state will only be available once the dynamics are set.
+        initial state : casadi.SX or MX
             The initial state symbolic parameter.
 
         Raises
@@ -159,9 +156,9 @@ class Mpc(NonRetroactiveWrapper):
         ValueError
             Raises if there exists already a state with the same name.
         RuntimeError
-            Raises in single shooting if lower or upper bounds have been
-            specified, since these can only be set after the dynamics have been
-            set via the `constraint` method.
+            Raises in single shooting if lower or upper bounds have been specified,
+            since these can only be set after the dynamics have been set via the
+            `constraint` method.
         """
         if self._is_multishooting:
             x = self.nlp.variable(name, (dim, self._prediction_horizon + 1), lb, ub)[0]
@@ -185,18 +182,17 @@ class Mpc(NonRetroactiveWrapper):
         dim: int = 1,
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf,
-    ) -> Union[Tuple[cs.SX, cs.SX], Tuple[cs.MX, cs.MX]]:
-        """Adds a control action variable to the MPC controller along the whole
-        control horizon. Automatically expands this action to be of the same
-        length of the prediction horizon by padding with the final action.
+    ) -> Tuple[T, T]:
+        """Adds a control action variable to the MPC controller along the whole control
+        horizon. Automatically expands this action to be of the same length of the
+        prediction horizon by padding with the final action.
 
         Parameters
         ----------
         name : str
             Name of the control action.
         dim : int, optional
-            Dimension of the control action (assumed to be a vector). Defaults
-            to 1.
+            Dimension of the control action (assumed to be a vector). Defaults to 1.
         lb : Union[np.ndarray, cs.DM], optional
             Hard lower bound of the control action, by default -np.inf.
         ub : Union[np.ndarray, cs.DM], optional
@@ -204,11 +200,11 @@ class Mpc(NonRetroactiveWrapper):
 
         Returns
         -------
-        action : SX or MX
+        action : casadi.SX or MX
             The control action symbolic variable.
-        action_expanded : SX or MX
-            The same control  action variable, but expanded to the same length
-            of the prediction horizon.
+        action_expanded : casadi.SX or MX
+            The same control  action variable, but expanded to the same length of the
+            prediction horizon.
         """
         u = self.nlp.variable(name, (dim, self._control_horizon), lb, ub)[0]
         gap = self._prediction_horizon - self._control_horizon
@@ -218,17 +214,16 @@ class Mpc(NonRetroactiveWrapper):
         return u, u_exp
 
     @invalidate_cache(disturbances)
-    def disturbance(self, name: str, dim: int = 1) -> Union[cs.SX, cs.MX]:
-        """Adds a disturbance parameter to the MPC controller along the whole
-        prediction horizon.
+    def disturbance(self, name: str, dim: int = 1) -> T:
+        """Adds a disturbance parameter to the MPC controller along the whole prediction
+        horizon.
 
         Parameters
         ----------
         name : str
             Name of the disturbance.
         dim : int, optional
-            Dimension of the disturbance (assumed to be a vector). Defaults to
-            1.
+            Dimension of the disturbance (assumed to be a vector). Defaults to 1.
 
         Returns
         -------
@@ -243,17 +238,12 @@ class Mpc(NonRetroactiveWrapper):
     def constraint(
         self,
         name: str,
-        lhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        lhs: Union[T, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[
-        Tuple[cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX],
-        Tuple[cs.SX, cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX, cs.MX],
-    ]:
+    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
         """See `Nlp.constraint` method."""
         out = self.nlp.constraint(
             name=name, lhs=lhs, op=op, rhs=rhs, soft=soft, simplify=simplify
@@ -287,9 +277,8 @@ class Mpc(NonRetroactiveWrapper):
         n_out = F.n_out()
         if n_in < 2 or n_in > 3 or n_out < 1:
             raise ValueError(
-                "The dynamics function must accepted 2 or 3 arguments and "
-                f"return at least 1 output; got {n_in} inputs and {n_out} "
-                "outputs instead."
+                "The dynamics function must accepted 2 or 3 arguments and return at "
+                f"at least 1 output; got {n_in} inputs and {n_out} outputs instead."
             )
         if self._is_multishooting:
             self._set_multishooting_dynamics(F, n_in, n_out)

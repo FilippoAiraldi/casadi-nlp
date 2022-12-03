@@ -46,7 +46,7 @@ axs[4, 1].set_xlabel("Iteration number")
 
 for i, SCALED in enumerate((False, True)):
     # create mpc
-    nlp = MultistartNlp(sym_type="SX", starts=K, seed=69)
+    nlp = MultistartNlp[cs.SX](sym_type="SX", starts=K, seed=69)
     if SCALED:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
         # wrapped in it, and only then in the MPC.
@@ -59,8 +59,8 @@ for i, SCALED in enumerate((False, True)):
         scaler.register("x", scale=x_nom)
         scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
-        nlp = wrappers.NlpScaling(nlp, scaler=scaler)
-    mpc = wrappers.Mpc(nlp, prediction_horizon=N)
+        nlp = wrappers.NlpScaling[cs.SX](nlp, scaler=scaler)
+    mpc = wrappers.Mpc[cs.SX](nlp, prediction_horizon=N)
 
     # state and actions
     x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))

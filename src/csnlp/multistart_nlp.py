@@ -1,19 +1,27 @@
 from contextlib import contextmanager
-from functools import lru_cache
-from typing import Any, Dict, Iterable, List, Literal, Optional, Tuple, Union
+from functools import lru_cache, partial
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
+import casadi as cs
 import numpy as np
 
-from csnlp.nlp import (
-    DMStruct,
-    Nlp,
-    Solution,
-    cs,
-    dict2struct,
-    invalidate_cache,
-    partial,
-    subsevalf,
-)
+from csnlp.nlp import Nlp
+from csnlp.solutions import Solution, subsevalf
+from csnlp.util.data import DMStruct, dict2struct
+from csnlp.util.funcs import invalidate_cache
+
+T = TypeVar("T", cs.SX, cs.MX)
 
 
 def _n(sym_name: str, scenario: int) -> str:
@@ -26,7 +34,7 @@ def _get_value(x, sol: Solution, old, new, eval: bool = True):
     return sol._get_value(cs.substitute(x, old, new), eval=eval)
 
 
-class MultistartNlp(Nlp):
+class MultistartNlp(Nlp[T], Generic[T]):
     """A class to easily model and solve an NLP from multiple starting
     initial guesses in parallel. This is especially useful in case of strong
     nonlinearities, where the solver's initial conditions play a great role in
@@ -62,7 +70,7 @@ class MultistartNlp(Nlp):
         # overridden to create multiples of these in the hidden nlp
         super().__init__(*args, **kwargs)
         self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
-        self._vars_per_start: Dict[int, Dict[str, Union[cs.SX, cs.MX]]] = {}
+        self._vars_per_start: Dict[int, Dict[str, T]] = {}
 
     @contextmanager
     def fullstate(self) -> None:
@@ -86,9 +94,9 @@ class MultistartNlp(Nlp):
         vars: bool = False,
         pars: bool = False,
         dual: bool = False,
-    ) -> Dict[str, Union[cs.SX, cs.MX]]:
+    ) -> Dict[str, T]:
         """Internal utility to retrieve the symbols of the i-th scenario."""
-        S: Dict[str, Union[cs.SX, cs.MX]] = {}
+        S: Dict[str, T] = {}
         if vars:
             S.update(
                 self._vars
@@ -113,9 +121,7 @@ class MultistartNlp(Nlp):
         return S
 
     @invalidate_cache(_symbols)
-    def parameter(
-        self, name: str, shape: Tuple[int, int] = (1, 1)
-    ) -> Union[cs.SX, cs.MX]:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         out = super().parameter(name, shape)
         for i in range(self._starts):
             self._multi_nlp.parameter(_n(name, i), shape)
@@ -128,7 +134,7 @@ class MultistartNlp(Nlp):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf,
-    ) -> Union[Tuple[cs.SX, cs.SX, cs.SX], Tuple[cs.MX, cs.MX, cs.MX]]:
+    ) -> Tuple[T, T, T]:
         out = super().variable(name, shape, lb, ub)
         for i in range(self._starts):
             self._multi_nlp.variable(_n(name, i), shape, lb, ub)
@@ -138,17 +144,12 @@ class MultistartNlp(Nlp):
     def constraint(
         self,
         name: str,
-        lhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        lhs: Union[T, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[
-        Tuple[cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX],
-        Tuple[cs.SX, cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX, cs.MX],
-    ]:
+    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
         expr = lhs - rhs
         if simplify:
             expr = cs.simplify(expr)
@@ -161,10 +162,10 @@ class MultistartNlp(Nlp):
             self._multi_nlp.constraint(_n(name, i), expr_i, op, 0, soft, simplify=False)
         return out
 
-    def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
+    def minimize(self, objective: T) -> None:
         out = super().minimize(objective)
         symbols = self._symbols(vars=True, pars=True)
-        self._fs: Union[List[cs.SX], List[cs.MX]] = [
+        self._fs: List[T] = [
             subsevalf(
                 objective, symbols, self._symbols(i, vars=True, pars=True), eval=False
             )
@@ -184,7 +185,7 @@ class MultistartNlp(Nlp):
         vals0: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
-    ) -> Union[Solution, List[Solution]]:
+    ) -> Union[Solution[T], List[Solution[T]]]:
         """Solves the NLP with multiple initial conditions.
 
         Parameters
@@ -248,7 +249,7 @@ class MultistartNlp(Nlp):
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
 
-        sols: List[Solution] = []
+        sols: List[Solution[T]] = []
         fs = [float(multi_sol.value(f)) for f in self._fs]
         idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
         for i in idx:
@@ -259,7 +260,7 @@ class MultistartNlp(Nlp):
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
 
             sols.append(
-                Solution(
+                Solution[T](
                     f=fs[i],
                     vars=vars_,
                     vals=dict2struct(vals),

@@ -1,3 +1,4 @@
+import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -18,7 +19,7 @@ def func(x):
 # build the NLPquit()
 N = 3
 LB, UB = -0.5, 1.4
-nlp = MultistartNlp(starts=N)
+nlp = MultistartNlp[cs.SX](starts=N)
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 nlp.parameter("p0")
 nlp.parameter("p1")

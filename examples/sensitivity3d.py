@@ -49,7 +49,7 @@ def z(x, lam, p):
 
 
 # build the NLP
-nlp = Nlp(sym_type="MX")
+nlp = Nlp[cs.MX](sym_type="MX")
 x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
 p = nlp.parameter("p", (2, 1))
 
@@ -93,7 +93,7 @@ ax.plot_wireframe(
 
 
 # Parametric sensitivities of function z(x(p), lam(p))
-nlp = wrappers.NlpSensitivity(nlp)
+nlp = wrappers.NlpSensitivity[cs.MX](nlp)
 Z = z(x, lam, p)
 J, H = (o.squeeze() for o in nlp.parametric_sensitivity(expr=Z))
 

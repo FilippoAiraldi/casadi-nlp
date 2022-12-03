@@ -60,7 +60,7 @@ def z4(lam, p):
 
 
 # build the NLP
-nlp = Nlp(sym_type="MX")
+nlp = Nlp[cs.MX](sym_type="MX")
 x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
 p = nlp.parameter("p", (2, 1))
 
@@ -81,7 +81,7 @@ for p0, ax in zip(p_values, axs):
     plot_nlp(ax, 0.2, p0, x_[0], x_[1])
 
 # How does the optimal solution vary along p?
-nlp = wrappers.NlpSensitivity(nlp)
+nlp = wrappers.NlpSensitivity[cs.MX](nlp)
 # a bunch of strange equations we want to compute sensitivity of w.r.t. p[1]
 Z = cs.blockcat(
     [

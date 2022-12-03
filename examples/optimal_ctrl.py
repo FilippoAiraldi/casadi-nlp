@@ -26,8 +26,8 @@ F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
 
 # build the MPC
 shooting = "single"
-mpc = wrappers.Mpc(
-    nlp=Nlp(sym_type="SX"),
+mpc = wrappers.Mpc[cs.SX](
+    nlp=Nlp[cs.SX](sym_type="SX"),
     prediction_horizon=N,
     shooting=shooting,
 )

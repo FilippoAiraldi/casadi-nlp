@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, List, Literal, Tuple, Union
+from typing import Dict, Iterable, List, Literal, Tuple, Union, TypeVar
 from warnings import warn
 
 import casadi as cs
@@ -11,14 +11,16 @@ from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
+T = TypeVar("T", cs.SX, cs.MX)
 
-class NlpScaling(NonRetroactiveWrapper):
-    def __init__(self, nlp: Nlp, scaler: Scaler, warns: bool = True) -> None:
+
+class NlpScaling(NonRetroactiveWrapper[T]):
+    def __init__(self, nlp: Nlp[T], scaler: Scaler, warns: bool = True) -> None:
         super().__init__(nlp)
         self.scaler = scaler
         self.warns = warns
-        self._unscaled_vars: Dict[str, Union[cs.SX, cs.MX]] = {}
-        self._unscaled_pars: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._unscaled_vars: Dict[str, T] = {}
+        self._unscaled_pars: Dict[str, T] = {}
 
     @cached_property
     def unscaled_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -37,7 +39,7 @@ class NlpScaling(NonRetroactiveWrapper):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[np.ndarray, cs.DM] = -np.inf,
         ub: Union[np.ndarray, cs.DM] = +np.inf,
-    ) -> Union[Tuple[cs.SX, cs.SX, cs.SX], Tuple[cs.MX, cs.MX, cs.MX]]:
+    ) -> Tuple[T, T, T]:
         """See `Nlp.variable` method."""
         if name not in self.scaler:
             if self.warns:
@@ -56,9 +58,7 @@ class NlpScaling(NonRetroactiveWrapper):
         return var, lam_lb, lam_ub
 
     @invalidate_cache(unscaled_parameters)
-    def parameter(
-        self, name: str, shape: Tuple[int, int] = (1, 1)
-    ) -> Union[cs.SX, cs.MX]:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """See `Nlp.parameter` method."""
         par = self.nlp.parameter(name, shape)
         if name not in self.scaler:
@@ -74,24 +74,19 @@ class NlpScaling(NonRetroactiveWrapper):
     def constraint(
         self,
         name: str,
-        lhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        lhs: Union[T, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[np.ndarray, cs.DM, cs.SX, cs.MX],
+        rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[
-        Tuple[cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX],
-        Tuple[cs.SX, cs.SX, cs.SX],
-        Tuple[cs.MX, cs.MX, cs.MX],
-    ]:
+    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
         """See `Nlp.constraint` method."""
         e = lhs - rhs
         e = subsevalf(e, self.nlp.variables, self.unscaled_variables, eval=False)
         e = subsevalf(e, self.nlp.parameters, self.unscaled_parameters, eval=False)
         return self.nlp.constraint(name, e, op, 0, soft=soft, simplify=simplify)
 
-    def minimize(self, objective: Union[cs.SX, cs.MX]) -> None:
+    def minimize(self, objective: T) -> None:
         """See `Nlp.minimize` method."""
         o = objective
         o = subsevalf(o, self.nlp.variables, self.unscaled_variables, eval=False)
@@ -102,7 +97,7 @@ class NlpScaling(NonRetroactiveWrapper):
         self,
         pars: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
         vals0: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
-    ) -> Solution:
+    ) -> Solution[T]:
         """See `Nlp.solve` method."""
         if pars is not None:
             pars = self._scale_struct(pars)
@@ -116,7 +111,7 @@ class NlpScaling(NonRetroactiveWrapper):
         vals0: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
-    ) -> Union[Solution, List[Solution]]:
+    ) -> Union[Solution[T], List[Solution[T]]]:
         """See `MultistartNlp.solve` method."""
         assert isinstance(
             self.nlp, MultistartNlp
