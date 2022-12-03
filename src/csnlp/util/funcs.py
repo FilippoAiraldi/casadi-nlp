@@ -45,27 +45,18 @@ def invalidate_cache(*callables: Callable) -> Callable:
             )
 
     def decorating_function(func):
-        def invalidate_cached_properties(self):
-            for prop in cached_properties:
-                n = prop.attrname
-                if n is not None and n in self.__dict__:
-                    del self.__dict__[n]
-
-        def invalidate_lru_caches():
-            for lru in lru_caches:
-                lru.cache_clear()
-
         @wraps(func)
         def wrapper(*args, **kwargs):
             if args:
-                invalidate_cached_properties(args[0])  # assume self is args[0]
-            invalidate_lru_caches()
+                self = args[0]
+                for prop in cached_properties:
+                    n = prop.attrname
+                    if n is not None and n in self.__dict__:
+                        del self.__dict__[n]
+            for lru in lru_caches:
+                lru.cache_clear()
             return func(*args, **kwargs)
 
-        wrapper.cached_properties = cached_properties
-        wrapper.lru_caches = lru_caches
-        wrapper.invalidate_cached_properties = invalidate_cached_properties
-        wrapper.invalidate_lru_caches = invalidate_lru_caches
         return wrapper
 
     return decorating_function
