@@ -8,6 +8,7 @@ from csnlp.core.constraints import HasConstraints
 from csnlp.core.parameters import HasParameters
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct
+from csnlp.util.funcs import invoke
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -66,24 +67,6 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         """Gets the cumulative number of failures of the NLP solver."""
         return self._failures
 
-    def minimize(self, objective: T) -> None:
-        """Sets the objective function to be minimized.
-
-        Parameters
-        ----------
-        objective : casadi SX or MX
-            A Symbolic variable dependent only on the NLP variables and parameters that
-            needs to be minimized.
-
-        Raises
-        ------
-        ValueError
-            Raises if the objective is not scalar.
-        """
-        if objective.shape != (1, 1):
-            raise ValueError("Objective must be scalar.")
-        self._f = objective
-
     def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
         """Initializes the IPOPT solver for this NLP with the given options.
 
@@ -104,6 +87,43 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         nlp = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         self._solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)
         self._solver_opts = opts
+
+    def refresh_solver(self, *args, **kwargs) -> None:
+        """Refresh and resets the internal solver function (with the same options, if
+        previously set)."""
+        if self._solver is not None:
+            self.init_solver(self._solver_opts)
+
+    @invoke(refresh_solver)
+    def minimize(self, objective: T) -> None:
+        """Sets the objective function to be minimized.
+
+        Parameters
+        ----------
+        objective : casadi SX or MX
+            A Symbolic variable dependent only on the NLP variables and parameters that
+            needs to be minimized.
+
+        Raises
+        ------
+        ValueError
+            Raises if the objective is not scalar.
+        """
+        if objective.shape != (1, 1):
+            raise ValueError("Objective must be scalar.")
+        self._f = objective
+
+    @invoke(refresh_solver)
+    def parameter(self, *args, **kwargs):
+        return super().parameter(*args, **kwargs)
+
+    @invoke(refresh_solver)
+    def variable(self, *args, **kwargs):
+        return super().variable(*args, **kwargs)
+
+    @invoke(refresh_solver)
+    def constraint(self, *args, **kwargs):
+        return super().constraint(*args, **kwargs)
 
     def solve(
         self,

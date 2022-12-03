@@ -40,9 +40,9 @@ class TestExamples(unittest.TestCase):
             (cs.sqrt(cs.diff(x) ** 2 + cs.diff(y) ** 2) - L / N) ** 2
         ) + g * m * cs.sum2(y)
         nlp.minimize(V)
+        nlp.init_solver(OPTS)
         nlp.constraint("c1", p[:, 0], "==", [-2, 1])
         nlp.constraint("c2", p[:, -1], "==", [2, 1])
-        nlp.init_solver(OPTS)
         nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
         sol = nlp.solve(
             vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))}
