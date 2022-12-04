@@ -74,6 +74,7 @@ class Mpc(NonRetroactiveWrapper[T]):
         self._disturbance_names: List[str] = []
         self._actions_exp: Dict[str, T] = {}
         self._dynamics: cs.Function = None
+        self._ns = self._na = self._nslacks = self._nd = 0
 
     @property
     def prediction_horizon(self) -> int:
@@ -98,6 +99,11 @@ class Mpc(NonRetroactiveWrapper[T]):
         """Gets the initial states (parameters) of the MPC controller."""
         return dict2struct({n: self.nlp._pars[f"{n}_0"] for n in self._state_names})
 
+    @property
+    def ns(self) -> int:
+        """Gets the number of states of the MPC controller."""
+        return self._ns
+
     @cached_property
     def actions(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the control actions of the MPC controller."""
@@ -109,16 +115,31 @@ class Mpc(NonRetroactiveWrapper[T]):
         """Gets the expanded control actions of the MPC controller."""
         return dict2struct(self._actions_exp)
 
+    @property
+    def na(self) -> int:
+        """Gets the number of actions of the MPC controller."""
+        return self._na
+
     @cached_property
     def slacks(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the slack variables of the MPC controller."""
         vars = self.nlp.variables
         return dict2struct({n: vars[n] for n in self._slack_names})
 
+    @property
+    def nslacks(self) -> int:
+        """Gets the number of slacks of the MPC controller."""
+        return self._nslacks
+
     @cached_property
     def disturbances(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the disturbance parameters of the MPC controller."""
         return dict2struct({n: self.nlp._pars[n] for n in self._disturbance_names})
+
+    @property
+    def nd(self) -> int:
+        """Gets the number of disturbances in the MPC controller."""
+        return self._nd
 
     @invalidate_cache(states, initial_states)
     def state(
@@ -173,6 +194,7 @@ class Mpc(NonRetroactiveWrapper[T]):
             x = None
             x0 = self.nlp.parameter(f"{name}_0", (dim, 1))
         self._state_names.append(name)
+        self._ns += dim
         return x, x0
 
     @invalidate_cache(actions, actions_expanded)
@@ -211,6 +233,7 @@ class Mpc(NonRetroactiveWrapper[T]):
         u_exp = cs.horzcat(u, *(u[:, -1] for _ in range(gap)))
         self._actions_exp[name] = u_exp
         self._action_names.append(name)
+        self._na += dim
         return u, u_exp
 
     @invalidate_cache(disturbances)
@@ -232,6 +255,7 @@ class Mpc(NonRetroactiveWrapper[T]):
         """
         out = self.nlp.parameter(name=name, shape=(dim, self._prediction_horizon))
         self._disturbance_names.append(name)
+        self._nd += dim
         return out
 
     @invalidate_cache(slacks)
@@ -250,6 +274,7 @@ class Mpc(NonRetroactiveWrapper[T]):
         )
         if soft:
             self._slack_names.append(f"slack_{name}")
+            self._nslacks += out[2].shape[0]
         return out
 
     @property

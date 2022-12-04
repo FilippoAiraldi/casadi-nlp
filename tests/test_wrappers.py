@@ -433,6 +433,7 @@ class TestMpc(unittest.TestCase):
             self.assertIsNone(x1)
         self.assertEqual(x1_0.shape, (2, 1))
         self.assertEqual(x1_0.shape, mpc.initial_states["x1"].shape)
+        self.assertEqual(mpc.ns, x1_0.shape[0])
         x2, x2_0 = mpc.state("x2", 1)
         if shooting == "multi":
             self.assertEqual(x2.shape, (1, N + 1))
@@ -442,6 +443,7 @@ class TestMpc(unittest.TestCase):
             self.assertIsNone(x2)
         self.assertEqual(x2_0.shape, (1, 1))
         self.assertEqual(x2_0.shape, mpc.initial_states["x2"].shape)
+        self.assertEqual(mpc.ns, x1_0.shape[0] + x2_0.shape[0])
 
     @parameterized.expand([(0,), (1,), (2,)])
     def test_state__raises__in_singleshooting_with_state_bounds(self, i: int):
@@ -466,6 +468,7 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(u1.shape, mpc.actions["u1"].shape)
         self.assertEqual(u1_exp.shape, (2, Np))
         self.assertEqual(u1_exp.shape, mpc.actions_expanded["u1"].shape)
+        self.assertEqual(mpc.na, u1.shape[0])
         u2, u2_exp = mpc.action("u2", 1)
         self.assertEqual(u2.shape, (1, Nc))
         self.assertEqual(u2.shape, mpc.actions["u2"].shape)
@@ -474,15 +477,19 @@ class TestMpc(unittest.TestCase):
         for i in range(Nc - 1, Np):
             self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
             self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))
+        self.assertEqual(mpc.na, u1.shape[0] + u2.shape[0])
 
     def test_constraint__constructs_slack_correctly(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10)
-        x, _ = mpc.state("x")
+        x, _ = mpc.state("x1", 3)
         _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
         self.assertIn(slack.name(), mpc._slack_names)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
+        self.assertEqual(mpc.nslacks, x.shape[0])
+        mpc.constraint("c1", x, "<=", 10, soft=False)
+        self.assertEqual(mpc.nslacks, x.shape[0])
 
     def test_disturbance__constructs_disturbance_correctly(self):
         N = 10
@@ -491,9 +498,11 @@ class TestMpc(unittest.TestCase):
         d1 = mpc.disturbance("d1", 2)
         self.assertEqual(d1.shape, (2, N))
         self.assertEqual(d1.shape, mpc.disturbances["d1"].shape)
+        self.assertEqual(mpc.nd, 2)
         d2 = mpc.disturbance("d2", 20)
         self.assertEqual(d2.shape, (20, N))
         self.assertEqual(d2.shape, mpc.disturbances["d2"].shape)
+        self.assertEqual(mpc.nd, 22)
 
     def test_dynamics__raises__if_dynamics_already_set(self):
         nlp = Nlp(sym_type="MX")
