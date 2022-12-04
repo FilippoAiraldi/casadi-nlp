@@ -1,5 +1,7 @@
 from dataclasses import dataclass
-from inspect import getframeinfo, stack
+from inspect import getframeinfo
+from itertools import islice
+from traceback import walk_stack
 from types import MappingProxyType
 from typing import List, Tuple
 
@@ -161,7 +163,8 @@ class NlpDebug:
         AttributeError
             Raises in case the given group is invalid.
         """
-        traceback = getframeinfo(stack()[2][0])
+        frame, lineno = next(islice(walk_stack(None), 1, 2))
+        traceback = getframeinfo(frame)
         info: List[Tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
@@ -173,9 +176,9 @@ class NlpDebug:
                     shape=shape,
                     filename=traceback.filename,
                     function=traceback.function,
-                    lineno=traceback.lineno,
+                    lineno=lineno,
                     context=(
-                        "; ".join(traceback.code_context).strip()
+                        "; ".join(traceback.code_context)
                         if traceback.code_context is not None
                         else ""
                     ),
