@@ -69,7 +69,7 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
         return getattr(self.nlp, name)
 
     def __call__(self, *args: Any, **kwds: Any) -> Any:
-        return self.nlp.__call__(*args, **kwds)
+        return (self.solve_multi if self.nlp.is_multi else self.solve)(*args, **kwds)
 
     def __str__(self) -> str:
         """Returns the wrapped NLP string."""

@@ -24,6 +24,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
     """
 
     __ids = count(0)
+    is_multi: bool = False
 
     def __init__(
         self,

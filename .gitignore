@@ -131,3 +131,4 @@ dmypy.json
 # Others
 .vscode
 Z_values.mat
+profile.*

@@ -40,6 +40,8 @@ class MultistartNlp(Nlp[T], Generic[T]):
     nonlinearities, where the solver's initial conditions play a great role in
     the optimality of the solution (rather, its sub-optimality)."""
 
+    is_multi: bool = True
+
     def __init__(
         self,
         *args,

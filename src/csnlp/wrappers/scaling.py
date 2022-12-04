@@ -21,7 +21,6 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self.warns = warns
         self._unscaled_vars: Dict[str, T] = {}
         self._unscaled_pars: Dict[str, T] = {}
-        self._is_multi = isinstance(self.nlp, MultistartNlp)
 
     @cached_property
     def unscaled_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
@@ -115,7 +114,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
     ) -> Union[Solution[T], List[Solution[T]]]:
         """See `MultistartNlp.solve` method."""
         assert (
-            self._is_multi
+            self.nlp.is_multi
         ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
         if pars is not None:
             pars = (self._scale_struct(pars_i) for pars_i in pars)
@@ -127,9 +126,6 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             return_all_sols=return_all_sols,
             return_multi_sol=return_multi_sol,
         )
-
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
-        return (self.solve_multi if self._is_multi else self.solve)(*args, **kwds)
 
     def _scale_struct(
         self, d: Union[DMStruct, Dict[str, np.ndarray]]
