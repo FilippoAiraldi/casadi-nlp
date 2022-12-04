@@ -59,7 +59,7 @@ class TestNlp(unittest.TestCase):
         shape1 = (4, 3)
         shape2 = (2, 2)
         _np = np.prod(shape1) + np.prod(shape2)
-        nlp = Nlp(sym_type=self.sym_type)
+        nlp = Nlp(sym_type=self.sym_type, debug=True)
         p1 = nlp.parameter("p1", shape1)
         p2 = nlp.parameter("p2", shape2)
         self.assertEqual(p1.shape, shape1)
@@ -93,7 +93,7 @@ class TestNlp(unittest.TestCase):
         lb1, ub1 = np.random.rand(*shape1) - 1, np.random.rand(*shape1) + 1
         lb2, ub2 = np.random.rand(*shape2) - 1, np.random.rand(*shape2) + 1
         nx = np.prod(shape1) + np.prod(shape2)
-        nlp = Nlp(sym_type=self.sym_type)
+        nlp = Nlp(sym_type=self.sym_type, debug=True)
         x1, lam1_lb, lam1_ub = nlp.variable("x1", shape1, lb=lb1, ub=ub1)
         x2, lam2_lb, lam2_ub = nlp.variable("x2", shape2, lb=lb2, ub=ub2)
         for o in (x1, lam1_lb, lam1_ub):
@@ -169,7 +169,7 @@ class TestNlp(unittest.TestCase):
     def test_constraint__creates_constraint_correctly(self, op1: str, op2: str):
         shape1, shape2 = (4, 3), (2, 2)
         nc = np.prod(shape1) + np.prod(shape2)
-        nlp = Nlp(sym_type=self.sym_type)
+        nlp = Nlp(sym_type=self.sym_type, debug=True)
         x = nlp.variable("x", shape1)[0]
         y = nlp.variable("y", shape2)[0]
         c1, lam_c1 = nlp.constraint("c1", x, op1, 5)

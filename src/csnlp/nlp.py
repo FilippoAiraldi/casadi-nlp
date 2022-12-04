@@ -94,7 +94,8 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
 
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         out = super().parameter(name, shape)
-        self._debug.register("p", name, shape)
+        if self._debug is not None:
+            self._debug.register("p", name, shape)
         return out
 
     def variable(
@@ -105,7 +106,8 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         ub: Union[np.ndarray, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         out = super().variable(name, shape, lb, ub)
-        self._debug.register("x", name, shape)
+        if self._debug is not None:
+            self._debug.register("x", name, shape)
         return out
 
     def constraint(
@@ -118,7 +120,8 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         simplify: bool = True,
     ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
         out = super().constraint(name, lhs, op, rhs, soft, simplify)
-        self._debug.register("g" if op == "==" else "h", name, out[0].shape)
+        if self._debug is not None:
+            self._debug.register("g" if op == "==" else "h", name, out[0].shape)
         return out
 
     def to_function(
