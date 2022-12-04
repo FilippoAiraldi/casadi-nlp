@@ -31,6 +31,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
         name: Optional[str] = None,
+        debug: bool = False,
         seed: Optional[int] = None,
     ) -> None:
         """Creates an NLP instance.
@@ -45,6 +46,9 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
             details. By default, `True`.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
+        debug : bool, optional
+            If `True`, the NLP logs in the `debug` property information regarding the
+            creation of parameters, variables and constraints. By default, `False`.
         seed : int, optional
             Random number generator seed.
 
@@ -60,7 +64,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         self.name = f"{self.__class__.__name__}{self.id}" if name is None else name
         self._seed = seed
         self._np_random: Optional[np.random.Generator] = None
-        self._debug = NlpDebug()
+        self._debug = NlpDebug() if debug else None
 
     @property
     def sym_type(self) -> Type[T]:
@@ -68,7 +72,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         return self._csXX
 
     @property
-    def debug(self) -> NlpDebug:
+    def debug(self) -> Optional[NlpDebug]:
         """Gets debug information on the NLP scheme."""
         return self._debug
 

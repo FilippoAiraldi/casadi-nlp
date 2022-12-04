@@ -164,7 +164,7 @@ class NlpDebug:
             Raises in case the given group is invalid.
         """
         frame, lineno = next(islice(walk_stack(None), 1, 2))
-        traceback = getframeinfo(frame)
+        traceback = getframeinfo(frame, context=3)
         info: List[Tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
