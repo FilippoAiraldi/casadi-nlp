@@ -36,13 +36,11 @@ class HasVariables(Generic[T]):
     @cached_property
     def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the primal variables of the NLP scheme."""
-        # TODO: test this gets cleared despite the inheritance
         return dict2struct(self._vars)
 
     @invalidate_cache(variables)
     def variable(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
-        """
-        Adds a variable to the NLP problem.
+        """Adds a variable to the NLP problem.
 
         Parameters
         ----------

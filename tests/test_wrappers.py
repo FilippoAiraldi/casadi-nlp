@@ -33,7 +33,7 @@ class TestWrapper(unittest.TestCase):
     def test_attr__raises__when_accessing_private_attrs(self):
         nlp = Nlp()
         nlp._x
-        wrapped = Wrapper(nlp)
+        wrapped = Wrapper[cs.SX](nlp)
         with self.assertRaisesRegex(
             AttributeError, "Accessing private attribute '_x' is prohibited."
         ):
@@ -42,12 +42,12 @@ class TestWrapper(unittest.TestCase):
     def test_unwrapped__unwraps_nlp_correctly(self):
         nlp = Nlp()
         self.assertIs(nlp, nlp.unwrapped)
-        wrapped = Wrapper(nlp)
+        wrapped = Wrapper[cs.SX](nlp)
         self.assertIs(nlp, wrapped.unwrapped)
 
     def test_str_and_repr(self):
         nlp = Nlp()
-        wrapped = Wrapper(nlp)
+        wrapped = Wrapper[cs.SX](nlp)
         S = wrapped.__str__()
         self.assertIn(Wrapper.__name__, S)
         self.assertIn(nlp.__str__(), S)
@@ -59,15 +59,15 @@ class TestWrapper(unittest.TestCase):
         nlp = Nlp()
         self.assertFalse(nlp.is_wrapped())
 
-        wrapped = Mpc(nlp=nlp, prediction_horizon=10)
+        wrapped = Mpc[cs.SX](nlp=nlp, prediction_horizon=10)
         self.assertTrue(wrapped.is_wrapped(Mpc))
         self.assertFalse(wrapped.is_wrapped(NlpSensitivity))
 
-        wrapped = NlpSensitivity(nlp=nlp)
+        wrapped = NlpSensitivity[cs.SX](nlp=nlp)
         self.assertFalse(wrapped.is_wrapped(Mpc))
         self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
 
-        wrapped = NlpSensitivity(nlp=Mpc(nlp=nlp, prediction_horizon=10))
+        wrapped = NlpSensitivity[cs.SX](nlp=Mpc(nlp=nlp, prediction_horizon=10))
         self.assertTrue(wrapped.is_wrapped(Mpc))
         self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
 
@@ -414,8 +414,8 @@ class TestMpc(unittest.TestCase):
     def test_init__initializes_control_horizon_properly(self):
         N = 10
         nlp = Nlp()
-        mpc1 = Mpc(nlp, prediction_horizon=N)
-        mpc2 = Mpc(nlp, prediction_horizon=N, control_horizon=N * 2)
+        mpc1 = Mpc[cs.SX](nlp, prediction_horizon=N)
+        mpc2 = Mpc[cs.SX](nlp, prediction_horizon=N, control_horizon=N * 2)
         self.assertEqual(mpc1.control_horizon, N)
         self.assertEqual(mpc2.control_horizon, N * 2)
 
@@ -423,7 +423,7 @@ class TestMpc(unittest.TestCase):
     def test_state__constructs_state_correctly(self, shooting: str):
         N = 10
         nlp = Nlp(sym_type="MX")
-        mpc = Mpc(nlp=nlp, prediction_horizon=N, shooting=shooting)
+        mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting=shooting)
         x1, x1_0 = mpc.state("x1", 2)
         if shooting == "multi":
             self.assertEqual(x1.shape, (2, N + 1))
@@ -446,7 +446,7 @@ class TestMpc(unittest.TestCase):
     @parameterized.expand([(0,), (1,), (2,)])
     def test_state__raises__in_singleshooting_with_state_bounds(self, i: int):
         nlp = Nlp(sym_type="MX")
-        mpc = Mpc(nlp=nlp, prediction_horizon=10, shooting="single")
+        mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10, shooting="single")
         with self.assertRaises(RuntimeError):
             if i == 0:
                 mpc.state("x1", 2, lb=0)
@@ -460,7 +460,7 @@ class TestMpc(unittest.TestCase):
         Np = 10
         Nc = Np // divider
         nlp = Nlp(sym_type="SX")
-        mpc = Mpc(nlp=nlp, prediction_horizon=Np, control_horizon=Nc)
+        mpc = Mpc[cs.SX](nlp=nlp, prediction_horizon=Np, control_horizon=Nc)
         u1, u1_exp = mpc.action("u1", 2)
         self.assertEqual(u1.shape, (2, Nc))
         self.assertEqual(u1.shape, mpc.actions["u1"].shape)
@@ -477,7 +477,7 @@ class TestMpc(unittest.TestCase):
 
     def test_constraint__constructs_slack_correctly(self):
         nlp = Nlp(sym_type="MX")
-        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10)
         x, _ = mpc.state("x")
         _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
         self.assertIn(slack.name(), mpc._slack_names)
@@ -487,7 +487,7 @@ class TestMpc(unittest.TestCase):
     def test_disturbance__constructs_disturbance_correctly(self):
         N = 10
         nlp = Nlp(sym_type="MX")
-        mpc = Mpc(nlp=nlp, prediction_horizon=N)
+        mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N)
         d1 = mpc.disturbance("d1", 2)
         self.assertEqual(d1.shape, (2, N))
         self.assertEqual(d1.shape, mpc.disturbances["d1"].shape)
@@ -524,7 +524,7 @@ class TestMpc(unittest.TestCase):
     def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self, i: int):
         N = 10
         nlp = Nlp(sym_type="SX")
-        mpc = Mpc(
+        mpc = Mpc[cs.SX](
             nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="multi"
         )
         x1, _ = mpc.state("x1", 2)
@@ -549,7 +549,7 @@ class TestMpc(unittest.TestCase):
     def test_dynamics__in_singleshooting__creates_states(self, i: int):
         N = 10
         nlp = Nlp(sym_type="SX")
-        mpc = Mpc(
+        mpc = Mpc[cs.SX](
             nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="single"
         )
         mpc.state("x1", 2)
@@ -596,7 +596,7 @@ class TestNlpScaling(unittest.TestCase):
     @parameterized.expand([("variable",), ("parameter",)])
     def test_parameter_and_variable__warns__when_cannot_scale(self, method: str):
         scaler = Scaler()
-        nlp = NlpScaling(Nlp(sym_type="SX"), scaler=scaler, warns=True)
+        nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         with warnings.catch_warnings():
             warnings.filterwarnings("error")
             with self.assertRaisesRegex(
@@ -606,7 +606,7 @@ class TestNlpScaling(unittest.TestCase):
 
     def test_parameter__scales_correctly(self):
         scaler = Scaler({"p": (0, 2)})
-        nlp = NlpScaling(Nlp(sym_type="SX"), scaler=scaler, warns=True)
+        nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         p = nlp.parameter("p")
         self.assertIn("p", nlp.unscaled_parameters.keys())
         self.assertIn("p", nlp._unscaled_pars)
@@ -615,7 +615,7 @@ class TestNlpScaling(unittest.TestCase):
 
     def test_variable__scales_correctly(self):
         scaler = Scaler({"x": (0, 2)})
-        nlp = NlpScaling(Nlp(sym_type="SX"), scaler=scaler, warns=True)
+        nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         lb, ub = -5, 4
         x, _, _ = nlp.variable("x", lb=lb, ub=ub)
         self.assertIn("x", nlp.unscaled_variables.keys())

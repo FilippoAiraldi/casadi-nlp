@@ -109,7 +109,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         ValueError
             Raises if the objective is not scalar.
         """
-        if objective.shape != (1, 1):
+        if not objective.is_scalar():
             raise ValueError("Objective must be scalar.")
         self._f = objective
 
