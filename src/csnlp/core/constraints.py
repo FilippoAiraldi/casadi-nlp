@@ -38,11 +38,11 @@ class HasConstraints(HasVariables[T]):
         self._pars: Dict[str, T] = {}
         self._cons: Dict[str, T] = {}
 
-        self._lbx, self._ubx = np.array([]), np.array([])
+        self._lbx, self._ubx = np.asarray([]), np.asarray([])
         self._lam_lbx, self._lam_ubx = self._csXX(), self._csXX()
         self._g, self._lam_g = self._csXX(), self._csXX()
         self._h, self._lam_h = self._csXX(), self._csXX()
-        self._lbg, self._lbh = np.array([]), np.array([])
+        self._lbg, self._lbh = np.asarray([]), np.asarray([])
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 

@@ -159,9 +159,9 @@ class TestArray(unittest.TestCase):
             array.jaggedstack([])
 
     def test_jaggedstack__returns_correct_output(self):
-        a1 = np.array([1, 2, 3]).astype(float)
-        a2 = np.array([1, 2, 3, 4, 5]).astype(float)
-        out_ = np.array([[1, 2, 3, np.nan, np.nan], [1, 2, 3, 4, 5]])
+        a1 = np.asarray([1, 2, 3]).astype(float)
+        a2 = np.asarray([1, 2, 3, 4, 5]).astype(float)
+        out_ = np.asarray([[1, 2, 3, np.nan, np.nan], [1, 2, 3, 4, 5]])
         out = array.jaggedstack((a1, a2), axis=0)
         np.testing.assert_allclose(out, out_)
         out = array.jaggedstack((a1, a2), axis=1)
@@ -358,7 +358,7 @@ class TestMath(unittest.TestCase):
             ((5, 4), 5),
             (
                 (np.arange(2, 11, 2), 4),
-                np.array(
+                np.asarray(
                     [
                         [2, 4, 6, 8],
                         [2, 4, 6, 10],
@@ -368,7 +368,7 @@ class TestMath(unittest.TestCase):
                     ]
                 ),
             ),
-            ((np.array([10, 20, 30]), 2), np.array([[10, 20], [10, 30], [20, 30]])),
+            ((np.asarray([10, 20, 30]), 2), np.asarray([[10, 20], [10, 30], [20, 30]])),
         ]
     )
     def test_nchoosek__computes_correct_combinations(
@@ -413,7 +413,7 @@ class TestScaling(unittest.TestCase):
         np.testing.assert_equal(y1, (4 + 5) / 2)
         np.testing.assert_equal(x1, z1)
 
-        x2 = np.array([-5, 2])
+        x2 = np.asarray([-5, 2])
         y2 = N.scale("x2", x2)
         z2 = N.unscale("x2", y2)
         np.testing.assert_equal(y2, [(-5 + 1) / 2, (2 - 7) / 10])
@@ -421,7 +421,7 @@ class TestScaling(unittest.TestCase):
 
     def test_minmaxscaling_scale_unscale__computes_right_values(self):
         N = scaling.MinMaxScaler(
-            {"x1": (-5, 2), "x2": (np.array([-1, 7]), np.array([2, 10]))}
+            {"x1": (-5, 2), "x2": (np.asarray([-1, 7]), np.asarray([2, 10]))}
         )
         x1 = 4
         y1 = N.scale("x1", x1)
@@ -429,7 +429,7 @@ class TestScaling(unittest.TestCase):
         np.testing.assert_equal(y1, (4 + 5) / (5 + 2))
         np.testing.assert_equal(x1, z1)
 
-        x2 = np.array([-5, 2])
+        x2 = np.asarray([-5, 2])
         y2 = N.scale("x2", x2)
         z2 = N.unscale("x2", y2)
         np.testing.assert_equal(y2, [(-5 + 1) / (2 + 1), (2 - 7) / (10 - 7)])

@@ -104,7 +104,7 @@ for p_ in p_values:
     J_ = sol.value(J)
     H_ = sol.value(H)
     c = ax.scatter(p_[0], p_[1], Z_, s=100, zorder=2)
-    deltaP = P_flat - np.array(p_)[:, None]
+    deltaP = P_flat - np.asarray(p_)[:, None]
     S = Z_ + J_.T @ deltaP + 0.5 * np.diag(deltaP.T @ H_ @ deltaP)
     ax.plot_surface(
         P[0], P[1], S.reshape(N, N), color=c.get_facecolor(), alpha=0.3, lw=0, zorder=1

@@ -98,7 +98,7 @@ Ps = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
 Zs = np.stack([Zfcn(Ps[:, i], 0) for i in range(Ps.shape[1])], axis=-1)
 for i in np.ndindex(axs.shape):
     axs[i].plot(Ps[1].flat, Zs[i].flat, "k-", lw=4)
-    axs[i].set_ylim(axs[i].get_ylim() + np.array([-0.1, 0.1]))
+    axs[i].set_ylim(axs[i].get_ylim() + np.asarray([-0.1, 0.1]))
 
 # Parametric sensitivities of function z(x(p), lam(p))
 t = np.linspace(1, 2, 1000)

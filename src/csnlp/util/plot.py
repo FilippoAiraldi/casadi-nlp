@@ -63,7 +63,7 @@ def spy(
     """
     try:
         # try convert to numerical; if it fails, use symbolic method from cs
-        H = np.array(H)
+        H = np.asarray(H)
     except Exception:
         import io
         from contextlib import redirect_stdout
@@ -72,7 +72,7 @@ def spy(
         with redirect_stdout(f):
             H.sparsity().spy()
         out = f.getvalue()
-        H = np.array(
+        H = np.asarray(
             [
                 list(line)
                 for line in out.replace(".", "0").replace("*", "1").splitlines()
