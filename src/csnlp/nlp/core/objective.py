@@ -2,7 +2,7 @@ from functools import partial
 from typing import Any, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
-import numpy as npy
+import numpy as np
 
 from csnlp.nlp.core.constraints import HasConstraints
 from csnlp.nlp.core.parameters import HasParameters
@@ -128,8 +128,8 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
 
     def solve(
         self,
-        pars: Optional[Dict[str, npy.ndarray]] = None,
-        vals0: Optional[Dict[str, npy.ndarray]] = None,
+        pars: Optional[Dict[str, np.ndarray]] = None,
+        vals0: Optional[Dict[str, np.ndarray]] = None,
     ) -> Solution:
         """Solves the NLP optimization problem.
 
@@ -172,7 +172,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
             "p": p,
             "lbx": self._lbx,
             "ubx": self._ubx,
-            "lbg": npy.concatenate((self._lbg, self._lbh)),
+            "lbg": np.concatenate((self._lbg, self._lbh)),
             "ubg": 0,
         }
         if vals0 is not None:

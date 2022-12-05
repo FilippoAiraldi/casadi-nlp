@@ -132,7 +132,7 @@ def jaggedstack(
     for a in arraylist:
         if a.ndim < maxndim:
             a = np.expand_dims(a, tuple(range(a.ndim, maxndim)))
-        maxshape = np.maximum(maxshape, a.shape)
+        maxshape = np.maximum(maxshape, a.shape)  # type: ignore
         newarrays.append(a)
     newarrays = [
         np.pad(

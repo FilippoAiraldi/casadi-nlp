@@ -188,7 +188,7 @@ def monomial_powers(d: int, k: int) -> np.ndarray:
     dividers = np.column_stack(
         (
             np.zeros((m, 1), dtype=int),
-            np.row_stack(nchoosek(np.arange(1, k + d), d - 1)),
+            np.row_stack(nchoosek(np.arange(1, k + d), d - 1)),  # type: ignore
             np.full((m, 1), k + d, dtype=int),
         )
     )

@@ -29,7 +29,7 @@ shooting = "single"
 mpc = wrappers.Mpc[cs.SX](
     nlp=Nlp[cs.SX](sym_type="SX"),
     prediction_horizon=N,
-    shooting=shooting,
+    shooting=shooting,  # type: ignore
 )
 u, _ = mpc.action("u", lb=-1, ub=+1)
 if shooting == "single":

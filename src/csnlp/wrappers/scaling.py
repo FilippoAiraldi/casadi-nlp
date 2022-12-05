@@ -72,7 +72,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
+    ) -> Tuple[T, ...]:
         """See `Nlp.constraint` method."""
         e = lhs - rhs
         e = subsevalf(e, self.nlp.variables, self.unscaled_variables, eval=False)
@@ -113,7 +113,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             pars = (self._scale_struct(pars_i) for pars_i in pars)
         if vals0 is not None:
             vals0 = (self._scale_struct(vals0_i) for vals0_i in vals0)
-        return self.nlp.solve_multi(
+        return self.nlp.solve_multi(  # type: ignore
             pars,
             vals0,
             return_all_sols=return_all_sols,

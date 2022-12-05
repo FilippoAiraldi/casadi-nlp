@@ -262,7 +262,7 @@ class HasConstraints(HasVariables[T]):
         rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
+    ) -> Tuple[T, ...]:
         """Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
 
         Parameters

@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Tuple, TypeVar, Union
+from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -272,20 +272,38 @@ class NlpSensitivity(Wrapper[T]):
         return dzdp, d2zdp2
 
     @invalidate_cache(jacobians, hessians, hojacobians)
-    def parameter(self, *args, **kwargs):
-        return self.nlp.parameter(*args, **kwargs)
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+        """See `Nlp.parameter` method."""
+        return self.nlp.parameter(name, shape)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
-    def variable(self, *args, **kwargs):
-        return self.nlp.variable(*args, **kwargs)
+    def variable(
+        self,
+        name: str,
+        shape: Tuple[int, int] = (1, 1),
+        lb: Union[np.ndarray, cs.DM] = -np.inf,
+        ub: Union[np.ndarray, cs.DM] = +np.inf,
+    ) -> Tuple[T, T, T]:
+        """See `Nlp.variable` method."""
+        return self.nlp.variable(name, shape, lb, ub)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
-    def constraint(self, *args, **kwargs):
-        return self.nlp.constraint(*args, **kwargs)
+    def constraint(
+        self,
+        name: str,
+        lhs: Union[T, np.ndarray, cs.DM],
+        op: Literal["==", ">=", "<="],
+        rhs: Union[T, np.ndarray, cs.DM],
+        soft: bool = False,
+        simplify: bool = True,
+    ) -> Tuple[T, ...]:
+        """See `Nlp.constraint` method."""
+        return self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
-    def minimize(self, *args, **kwargs):
-        return self.nlp.minimize(*args, **kwargs)
+    def minimize(self, objective: T) -> None:
+        """See `Nlp.minimize` method."""
+        return self.nlp.minimize(objective)
 
     @property
     def _y_idx(self) -> Tuple[T, Union[slice, np.ndarray]]:

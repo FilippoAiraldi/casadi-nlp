@@ -264,7 +264,7 @@ class Mpc(NonRetroactiveWrapper[T]):
         rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
+    ) -> Tuple[T, ...]:
         """See `Nlp.constraint` method."""
         out = self.nlp.constraint(
             name=name, lhs=lhs, op=op, rhs=rhs, soft=soft, simplify=simplify

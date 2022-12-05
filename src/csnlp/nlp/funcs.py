@@ -41,7 +41,7 @@ def invalidate_cache(*callables: Callable) -> Callable:
         if isinstance(p, cached_property):
             cached_properties.append(p)
         elif hasattr(p, "cache_clear"):
-            lru_caches.append(p)
+            lru_caches.append(p)  # type: ignore
         else:
             raise TypeError(
                 "Expected cached properties or lru wrappers; got "
@@ -124,4 +124,4 @@ def np_random(seed: Optional[int] = None) -> Tuple[np.random.Generator, int]:
     seed_seq = np.random.SeedSequence(seed)
     np_seed = seed_seq.entropy
     rng = np.random.Generator(np.random.PCG64(seed_seq))
-    return rng, np_seed
+    return rng, np_seed  # type: ignore

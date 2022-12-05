@@ -4,7 +4,7 @@ from copy import deepcopy
 from functools import cached_property
 from inspect import getmembers
 from pickletools import optimize
-from typing import Any, Dict, Optional, TypeVar
+from typing import Any, Dict, Iterator, Optional, TypeVar
 from warnings import warn
 
 from csnlp.util.data import is_casadi_object
@@ -46,7 +46,7 @@ class SupportsDeepcopyAndPickle:
     _GETFULLSTATE: Optional[bool] = None
 
     @contextmanager
-    def pickleable(self) -> None:
+    def pickleable(self) -> Iterator[None]:
         """Context manager that makes the class pickleable by automatically removing
         unpickleable states (opposite of `fullstate`)."""
         self._GETFULLSTATE = False
@@ -54,7 +54,7 @@ class SupportsDeepcopyAndPickle:
         self._GETFULLSTATE = None
 
     @contextmanager
-    def fullstate(self) -> None:
+    def fullstate(self) -> Iterator[None]:
         """Context manager that makes the class return the full state without removing
         unpickleable states (opposite of `pickleable`)."""
         self._GETFULLSTATE = True

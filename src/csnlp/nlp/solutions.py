@@ -56,7 +56,7 @@ class Solution(Generic[T]):
             Raises if `eval=True` but there are symbolic variables that are
             still free since they are outside the solution's variables.
         """
-        return self._get_value(x, eval=eval)
+        return self._get_value(x, eval=eval)  # type: ignore
 
 
 def subsevalf(
@@ -119,7 +119,7 @@ def subsevalf(
         expr = cs.substitute(expr, old, new)
     elif isinstance(old, dict):
         for name, o in old.items():
-            expr = cs.substitute(expr, o, new[name])
+            expr = cs.substitute(expr, o, new[name])  # type: ignore
     elif isinstance(old, Iterable):
         for o, n in zip(old, new):
             expr = cs.substitute(expr, o, n)

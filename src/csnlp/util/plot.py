@@ -68,6 +68,7 @@ def spy(
         import io
         from contextlib import redirect_stdout
 
+        assert hasattr(H, "sparsity"), "No sparsity method found."
         f = io.StringIO()
         with redirect_stdout(f):
             H.sparsity().spy()

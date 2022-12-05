@@ -5,6 +5,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -30,7 +31,7 @@ def _n(sym_name: str, scenario: int) -> str:
 
 def _get_value(x, sol: Solution, old, new, eval: bool = True):
     """Internal utility for substituting numerical values in solutions."""
-    return sol._get_value(cs.substitute(x, old, new), eval=eval)
+    return sol._get_value(cs.substitute(x, old, new), eval=eval)  # type: ignore
 
 
 class MultistartNlp(Nlp[T], Generic[T]):
@@ -74,12 +75,12 @@ class MultistartNlp(Nlp[T], Generic[T]):
         self._vars_per_start: Dict[int, Dict[str, T]] = {}
 
     @contextmanager
-    def fullstate(self) -> None:
+    def fullstate(self) -> Iterator[None]:
         with super().fullstate(), self._multi_nlp.fullstate():
             yield
 
     @contextmanager
-    def pickleable(self) -> None:
+    def pickleable(self) -> Iterator[None]:
         with super().pickleable(), self._multi_nlp.pickleable():
             yield
 
@@ -150,7 +151,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         rhs: Union[T, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Union[Tuple[T, T], Tuple[T, T, T]]:
+    ) -> Tuple[T, ...]:
         expr = lhs - rhs
         if simplify:
             expr = cs.simplify(expr)
@@ -258,7 +259,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         fs = [float(multi_sol.value(f)) for f in self._fs]
         idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
         for i in idx:
-            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}
+            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}  # type: ignore
 
             symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
             new = subsevalf(old, symbols, symbols_i, eval=False)
@@ -266,7 +267,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
 
             sols.append(
                 Solution[T](
-                    f=fs[i],
+                    f=fs[i],  # type: ignore
                     vars=vars,
                     vals=vals,
                     stats=multi_sol.stats,

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Generic, List, Type, TypeVar, Union
+from typing import Any, Generic, Iterator, List, Type, TypeVar, Union
 
 import casadi as cs
 
@@ -54,12 +54,12 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
         return self.nlp.is_wrapped(wrapper_type)
 
     @contextmanager
-    def fullstate(self) -> None:
+    def fullstate(self) -> Iterator[None]:
         with super().fullstate(), self.nlp.fullstate():
             yield
 
     @contextmanager
-    def pickleable(self) -> None:
+    def pickleable(self) -> Iterator[None]:
         with super().pickleable(), self.nlp.pickleable():
             yield
 

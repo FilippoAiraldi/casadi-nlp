@@ -1,8 +1,11 @@
+from typing import List
+
 import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
 from csnlp import MultistartNlp
+from csnlp.nlp.solutions import Solution
 
 plt.style.use("bmh")
 
@@ -35,8 +38,8 @@ xfs = [
 
 # use automatical multistart solver
 args = ([{"p0": 0, "p1": 1} for _ in x0s], [{"x": x0} for x0 in x0s])
-best_sol = nlp.solve_multi(*args)
-all_sols = nlp.solve_multi(*args, return_all_sols=True)
+best_sol: Solution[cs.SX] = nlp.solve_multi(*args)  # type: ignore
+all_sols: List[Solution[cs.SX]] = nlp.solve_multi(*args, return_all_sols=True)  # type: ignore
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)
