@@ -12,7 +12,7 @@ from parameterized import parameterized
 from scipy.stats import norm
 
 from csnlp.solutions import subsevalf
-from csnlp.util import array, data, funcs, io, math, scaling
+from csnlp.util import data, derivatives, funcs, io, math, scaling
 
 
 class Dummy:
@@ -130,7 +130,7 @@ class TestArray(unittest.TestCase):
             if x.is_vector()
             else (x * x.T - x)
         )
-        J = array.hojacobian(y, x)
+        J = derivatives.hojacobian(y, x)
         self.assertEqual(J.ndim, 4)
         for index in np.ndindex(J.shape):
             x_ = np.random.randn(*x.shape)
@@ -146,7 +146,7 @@ class TestArray(unittest.TestCase):
             if x.is_vector()
             else (x * x.T - x)
         )
-        H, _ = array.hohessian(y, x)
+        H, _ = derivatives.hohessian(y, x)
         self.assertEqual(H.ndim, 6)
         for i in np.ndindex(y.shape):
             x_ = np.random.randn(*x.shape)
@@ -156,18 +156,18 @@ class TestArray(unittest.TestCase):
 
     def test_jaggedstack__raises__with_empty_array(self):
         with self.assertRaises(ValueError):
-            array.jaggedstack([])
+            data.jaggedstack([])
 
     def test_jaggedstack__returns_correct_output(self):
         a1 = np.asarray([1, 2, 3]).astype(float)
         a2 = np.asarray([1, 2, 3, 4, 5]).astype(float)
         out_ = np.asarray([[1, 2, 3, np.nan, np.nan], [1, 2, 3, 4, 5]])
-        out = array.jaggedstack((a1, a2), axis=0)
+        out = data.jaggedstack((a1, a2), axis=0)
         np.testing.assert_allclose(out, out_)
-        out = array.jaggedstack((a1, a2), axis=1)
+        out = data.jaggedstack((a1, a2), axis=1)
         np.testing.assert_allclose(out, out_.T)
         with self.assertRaises(np.AxisError):
-            array.jaggedstack((a1, a2), axis=2)
+            data.jaggedstack((a1, a2), axis=2)
 
 
 class TestData(unittest.TestCase):

@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, Union
+from typing import Tuple, Union
 
 import casadi as cs
 import numpy as np
@@ -58,54 +58,3 @@ def hohessian(
     for i in np.ndindex(ex.shape):
         H[i] = hojacobian(array2cs(J[i]), y)
     return H, J
-
-
-def jaggedstack(
-    arrays,
-    axis: int = 0,
-    out: Optional[np.ndarray] = None,
-    constant_values: Union[float, np.ndarray] = np.nan,
-) -> np.ndarray:
-    """Joins a sequence of arrays with different shapes along a new axis. To do
-    so, each array is padded with `constant_values` (see `numpy.pad`) to the
-    right to even out the shapes. Then, the same-shape-arrays are stacked via
-    `numpy.stack`.
-
-    Parameters
-    ----------
-    arrays, axis, out
-        See `numpy.stack`.
-    constant_values
-        See `numpy.pad`.
-
-    Returns
-    -------
-    stacked : ndarray
-        The stacked array has one more dimension than the input arrays.
-
-    Raises
-    ------
-    ValueError
-        Raises if no array is passed as input.
-    """
-    arraylist: List[np.ndarray] = [np.asanyarray(a) for a in arrays]
-    if not arraylist:
-        raise ValueError("Need at least one array to stack.")
-    maxndim = max(map(lambda a: a.ndim, arraylist))
-    newarrays: List[np.ndarray] = []
-    maxshape = arraylist[0].shape
-    for a in arraylist:
-        if a.ndim < maxndim:
-            a = np.expand_dims(a, tuple(range(a.ndim, maxndim)))
-        maxshape = np.maximum(maxshape, a.shape)
-        newarrays.append(a)
-    newarrays = [
-        np.pad(
-            a,
-            [(0, d_max - d) for d, d_max in zip(a.shape, maxshape)],
-            mode="constant",
-            constant_values=constant_values,
-        )
-        for a in newarrays
-    ]
-    return np.stack(newarrays, axis, out)

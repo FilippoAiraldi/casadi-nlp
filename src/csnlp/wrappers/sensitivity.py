@@ -4,8 +4,8 @@ import casadi as cs
 import numpy as np
 
 from csnlp.solutions import Solution
-from csnlp.util.array import hohessian, hojacobian
 from csnlp.util.data import array2cs, cs2array
+from csnlp.util.derivatives import hohessian, hojacobian
 from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, Wrapper
 
