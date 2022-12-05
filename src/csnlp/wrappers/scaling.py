@@ -1,10 +1,9 @@
-from typing import Any, Dict, Iterable, List, Literal, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Literal, Tuple, TypeVar, Union
 from warnings import warn
 
 import casadi as cs
 import numpy as np
 
-from csnlp.multistart_nlp import MultistartNlp
 from csnlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.funcs import cached_property, invalidate_cache
