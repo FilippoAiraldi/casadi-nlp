@@ -96,47 +96,6 @@ def invalidate_cache(*callables: Callable) -> Callable:
     return decorating_function
 
 
-# def invoke(callable: Callable, after: bool = True) -> Callable:
-#     """Decorator that, when the decorated method is called, invokes the given callable.
-
-#     Parameters
-#     ----------
-#     callable : cached_property or lru cache wrapper
-#         The callable to be invoked whenever the decorated function is called. It is
-#         called with the same `*args` and `**kwargs` of the decorated function.
-#     after : bool, optional
-#         If `after=True`, `callable` is invoked after the wrapped function; otherwise, it
-#         is called before. By default, `True`.
-
-#     Returns
-#     -------
-#     decorating_function : Callable
-#         Returns the function wrapped with this decorator.
-#     """
-
-#     def decorating_function(func):
-#         if after:
-
-#             @wraps(func)
-#             def wrapper(*args, **kwargs):
-#                 out = func(*args, **kwargs)
-#                 callable(*args, **kwargs)
-#                 return out
-
-#             return wrapper
-
-#         else:
-
-#             @wraps(func)
-#             def wrapper(*args, **kwargs):
-#                 callable(*args, **kwargs)
-#                 return func(*args, **kwargs)
-
-#             return wrapper
-
-#     return decorating_function
-
-
 def np_random(seed: Optional[int] = None) -> Tuple[np.random.Generator, int]:
     """Generates a random number generator from the seed and returns the Generator and
     seed.
