@@ -11,8 +11,9 @@ import numpy as np
 from parameterized import parameterized
 from scipy.stats import norm
 
-from csnlp.solutions import subsevalf
-from csnlp.util import data, derivatives, funcs, io, math, scaling
+from csnlp.nlp import funcs
+from csnlp.nlp.solutions import subsevalf
+from csnlp.util import data, derivatives, io, math, scaling
 
 
 class Dummy:

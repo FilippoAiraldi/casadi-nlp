@@ -7,7 +7,7 @@ import numpy as np
 from casadi.tools import entry, struct_MX, struct_SX
 from parameterized import parameterized
 
-from csnlp.solutions import Solution, subsevalf
+from csnlp.nlp.solutions import Solution, subsevalf
 
 
 class TestSolutions(unittest.TestCase):

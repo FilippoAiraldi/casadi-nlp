@@ -4,9 +4,9 @@ from warnings import warn
 import casadi as cs
 import numpy as np
 
-from csnlp.solutions import DMStruct, Solution, subsevalf
+from csnlp.nlp.funcs import cached_property, invalidate_cache
+from csnlp.nlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 

@@ -5,9 +5,9 @@ from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Type, TypeVar,
 import casadi as cs
 import numpy as np
 
-from csnlp.core.objective import HasObjective
-from csnlp.debug import NlpDebug
-from csnlp.util.funcs import np_random
+from csnlp.nlp.core.objective import HasObjective
+from csnlp.nlp.debug import NlpDebug
+from csnlp.nlp.funcs import np_random
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)

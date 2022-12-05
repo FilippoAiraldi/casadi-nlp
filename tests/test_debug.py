@@ -2,7 +2,7 @@ import random
 import unittest
 from typing import Tuple
 
-from csnlp.debug import NlpDebug, NlpDebugEntry
+from csnlp.nlp.debug import NlpDebug, NlpDebugEntry
 
 GROUPS = set(NlpDebug.types.keys())
 

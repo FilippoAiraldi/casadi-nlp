@@ -6,8 +6,8 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 
 from csnlp import MultistartNlp
-from csnlp.multistart_nlp import _n
-from csnlp.solutions import subsevalf
+from csnlp.nlp.multistart_nlp import _n
+from csnlp.nlp.solutions import subsevalf
 
 OPTS = {
     "expand": True,

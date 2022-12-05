@@ -1,4 +1,4 @@
-from typing import Any, Dict, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
 
 import casadi as cs
 import casadi.tools as cst
@@ -137,7 +137,8 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     """Converts casadi symbolic variable `x` to a numpy array of scalars.
     Opposite to `array2cs`.
 
-    Inspired by https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/tools.py
+    Inspired by
+    https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/tools.py
 
     Parameters
     ----------

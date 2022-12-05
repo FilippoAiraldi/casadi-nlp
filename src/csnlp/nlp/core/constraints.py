@@ -3,9 +3,9 @@ from typing import Dict, Literal, Tuple, TypeVar, Union
 import casadi as cs
 import numpy as np
 
-from csnlp.core.variables import HasVariables
+from csnlp.nlp.core.variables import HasVariables
+from csnlp.nlp.funcs import cached_property, invalidate_cache
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cached_property, invalidate_cache
 
 T = TypeVar("T", cs.SX, cs.MX)
 

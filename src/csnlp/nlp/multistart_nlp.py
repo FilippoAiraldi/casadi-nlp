@@ -16,10 +16,10 @@ from typing import (
 import casadi as cs
 import numpy as np
 
-from csnlp.nlp import Nlp
-from csnlp.solutions import Solution, subsevalf
+from csnlp.nlp.funcs import invalidate_cache
+from csnlp.nlp.nlp import Nlp
+from csnlp.nlp.solutions import Solution, subsevalf
 from csnlp.util.data import DMStruct, dict2struct
-from csnlp.util.funcs import invalidate_cache
 
 T = TypeVar("T", cs.SX, cs.MX)
 

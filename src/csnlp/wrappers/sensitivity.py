@@ -3,10 +3,10 @@ from typing import Dict, Optional, Tuple, TypeVar, Union
 import casadi as cs
 import numpy as np
 
-from csnlp.solutions import Solution
+from csnlp.nlp.funcs import cached_property, invalidate_cache
+from csnlp.nlp.solutions import Solution
 from csnlp.util.data import array2cs, cs2array
 from csnlp.util.derivatives import hohessian, hojacobian
-from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 T = TypeVar("T", cs.SX, cs.MX)

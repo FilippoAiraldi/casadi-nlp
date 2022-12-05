@@ -3,8 +3,8 @@ from typing import Dict, List, Literal, Optional, Tuple, TypeVar, Union
 import casadi as cs
 import numpy as np
 
+from csnlp.nlp.funcs import cached_property, invalidate_cache
 from csnlp.util.data import dict2struct, struct_symSX
-from csnlp.util.funcs import cached_property, invalidate_cache
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 T = TypeVar("T", cs.SX, cs.MX)

@@ -7,7 +7,7 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 
 from csnlp import Nlp
-from csnlp.solutions import subsevalf
+from csnlp.nlp.solutions import subsevalf
 from csnlp.util.math import log
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers import Mpc, NlpSensitivity, NonRetroactiveWrapper, Wrapper

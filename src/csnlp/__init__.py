@@ -1,5 +1,6 @@
-__all__ = ["Nlp", "MultistartNlp", "Solution"]
+__all__ = ["Nlp", "MultistartNlp", "Solution", "scaling"]
 
-from csnlp.multistart_nlp import MultistartNlp
-from csnlp.nlp import Nlp
-from csnlp.solutions import Solution
+import csnlp.util.scaling as scaling
+from csnlp.nlp.multistart_nlp import MultistartNlp
+from csnlp.nlp.nlp import Nlp
+from csnlp.nlp.solutions import Solution

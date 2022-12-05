@@ -4,11 +4,10 @@ from typing import Any, Dict, Literal, Optional, TypeVar, Union
 import casadi as cs
 import numpy as npy
 
-from csnlp.core.constraints import HasConstraints
-from csnlp.core.parameters import HasParameters
-from csnlp.solutions import DMStruct, Solution, subsevalf
+from csnlp.nlp.core.constraints import HasConstraints
+from csnlp.nlp.core.parameters import HasParameters
+from csnlp.nlp.solutions import DMStruct, Solution, subsevalf
 from csnlp.util.data import dict2struct
-from csnlp.util.funcs import invoke
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -88,13 +87,12 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         self._solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)
         self._solver_opts = opts
 
-    def refresh_solver(self, *args: Any, **kwargs: Any) -> None:
+    def refresh_solver(self) -> None:
         """Refresh and resets the internal solver function (with the same options, if
         previously set)."""
         if self._solver is not None:
             self.init_solver(self._solver_opts)
 
-    @invoke(refresh_solver)
     def minimize(self, objective: T) -> None:
         """Sets the objective function to be minimized.
 
@@ -112,18 +110,22 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         if not objective.is_scalar():
             raise ValueError("Objective must be scalar.")
         self._f = objective
+        self.refresh_solver()
 
-    @invoke(refresh_solver)
     def parameter(self, *args, **kwargs):
-        return super().parameter(*args, **kwargs)
+        out = super().parameter(*args, **kwargs)
+        self.refresh_solver()
+        return out
 
-    @invoke(refresh_solver)
     def variable(self, *args, **kwargs):
-        return super().variable(*args, **kwargs)
+        out = super().variable(*args, **kwargs)
+        self.refresh_solver()
+        return out
 
-    @invoke(refresh_solver)
     def constraint(self, *args, **kwargs):
-        return super().constraint(*args, **kwargs)
+        out = super().constraint(*args, **kwargs)
+        self.refresh_solver()
+        return out
 
     def solve(
         self,

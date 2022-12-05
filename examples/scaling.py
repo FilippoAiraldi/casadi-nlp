@@ -5,9 +5,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from csnlp import MultistartNlp, wrappers
-from csnlp.solutions import Solution
-from csnlp.util.scaling import Scaler
+from csnlp import MultistartNlp, Solution, scaling, wrappers
 
 plt.style.use("bmh")
 
@@ -55,7 +53,7 @@ for i, SCALED in enumerate((False, True)):
         m_nom = 3e5
         x_nom = cs.vertcat(y_nom, v_nom, m_nom)
         u_nom = 1e8
-        scaler = Scaler()
+        scaler = scaling.Scaler()
         scaler.register("x", scale=x_nom)
         scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
