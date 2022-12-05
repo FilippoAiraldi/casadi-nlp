@@ -97,7 +97,9 @@ class Mpc(NonRetroactiveWrapper[T]):
     @cached_property
     def initial_states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
         """Gets the initial states (parameters) of the MPC controller."""
-        return dict2struct({n: self.nlp._pars[f"{n}_0"] for n in self._state_names})
+        return dict2struct(
+            {f"{n}_0": self.nlp._pars[f"{n}_0"] for n in self._state_names}
+        )
 
     @property
     def ns(self) -> int:

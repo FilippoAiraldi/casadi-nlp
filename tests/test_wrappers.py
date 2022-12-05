@@ -432,7 +432,7 @@ class TestMpc(unittest.TestCase):
         else:
             self.assertIsNone(x1)
         self.assertEqual(x1_0.shape, (2, 1))
-        self.assertEqual(x1_0.shape, mpc.initial_states["x1"].shape)
+        self.assertEqual(x1_0.shape, mpc.initial_states["x1_0"].shape)
         self.assertEqual(mpc.ns, x1_0.shape[0])
         x2, x2_0 = mpc.state("x2", 1)
         if shooting == "multi":
@@ -442,7 +442,7 @@ class TestMpc(unittest.TestCase):
         else:
             self.assertIsNone(x2)
         self.assertEqual(x2_0.shape, (1, 1))
-        self.assertEqual(x2_0.shape, mpc.initial_states["x2"].shape)
+        self.assertEqual(x2_0.shape, mpc.initial_states["x2_0"].shape)
         self.assertEqual(mpc.ns, x1_0.shape[0] + x2_0.shape[0])
 
     @parameterized.expand([(0,), (1,), (2,)])
