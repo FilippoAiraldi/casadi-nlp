@@ -7,6 +7,8 @@ import numpy as np
 
 from csnlp import Nlp
 
+plt.style.use("bmh")
+
 nlp = Nlp[cs.MX](sym_type="MX")
 x = nlp.variable("x", (2, 1))[0]
 r = nlp.parameter("r")
