@@ -1,5 +1,5 @@
 from collections import UserDict
-from typing import Any, Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 
@@ -14,7 +14,7 @@ class Scaler(UserDict):
     algebraic operations.
     """
 
-    def __init__(self, d: Dict[str, Tuple[Any, Any]] = None):
+    def __init__(self, d: Optional[Dict[str, Tuple[Any, Any]]] = None):
         """Initializes the scaling class.
 
         Parameters
