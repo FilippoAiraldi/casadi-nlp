@@ -31,7 +31,7 @@ def save2tikz(*figs: Figure) -> None:
         One or more matplotlib figures to be converted to tikz files. These
         files will be named based on the number of the corresponding figure.
     """
-    import tikzplotlib
+    import tikzplotlib  # type: ignore
 
     for fig in figs:
         tikzplotlib.save(
