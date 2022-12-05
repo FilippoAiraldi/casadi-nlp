@@ -40,19 +40,18 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         ub: Union[np.ndarray, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         """See `Nlp.variable` method."""
-        if name not in self.scaler:
+        can_scale = name in self.scaler
+        if can_scale:
+            lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
+            lb = self.scaler.scale(name, lb)
+            ub = self.scaler.scale(name, ub)
+        var, lam_lb, lam_ub = self.nlp.variable(name, shape, lb, ub)
+        if can_scale:
+            uvar = self.scaler.unscale(name, var)
+        else:
             if self.warns:
                 warn(f"Scaling for variable {name} not found.", RuntimeWarning)
-            return self.nlp.variable(name, shape, lb, ub)
-        # scale bounds
-        lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
-        lb = self.scaler.scale(name, lb)
-        ub = self.scaler.scale(name, ub)
-
-        var, lam_lb, lam_ub = self.nlp.variable(name, shape, lb, ub)
-
-        # unscale var and return
-        uvar = self.scaler.unscale(name, var)
+            uvar = var
         self._unscaled_vars[name] = uvar
         return var, lam_lb, lam_ub
 
@@ -60,13 +59,12 @@ class NlpScaling(NonRetroactiveWrapper[T]):
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """See `Nlp.parameter` method."""
         par = self.nlp.parameter(name, shape)
-        if name not in self.scaler:
+        if name in self.scaler:
+            upar = self.scaler.unscale(name, par)
+        else:
             if self.warns:
                 warn(f"Scaling for parameter {name} not found.", RuntimeWarning)
-            return par
-
-        # unscale par and return
-        upar = self.scaler.unscale(name, par)
+            upar = par
         self._unscaled_pars[name] = upar
         return par
 
