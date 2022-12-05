@@ -69,7 +69,7 @@ class SupportsDeepcopyAndPickle:
         invalidate_caches : bool, optional
             If `True`, methods decorated with `csnlp.util.funcs.invalidate_cache` are
             called to clear cached properties/lru caches in the copied instance.
-            Otherwise, caches in the copy are not invalidated.
+            Otherwise, caches in the copy are not invalidated. By default, `True`.
 
         Returns
         -------

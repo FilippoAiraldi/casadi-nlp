@@ -9,6 +9,8 @@ from casadi.tools.structure3 import DMStruct
 def is_casadi_object(obj: Any) -> bool:
     """Checks if the object belongs to the CasADi module.
 
+    See https://stackoverflow.com/a/52783240/19648688 for more details.
+
     Parameters
     ----------
     obj : Any
