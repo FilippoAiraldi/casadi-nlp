@@ -1,13 +1,16 @@
-from typing import Dict, List, Literal, Optional, Tuple, TypeVar, Union
+from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 
-from csnlp.nlp.funcs import cached_property, invalidate_cache
-from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 T = TypeVar("T", cs.SX, cs.MX)
+
+
+def _n(statename: str) -> str:
+    """Internal utility for naming initial states."""
+    return f"{statename}_0"
 
 
 class Mpc(NonRetroactiveWrapper[T]):
@@ -54,11 +57,16 @@ class Mpc(NonRetroactiveWrapper[T]):
             theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
         """
         super().__init__(nlp)
-        if shooting not in {"single", "multi"}:
-            raise ValueError("Invalid shooting method.")
+
         if prediction_horizon <= 0:
             raise ValueError("Prediction horizon must be positive and > 0.")
-        self._is_multishooting = shooting == "multi"
+        if shooting == "single":
+            self._is_multishooting = False
+        elif shooting == "multi":
+            self._is_multishooting = True
+        else:
+            raise ValueError("Invalid shooting method.")
+
         self._prediction_horizon = prediction_horizon
         if control_horizon is None:
             self._control_horizon = self._prediction_horizon
@@ -66,15 +74,14 @@ class Mpc(NonRetroactiveWrapper[T]):
             raise ValueError("Control horizon must be positive and > 0.")
         else:
             self._control_horizon = control_horizon
-        self._state_names: List[str] = []
-        if not self._is_multishooting:
-            self._state_exprs: Dict[str, T] = {}
-        self._action_names: List[str] = []
-        self._slack_names: List[str] = []
-        self._disturbance_names: List[str] = []
+
+        self._states: Dict[str, T] = {}
+        self._initial_states: Dict[str, T] = {}
+        self._actions: Dict[str, T] = {}
         self._actions_exp: Dict[str, T] = {}
+        self._slacks: Dict[str, T] = {}
+        self._disturbances: Dict[str, T] = {}
         self._dynamics: cs.Function = None
-        self._ns = self._na = self._nslacks = self._nd = 0
 
     @property
     def prediction_horizon(self) -> int:
@@ -86,64 +93,56 @@ class Mpc(NonRetroactiveWrapper[T]):
         """Gets the control horizon of the MPC controller."""
         return self._control_horizon
 
-    @cached_property
-    def states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def states(self) -> Dict[str, T]:
         """Gets the states of the MPC controller."""
-        if self._is_multishooting:
-            vars = self.nlp.variables
-            return dict2struct({n: vars[n] for n in self._state_names})
-        return dict2struct(self._state_exprs, entry_type="expr")
+        return self._states
 
-    @cached_property
-    def initial_states(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def initial_states(self) -> Dict[str, T]:
         """Gets the initial states (parameters) of the MPC controller."""
-        return dict2struct(
-            {f"{n}_0": self.nlp._pars[f"{n}_0"] for n in self._state_names}
-        )
+        return self._initial_states
 
     @property
     def ns(self) -> int:
         """Gets the number of states of the MPC controller."""
-        return self._ns
+        return sum(x0.shape[0] for x0 in self._initial_states.values())
 
-    @cached_property
-    def actions(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def actions(self) -> Dict[str, T]:
         """Gets the control actions of the MPC controller."""
-        vars = self.nlp.variables
-        return dict2struct({n: vars[n] for n in self._action_names})
+        return self._actions
 
-    @cached_property
-    def actions_expanded(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def actions_expanded(self) -> Dict[str, T]:
         """Gets the expanded control actions of the MPC controller."""
-        return dict2struct(self._actions_exp)
+        return self._actions_exp
 
     @property
     def na(self) -> int:
         """Gets the number of actions of the MPC controller."""
-        return self._na
+        return sum(a.shape[0] for a in self._actions.values())
 
-    @cached_property
-    def slacks(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def slacks(self) -> Dict[str, T]:
         """Gets the slack variables of the MPC controller."""
-        vars = self.nlp.variables
-        return dict2struct({n: vars[n] for n in self._slack_names})
+        return self._slacks
 
     @property
     def nslacks(self) -> int:
         """Gets the number of slacks of the MPC controller."""
-        return self._nslacks
+        return sum(s.shape[0] for s in self._slacks.values())
 
-    @cached_property
-    def disturbances(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def disturbances(self) -> Dict[str, T]:
         """Gets the disturbance parameters of the MPC controller."""
-        return dict2struct({n: self.nlp._pars[n] for n in self._disturbance_names})
+        return self._disturbances
 
     @property
     def nd(self) -> int:
         """Gets the number of disturbances in the MPC controller."""
-        return self._nd
+        return sum(d.shape[0] for d in self._disturbances.values())
 
-    @invalidate_cache(states, initial_states)
     def state(
         self,
         name: str,
@@ -183,10 +182,11 @@ class Mpc(NonRetroactiveWrapper[T]):
             since these can only be set after the dynamics have been set via the
             `constraint` method.
         """
+        x0_name = _n(name)
         if self._is_multishooting:
             x = self.nlp.variable(name, (dim, self._prediction_horizon + 1), lb, ub)[0]
-            x0 = self.nlp.parameter(f"{name}_0", (dim, 1))
-            self.nlp.constraint(f"{name}_0", x[:, 0], "==", x0)
+            x0 = self.nlp.parameter(x0_name, (dim, 1))
+            self.nlp.constraint(x0_name, x[:, 0], "==", x0)
         else:
             if np.any(lb != -np.inf) or np.any(ub != +np.inf):
                 raise RuntimeError(
@@ -194,12 +194,11 @@ class Mpc(NonRetroactiveWrapper[T]):
                     " be created after the dynamics have been set"
                 )
             x = None
-            x0 = self.nlp.parameter(f"{name}_0", (dim, 1))
-        self._state_names.append(name)
-        self._ns += dim
+            x0 = self.nlp.parameter(x0_name, (dim, 1))
+        self._states[name] = x
+        self._initial_states[x0_name] = x0
         return x, x0
 
-    @invalidate_cache(actions, actions_expanded)
     def action(
         self,
         name: str,
@@ -233,12 +232,10 @@ class Mpc(NonRetroactiveWrapper[T]):
         u = self.nlp.variable(name, (dim, self._control_horizon), lb, ub)[0]
         gap = self._prediction_horizon - self._control_horizon
         u_exp = cs.horzcat(u, *(u[:, -1] for _ in range(gap)))
+        self._actions[name] = u
         self._actions_exp[name] = u_exp
-        self._action_names.append(name)
-        self._na += dim
         return u, u_exp
 
-    @invalidate_cache(disturbances)
     def disturbance(self, name: str, dim: int = 1) -> T:
         """Adds a disturbance parameter to the MPC controller along the whole prediction
         horizon.
@@ -255,12 +252,10 @@ class Mpc(NonRetroactiveWrapper[T]):
         casadi.SX or MX
             The symbol for the new disturbance in the MPC controller.
         """
-        out = self.nlp.parameter(name=name, shape=(dim, self._prediction_horizon))
-        self._disturbance_names.append(name)
-        self._nd += dim
-        return out
+        d = self.nlp.parameter(name=name, shape=(dim, self._prediction_horizon))
+        self._disturbances[name] = d
+        return d
 
-    @invalidate_cache(slacks)
     def constraint(
         self,
         name: str,
@@ -275,8 +270,7 @@ class Mpc(NonRetroactiveWrapper[T]):
             name=name, lhs=lhs, op=op, rhs=rhs, soft=soft, simplify=simplify
         )
         if soft:
-            self._slack_names.append(f"slack_{name}")
-            self._nslacks += out[2].shape[0]
+            self._slacks[f"slack_{name}"] = out[2]
         return out
 
     @property
@@ -308,43 +302,36 @@ class Mpc(NonRetroactiveWrapper[T]):
                 f"at least 1 output; got {n_in} inputs and {n_out} outputs instead."
             )
         if self._is_multishooting:
-            self._set_multishooting_dynamics(F, n_in, n_out)
+            self._multishooting_dynamics(F, n_in, n_out)
         else:
-            self._set_singleshooting_dynamics(F, n_in, n_out)
+            self._singleshooting_dynamics(F, n_in, n_out)
         self._dynamics = F
 
-    def _set_multishooting_dynamics(
-        self, F: cs.Function, n_in: int, n_out: int
-    ) -> None:
-        # utility to create dynamics constraints with multiple shooting
-        vars = self.nlp.variables
-        X = cs.vertcat(*(vars[n] for n in self._state_names))
-        U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
+    def _multishooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
+        """Internal utility to create dynamics constraints in multiple shooting."""
+        X = cs.vertcat(*self._states.values())
+        U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            get_args = lambda k: (X[:, k], U[:, k])
+            get_args = lambda k: (X[:, k], U[:, k])  # type: ignore
         else:
-            pars = self.nlp.parameters
-            D = cs.vertcat(*(pars[n] for n in self._disturbance_names))
-            get_args = lambda k: (X[:, k], U[:, k], D[:, k])
+            D = cs.vertcat(*self._disturbances.values())
+            get_args = lambda k: (X[:, k], U[:, k], D[:, k])  # type: ignore
         for k in range(self._prediction_horizon):
             x_next = F(*get_args(k))
             if n_out != 1:
                 x_next = x_next[0]
             self.constraint(f"dyn_{k}", X[:, k + 1], "==", x_next)
 
-    @invalidate_cache(states)
-    def _set_singleshooting_dynamics(
-        self, F: cs.Function, n_in: int, n_out: int
-    ) -> None:
-        pars = self.nlp.parameters
-        Xk = cs.vertcat(*(pars[f"{n}_0"] for n in self._state_names))
-        U = cs.vertcat(*(self._actions_exp[n] for n in self._action_names))
+    def _singleshooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
+        """Internal utility to create dynamics constraints and states in single
+        shooting."""
+        Xk = cs.vertcat(*self._initial_states.values())
+        U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            get_args = lambda k: (U[:, k],)
+            get_args = lambda k: (U[:, k],)  # type: ignore
         else:
-            D = cs.vertcat(*(pars[n] for n in self._disturbance_names))
-            get_args = lambda k: (U[:, k], D[:, k])
-
+            D = cs.vertcat(*self._disturbances.values())
+            get_args = lambda k: (U[:, k], D[:, k])  # type: ignore
         X = [Xk]
         for k in range(self._prediction_horizon):
             Xk = F(Xk, *get_args(k))
@@ -352,9 +339,5 @@ class Mpc(NonRetroactiveWrapper[T]):
                 Xk = Xk[0]
             X.append(Xk)
         X = cs.horzcat(*X)
-
-        i = 0
-        for name in self._state_names:
-            dim = pars[f"{name}_0"].shape[0]
-            self._state_exprs[name] = X[i : i + dim, :]
-            i += dim
+        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))

@@ -4,9 +4,7 @@ from warnings import warn
 import casadi as cs
 import numpy as np
 
-from csnlp.nlp.funcs import cached_property, invalidate_cache
 from csnlp.nlp.solutions import DMStruct, Solution, subsevalf
-from csnlp.util.data import dict2struct, struct_symSX
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
@@ -21,17 +19,16 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self._unscaled_vars: Dict[str, T] = {}
         self._unscaled_pars: Dict[str, T] = {}
 
-    @cached_property
-    def unscaled_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def unscaled_variables(self) -> Dict[str, T]:
         """Gets the unscaled variables of the NLP scheme."""
-        return dict2struct(self._unscaled_vars, entry_type="expr")
+        return self._unscaled_vars
 
-    @cached_property
-    def unscaled_parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def unscaled_parameters(self) -> Dict[str, T]:
         """Gets the unscaled parameters of the NLP scheme."""
-        return dict2struct(self._unscaled_pars, entry_type="expr")
+        return self._unscaled_pars
 
-    @invalidate_cache(unscaled_variables)
     def variable(
         self,
         name: str,
@@ -55,7 +52,6 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self._unscaled_vars[name] = uvar
         return var, lam_lb, lam_ub
 
-    @invalidate_cache(unscaled_parameters)
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """See `Nlp.parameter` method."""
         par = self.nlp.parameter(name, shape)

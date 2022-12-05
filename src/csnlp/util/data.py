@@ -1,9 +1,7 @@
-from typing import Any, Dict, List, Literal, Optional, Union
+from typing import Any, List, Optional, Union
 
 import casadi as cs
-import casadi.tools as cst
 import numpy as np
-from casadi.tools.structure3 import DMStruct
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -25,68 +23,6 @@ def is_casadi_object(obj: Any) -> bool:
         return False
     module: str = obj.__module__.split(".")[0]
     return module == cs.__name__
-
-
-class struct_symSX(cst.struct_symSX):
-    """Updated structure class for CasADi structures (SX). This class fixes a bug that
-    prevents unpickeling of the structure.
-
-    Implementation taken from
-    https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py"""
-
-    def __init__(self, *args, **kwargs):
-        kwargs.pop("order", None)
-        super().__init__(*args, **kwargs)
-
-
-class struct_SX(cst.struct_SX):
-    """Updated structure class for CasADi structures (SX). This class fixes a bug that
-    prevents unpickeling of the structure.
-
-    Implementation taken from
-    https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py"""
-
-    def __init__(self, *args, **kwargs):
-        kwargs.pop("order", None)
-        super().__init__(*args, **kwargs)
-
-
-def dict2struct(
-    dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]],
-    entry_type: Literal["sym", "expr"] = "sym",
-) -> Union[DMStruct, cst.struct_symSX, cst.struct_SX, Dict[str, cs.MX]]:
-    """Attempts to convert a dictionary of CasADi matrices to a struct. The
-    algorithm is inferred from the type of the first element of `dict`:
-     - if `DM`, then a numerical `DMStruct` is returned
-     - if `SX`, then a symbolical `struct_symSX` is returned
-     - if `MX` (or any other, for this matter), only a copy of `dict` is
-       returned.
-
-    Parameters
-    ----------
-    dict : Dict[str, Union[cs.DM, cs.SX, cs.MX]]
-        Dictionary of names and their corresponding symbolic variables.
-    entry_type : 'sym', 'expr'
-        SX struct entry type. By default, `'sym'`.
-
-    Returns
-    -------
-    Union[DMStruct, struct_symSX, struct_SX, Dict[str, cs.MX]]
-        Either a structure generated from `dict`, or a copy of `dict` itself.
-    """
-    if not dict:  # in case of empty dict
-        return {}
-    o = next(iter(dict.values()))
-    if isinstance(o, cs.DM):
-        dummy = struct_symSX(
-            [cst.entry(name, shape=p.shape) for name, p in dict.items()]
-        )
-        return dummy(cs.vertcat(*map(cs.vec, dict.values())))
-    elif isinstance(o, cs.SX):
-        struct = struct_symSX if entry_type == "sym" else struct_SX
-        return struct([cst.entry(name, **{entry_type: p}) for name, p in dict.items()])
-    else:
-        return dict.copy()
 
 
 def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:

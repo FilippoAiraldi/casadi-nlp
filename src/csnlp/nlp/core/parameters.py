@@ -1,9 +1,6 @@
-from typing import Dict, Generic, Literal, Tuple, Type, TypeVar, Union
+from typing import Dict, Generic, Literal, Tuple, Type, TypeVar
 
 import casadi as cs
-
-from csnlp.nlp.funcs import cached_property, invalidate_cache
-from csnlp.util.data import dict2struct, struct_symSX
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -20,7 +17,7 @@ class HasParameters(Generic[T]):
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
         self._csXX: Type[T] = getattr(cs, sym_type)
-        self._pars: Dict[str, Union[cs.SX, cs.MX]] = {}
+        self._pars: Dict[str, T] = {}
         self._p = self._csXX()
 
     @property
@@ -33,12 +30,11 @@ class HasParameters(Generic[T]):
         """Number of parameters in the NLP scheme."""
         return self._p.shape[0]
 
-    @cached_property
-    def parameters(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def parameters(self) -> Dict[str, T]:
         """Gets the parameters of the NLP scheme."""
-        return dict2struct(self._pars)
+        return self._pars
 
-    @invalidate_cache(parameters)
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """Adds a parameter to the NLP scheme.
 

@@ -5,7 +5,6 @@ import numpy as np
 
 from csnlp.nlp.core.variables import HasVariables
 from csnlp.nlp.funcs import cached_property, invalidate_cache
-from csnlp.util.data import dict2struct, struct_symSX
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -103,15 +102,15 @@ class HasConstraints(HasVariables[T]):
         """Number of inequality constraints in the NLP scheme."""
         return self._h.shape[0]
 
-    @cached_property
-    def dual_variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def dual_variables(self) -> Dict[str, T]:
         """Gets the dual variables of the NLP scheme."""
-        return dict2struct(self._dual_vars)
+        return self._dual_vars
 
-    @cached_property
-    def constraints(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def constraints(self) -> Dict[str, T]:
         """Gets the constraints of the NLP scheme."""
-        return dict2struct(self._cons, entry_type="expr")
+        return self._cons
 
     @cached_property
     def h_lbx(self) -> Tuple[T, T]:
@@ -198,7 +197,7 @@ class HasConstraints(HasVariables[T]):
         """
         return cs.vertcat(self._x, self.lam_all if all else self.lam)
 
-    @invalidate_cache(dual_variables, h_lbx, h_ubx, lam, lam_all)
+    @invalidate_cache(h_lbx, h_ubx, lam, lam_all)
     def variable(
         self,
         name: str,
@@ -254,7 +253,7 @@ class HasConstraints(HasVariables[T]):
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
         return var, lam_lb, lam_ub
 
-    @invalidate_cache(constraints, dual_variables, lam, lam_all)
+    @invalidate_cache(lam, lam_all)
     def constraint(
         self,
         name: str,

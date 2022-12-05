@@ -1,9 +1,6 @@
-from typing import Dict, Generic, Literal, Tuple, Type, TypeVar, Union
+from typing import Dict, Generic, Literal, Tuple, Type, TypeVar
 
 import casadi as cs
-
-from csnlp.nlp.funcs import cached_property, invalidate_cache
-from csnlp.util.data import dict2struct, struct_symSX
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -33,12 +30,11 @@ class HasVariables(Generic[T]):
         """Number of variables in the NLP scheme."""
         return self._x.shape[0]
 
-    @cached_property
-    def variables(self) -> Union[struct_symSX, Dict[str, cs.MX]]:
+    @property
+    def variables(self) -> Dict[str, T]:
         """Gets the primal variables of the NLP scheme."""
-        return dict2struct(self._vars)
+        return self._vars
 
-    @invalidate_cache(variables)
     def variable(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """Adds a variable to the NLP problem.
 

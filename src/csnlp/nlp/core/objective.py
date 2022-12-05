@@ -1,13 +1,12 @@
 from functools import partial
-from typing import Any, Dict, Literal, Optional, TypeVar, Union
+from typing import Any, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as npy
 
 from csnlp.nlp.core.constraints import HasConstraints
 from csnlp.nlp.core.parameters import HasParameters
-from csnlp.nlp.solutions import DMStruct, Solution, subsevalf
-from csnlp.util.data import dict2struct
+from csnlp.nlp.solutions import Solution, subsevalf
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -129,18 +128,18 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
 
     def solve(
         self,
-        pars: Union[None, DMStruct, Dict[str, npy.ndarray]] = None,
-        vals0: Union[None, DMStruct, Dict[str, npy.ndarray]] = None,
+        pars: Optional[Dict[str, npy.ndarray]] = None,
+        vals0: Optional[Dict[str, npy.ndarray]] = None,
     ) -> Solution:
         """Solves the NLP optimization problem.
 
         Parameters
         ----------
-        pars : DMStruct, dict[str, array_like], optional
+        pars : dict[str, array_like], optional
             Dictionary or structure containing, for each parameter in the NLP scheme,
             the corresponding numerical value. Can be `None` if no parameters are
             present.
-        vals0 : DMStruct, dict[str, array_like], optional
+        vals0 : dict[str, array_like], optional
             Dictionary or structure containing, for each variable in the NLP scheme, the
             corresponding initial guess. By default, initial guesses are not passed to
             the solver.
@@ -186,13 +185,8 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         lam_g = sol["lam_g"][: self.ng, :]
         lam_h = sol["lam_g"][self.ng :, :]
 
-        vars_ = self.variables
-        if self._csXX is cs.SX:
-            vals = vars_(sol["x"])
-        else:
-            vals = dict2struct(
-                {name: subsevalf(var, self._x, sol["x"]) for name, var in vars_.items()}
-            )
+        vars = self.variables
+        vals = {name: subsevalf(var, self._x, sol["x"]) for name, var in vars.items()}
         old = cs.vertcat(
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
@@ -200,7 +194,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         get_value = partial(subsevalf, old=old, new=new)
         solution = Solution[T](
             f=float(sol["f"]),
-            vars=vars_,
+            vars=vars,
             vals=vals,
             stats=self._solver.stats().copy(),
             _get_value=get_value,

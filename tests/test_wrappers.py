@@ -484,7 +484,7 @@ class TestMpc(unittest.TestCase):
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10)
         x, _ = mpc.state("x1", 3)
         _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
-        self.assertIn(slack.name(), mpc._slack_names)
+        self.assertIn(slack.name(), mpc.slacks)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertEqual(slack.shape, mpc.slacks[slack.name()].shape)
         self.assertEqual(mpc.nslacks, x.shape[0])

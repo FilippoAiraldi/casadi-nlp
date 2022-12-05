@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from functools import cached_property, lru_cache
 from itertools import product
-from typing import Any, Dict, Optional, Tuple, Type, Union
+from typing import Any, Optional, Tuple, Type, Union
 
 import casadi as cs
 import numpy as np
@@ -183,35 +183,6 @@ class TestData(unittest.TestCase):
     )
     def test_is_casadi_object__guesses_correctly(self, obj: Any, result: bool):
         self.assertEqual(data.is_casadi_object(obj), result)
-
-    def test_dict2struct__with_DM__returns_numerical_struct(self):
-        d = {
-            "x": cs.DM(np.random.rand(3, 2)),
-            "y": cs.DM(np.random.rand(4, 1)),
-        }
-        s = data.dict2struct(d)
-        self.assertIsInstance(s, data.DMStruct)
-        for name, x in d.items():
-            np.testing.assert_allclose(x, s[name])
-
-    def test_dict2struct__with_SX__returns_sym_struct(self):
-        d = {
-            "x": cs.SX.sym("x", 3, 2),
-            "y": cs.SX.sym("y", 4, 1),
-        }
-        s = data.dict2struct(d)
-        self.assertIsInstance(s, data.struct_symSX)
-        for name, x in d.items():
-            self.assertTrue(cs.is_equal(s[name], x))
-
-    def test_dict2struct__with_MX__returns_copy_of_dict(self):
-        d = {
-            "x": cs.MX.sym("x"),
-            "y": cs.MX.sym("y"),
-        }
-        s = data.dict2struct(d)
-        self.assertIsInstance(s, Dict)
-        self.assertDictEqual(d, s)
 
     @parameterized.expand(product([cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]))
     def test_cs2array_array2cs__convert_properly(

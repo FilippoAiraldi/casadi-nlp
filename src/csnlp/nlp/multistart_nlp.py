@@ -19,7 +19,6 @@ import numpy as np
 from csnlp.nlp.funcs import invalidate_cache
 from csnlp.nlp.nlp import Nlp
 from csnlp.nlp.solutions import Solution, subsevalf
-from csnlp.util.data import DMStruct, dict2struct
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -183,8 +182,8 @@ class MultistartNlp(Nlp[T], Generic[T]):
 
     def solve_multi(
         self,
-        pars: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
-        vals0: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
+        pars: Optional[Iterable[Dict[str, np.ndarray]]] = None,
+        vals0: Optional[Iterable[Dict[str, np.ndarray]]] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[T], List[Solution[T]]]:
@@ -230,22 +229,26 @@ class MultistartNlp(Nlp[T], Generic[T]):
             )
 
         if pars is not None:
-            pars = {
+            pars_ = {
                 _n(n, i): pars_i[n]
                 for i, pars_i in enumerate(pars)
                 for n in pars_i.keys()
             }
+        else:
+            pars_ = None
         if vals0 is not None:
-            vals0 = {
+            vals0_ = {
                 _n(n, i): vals0_i[n]
                 for i, vals0_i in enumerate(vals0)
                 for n in vals0_i.keys()
             }
-        multi_sol = self._multi_nlp.solve(pars=pars, vals0=vals0)
+        else:
+            vals0_ = None
+        multi_sol = self._multi_nlp.solve(pars=pars_, vals0=vals0_)
         if return_multi_sol:
             return multi_sol
 
-        vars_ = self.variables
+        vars = self.variables
         symbols = self._symbols(vars=True, pars=True, dual=True)
         old = cs.vertcat(
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
@@ -255,7 +258,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         fs = [float(multi_sol.value(f)) for f in self._fs]
         idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
         for i in idx:
-            vals = {n: multi_sol.vals[_n(n, i)] for n in vars_.keys()}
+            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}
 
             symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
             new = subsevalf(old, symbols, symbols_i, eval=False)
@@ -264,8 +267,8 @@ class MultistartNlp(Nlp[T], Generic[T]):
             sols.append(
                 Solution[T](
                     f=fs[i],
-                    vars=vars_,
-                    vals=dict2struct(vals),
+                    vars=vars,
+                    vals=vals,
                     stats=multi_sol.stats,
                     _get_value=get_value,
                 )
