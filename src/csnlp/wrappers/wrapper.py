@@ -1,9 +1,10 @@
 from contextlib import contextmanager
-from typing import Any, Generic, Type, TypeVar
+from typing import Any, Generic, List, Type, TypeVar, Union
 
 import casadi as cs
 
 from csnlp.nlp import Nlp
+from csnlp.solutions import Solution
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)
@@ -68,7 +69,9 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
             raise AttributeError(f"Accessing private attribute '{name}' is prohibited.")
         return getattr(self.nlp, name)
 
-    def __call__(self, *args: Any, **kwds: Any) -> Any:
+    def __call__(
+        self, *args: Any, **kwds: Any
+    ) -> Union[Solution[T], List[Solution[T]]]:
         return (self.solve_multi if self.nlp.is_multi else self.solve)(*args, **kwds)
 
     def __str__(self) -> str:
