@@ -1,8 +1,8 @@
 from typing import Any, Dict, Literal, Union
 
 import casadi as cs
+import casadi.tools as cst
 import numpy as np
-from casadi.tools import entry, struct_SX, struct_symSX
 from casadi.tools.structure3 import DMStruct
 
 
@@ -21,19 +21,40 @@ def is_casadi_object(obj: Any) -> bool:
     bool
         A flag that states whether the object belongs to CasADi or not.
     """
-
-    # see https://stackoverflow.com/a/52783240/19648688
-
     if not hasattr(obj, "__module__"):
         return False
     module: str = obj.__module__.split(".")[0]
     return module == cs.__name__
 
 
+class struct_symSX(cst.struct_symSX):
+    """Updated structure class for CasADi structures (SX). This class fixes a bug that
+    prevents unpickeling of the structure.
+
+    Implementation taken from
+    https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py"""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop("order", None)
+        super().__init__(*args, **kwargs)
+
+
+class struct_SX(cst.struct_SX):
+    """Updated structure class for CasADi structures (SX). This class fixes a bug that
+    prevents unpickeling of the structure.
+
+    Implementation taken from
+    https://github.com/do-mpc/do-mpc/blob/master/do_mpc/tools/casstructure.py"""
+
+    def __init__(self, *args, **kwargs):
+        kwargs.pop("order", None)
+        super().__init__(*args, **kwargs)
+
+
 def dict2struct(
     dict: Dict[str, Union[cs.DM, cs.SX, cs.MX]],
     entry_type: Literal["sym", "expr"] = "sym",
-) -> Union[DMStruct, struct_symSX, struct_SX, Dict[str, cs.MX]]:
+) -> Union[DMStruct, cst.struct_symSX, cst.struct_SX, Dict[str, cs.MX]]:
     """Attempts to convert a dictionary of CasADi matrices to a struct. The
     algorithm is inferred from the type of the first element of `dict`:
      - if `DM`, then a numerical `DMStruct` is returned
@@ -57,11 +78,13 @@ def dict2struct(
         return {}
     o = next(iter(dict.values()))
     if isinstance(o, cs.DM):
-        dummy = struct_symSX([entry(name, shape=p.shape) for name, p in dict.items()])
+        dummy = struct_symSX(
+            [cst.entry(name, shape=p.shape) for name, p in dict.items()]
+        )
         return dummy(cs.vertcat(*map(cs.vec, dict.values())))
     elif isinstance(o, cs.SX):
         struct = struct_symSX if entry_type == "sym" else struct_SX
-        return struct([entry(name, **{entry_type: p}) for name, p in dict.items()])
+        return struct([cst.entry(name, **{entry_type: p}) for name, p in dict.items()])
     else:
         return dict.copy()
 
