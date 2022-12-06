@@ -8,7 +8,6 @@ import numpy.typing as npt
 
 from csnlp.nlp.core.objective import HasObjective
 from csnlp.nlp.debug import NlpDebug
-from csnlp.nlp.funcs import np_random
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)
@@ -33,7 +32,6 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         remove_redundant_x_bounds: bool = True,
         name: Optional[str] = None,
         debug: bool = False,
-        seed: Optional[int] = None,
     ) -> None:
         """Creates an NLP instance.
 
@@ -50,8 +48,6 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         debug : bool, optional
             If `True`, the NLP logs in the `debug` property information regarding the
             creation of parameters, variables and constraints. By default, `False`.
-        seed : int, optional
-            Random number generator seed.
 
         Raises
         ------
@@ -63,8 +59,6 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         )
         self.id = next(self.__ids)
         self.name = f"{self.__class__.__name__}{self.id}" if name is None else name
-        self._seed = seed
-        self._np_random: Optional[np.random.Generator] = None
         self._debug = NlpDebug() if debug else None
 
     @property
@@ -85,13 +79,6 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
     def is_wrapped(self, *args: Any, **kwargs: Any) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
-
-    @property
-    def np_random(self) -> np.random.Generator:
-        """Returns the nlp's random engine (seeded with the given seed)."""
-        if self._np_random is None:
-            self._np_random, _ = np_random(self._seed)
-        return self._np_random
 
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         out = super().parameter(name, shape)

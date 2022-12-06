@@ -108,19 +108,6 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy.counter2, 2)
         self.assertEqual(dummy.counter3, 2)
 
-    def test_np_random__raises__with_invalid_seed(self):
-        with self.assertRaises(ValueError):
-            funcs.np_random(-1)
-
-    @parameterized.expand([(69,), (None,)])
-    def test_np_random__initializes_rng_with_correct_seed(self, seed: Optional[int]):
-        rng, actual_seed = funcs.np_random(seed)
-        self.assertIsInstance(rng, np.random.Generator)
-        if seed is not None:
-            self.assertEqual(seed, actual_seed)
-        else:
-            self.assertIsInstance(actual_seed, int)
-
 
 class TestArray(unittest.TestCase):
     @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])

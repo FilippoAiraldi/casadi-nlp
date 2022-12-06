@@ -49,12 +49,6 @@ class TestNlp(unittest.TestCase):
         nlp = Nlp(sym_type=self.sym_type)
         self.assertEqual(nlp._csXX.__name__, self.sym_type)
 
-    def test_np_random__creates_rng_when_fetched(self):
-        nlp = Nlp(sym_type=self.sym_type)
-        rng = nlp.np_random
-        self.assertIsNotNone(rng)
-        self.assertIsInstance(rng, np.random.Generator)
-
     def test_parameter__creates_correct_parameter(self):
         shape1 = (4, 3)
         shape2 = (2, 2)

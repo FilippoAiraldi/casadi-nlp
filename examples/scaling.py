@@ -26,6 +26,7 @@ m0 = 500000  # start mass [kg]
 yT = 100000  # final height [m]
 g = 9.81  # gravity 9.81 [m/s^2]
 alpha = 1 / (300 * g)  # kg/(N*s)
+seed = 69
 
 # solver options
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
@@ -44,8 +45,11 @@ axs[4, 1].set_xlabel("Iteration number")
 
 
 for i, SCALED in enumerate((False, True)):
+    # create rng
+    rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
+
     # create mpc
-    nlp = MultistartNlp[cs.SX](sym_type="SX", starts=K, seed=69)
+    nlp = MultistartNlp[cs.SX](sym_type="SX", starts=K)
     if SCALED:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
         # wrapped in it, and only then in the MPC.
@@ -84,8 +88,8 @@ for i, SCALED in enumerate((False, True)):
         pars=({"x_0": x0} for _ in range(K)),
         vals0=(
             {
-                "x": x_initial + mpc.np_random.random(x_initial.shape) * 1e4,
-                "u": mpc.np_random.random() * 1e8,
+                "x": x_initial + rng.random(x_initial.shape) * 1e4,
+                "u": rng.random() * 1e8,
             }
             for _ in range(K)
         ),

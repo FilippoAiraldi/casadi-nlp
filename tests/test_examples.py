@@ -191,7 +191,8 @@ class TestExamples(unittest.TestCase):
         g = 9.81
         alpha = 1 / (300 * g)
         seed = 69
-        nlp = MultistartNlp(sym_type="SX", starts=K, seed=seed)
+        rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
+        nlp = MultistartNlp(sym_type="SX", starts=K)
 
         y_nom = 1e5
         v_nom = 2e3
@@ -222,8 +223,8 @@ class TestExamples(unittest.TestCase):
         pars = [{"x_0": x0}] * K
         vals0 = [
             {
-                "x": x_init + mpc.unwrapped.np_random.random(x_init.shape) * 1e4,
-                "u": mpc.unwrapped.np_random.random() * 1e8,
+                "x": x_init + rng.random(x_init.shape) * 1e4,
+                "u": rng.random() * 1e8,
             }
             for _ in range(K)
         ]
