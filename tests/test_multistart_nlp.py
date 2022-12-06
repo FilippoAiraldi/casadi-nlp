@@ -26,7 +26,9 @@ OPTS = {
 @parameterized_class("sym_type", [("SX",), ("MX",)])
 class TestMultistartNlp(unittest.TestCase):
     def test_init__raises__with_invalid_number_of_starts(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaisesRegex(
+            ValueError, "Number of scenarios must be positive and > 0."
+        ):
             MultistartNlp(starts=0, sym_type=self.sym_type)
 
     def test_variable_parameter_and_constraint__builds_correct_copies(self):
@@ -55,6 +57,15 @@ class TestMultistartNlp(unittest.TestCase):
         f2 = subsevalf(nlp._multi_nlp.f, nlp._multi_nlp._vars, x_dict)
         self.assertAlmostEqual(f1, f2 / N)
 
+    def test_solve__raises__with_both_flags_on(self):
+        N = 3
+        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        with self.assertRaisesRegex(
+            AssertionError,
+            "`return_multi_sol` and `return_all_sols` can't be both true.",
+        ):
+            nlp(None, None, return_all_sols=True, return_multi_sol=True)
+
     @parameterized.expand([(False,), (True,)])
     def test_solve__computes_right_solution(self, copy: bool):
         N = 3
@@ -80,7 +91,7 @@ class TestMultistartNlp(unittest.TestCase):
             fs.append(sol.f)
 
         # solve with multistart
-        args = ([{"p": 0} for _ in x0s], [{"x": x0} for x0 in x0s])
+        args = ({"p": 0}, [{"x": x0} for x0 in x0s])
         best_sol = nlp.solve_multi(*args)
         all_sols = nlp.solve_multi(*args, return_all_sols=True)
 

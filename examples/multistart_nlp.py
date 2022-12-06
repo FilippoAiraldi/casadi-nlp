@@ -36,9 +36,9 @@ xfs = [
 ]
 
 # use automatical multistart solver
-args = ([{"p0": 0, "p1": 1} for _ in x0s], [{"x": x0} for x0 in x0s])
-best_sol: Solution[cs.SX] = nlp.solve_multi(*args)  # type: ignore
-all_sols: List[Solution[cs.SX]] = nlp.solve_multi(*args, return_all_sols=True)  # type: ignore
+kwargs = dict(pars={"p0": 0, "p1": 1}, vals0=[{"x": x0} for x0 in x0s])
+best_sol: Solution[cs.SX] = nlp.solve_multi(**kwargs)  # type: ignore
+all_sols: List[Solution[cs.SX]] = nlp.solve_multi(**kwargs, return_all_sols=True)  # type: ignore
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)

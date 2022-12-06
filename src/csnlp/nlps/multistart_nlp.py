@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from functools import lru_cache, partial
+from itertools import repeat
 from typing import (
     Any,
     Dict,
@@ -36,10 +37,10 @@ def _get_value(x, sol: Solution, old, new, eval: bool = True):
 
 
 class MultistartNlp(Nlp[T], Generic[T]):
-    """A class to easily model and solve an NLP from multiple starting
-    initial guesses in parallel. This is especially useful in case of strong
-    nonlinearities, where the solver's initial conditions play a great role in
-    the optimality of the solution (rather, its sub-optimality)."""
+    """A class to easily model and solve an NLP from multiple starting initial guesses
+    in parallel. This is especially useful in case of strong nonlinearities, where the
+    solver's initial conditions play a great role in the optimality of the solution
+    (rather, its sub-optimality)."""
 
     is_multi: bool = True
 
@@ -56,8 +57,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         args, kwargs
             See inherited `csnlp.Nlp`.
         starts : int
-            A positive integer for the number of multiple starting guesses to
-            optimize over.
+            A positive integer for the number of multiple starting guesses to optimize.
 
         Raises
         ------
@@ -184,8 +184,12 @@ class MultistartNlp(Nlp[T], Generic[T]):
 
     def solve_multi(
         self,
-        pars: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
-        vals0: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
+        pars: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[T], List[Solution[T]]]:
@@ -193,60 +197,54 @@ class MultistartNlp(Nlp[T], Generic[T]):
 
         Parameters
         ----------
-        pars : iterable of DMStruct, dict[str, array_like], optional
-            An iterable that, for each multistart, contains a dictionary or
-            structure containing, for each parameter in the NLP scheme, the
-            corresponding numerical value. Can be `None` if no parameters are
-            present.
-        vals0 : iterable of DMStruct, dict[str, array_like], optional
-            An iterable that, for each multistart, contains a dictionary or
-            structure containing, for each variable in the NLP scheme, the
-            corresponding initial guess. By default, initial guesses are not
-            passed to the solver.
+        pars : dict[str, array_like] or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            parameter in the NLP scheme, the corresponding numerical value. In case a
+            single dict is passed, the same is used across all scenarions. Can be `None`
+            if no parameters are present.
+        vals0 : dict[str, array_like] or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            variable in the NLP scheme, the corresponding initial guess. In case a
+            single dict is passed, the same is used across all scenarions. By default
+            `None`, in which case  initial guesses are not passed to the solver.
         return_all_sols : bool, optional
-            If `True`, returns the solution of each multistart of the NLP;
-            otherwise, only the best solution is returned. By default, `False`.
+            If `True`, returns the solution of each multistart of the NLP; otherwise,
+            only the best solution is returned. By default, `False`.
         return_multi_sol : bool, optional
-            If `True`, returns the solution of the underlying multistart NLP.
-            Generally, only for debugging. By default, `False`.
+            If `True`, returns the solution of the underlying multistart NLP. Generally,
+            only for debugging. By default, `False`.
 
         Returns
         -------
         Solution or list of Solutions
-            Depending on the flags `return_all_sols` and `return_multi_sol`,
-            returns
+            Depending on the flags `return_all_sols` and `return_multi_sol`, returns
                 - the best solution out of all multiple starts
                 - all the solutions (one per start)
                 - the solution to the underlying (hidden) multistart NLP.
 
         Raises
         ------
-        ValueError
-            Raises if `return_multi_sol` and `return_all_sols` are both true at
-            the same time.
+        AssertionError
+            Raises if `return_multi_sol` and `return_all_sols` are both true.
         """
-        if return_multi_sol and return_all_sols:
-            raise ValueError(
-                "`return_multi_sol` and `return_all_sols` can't be both true."
-            )
-
+        assert not (
+            return_multi_sol and return_all_sols
+        ), "`return_multi_sol` and `return_all_sols` can't be both true."
         if pars is not None:
-            pars_ = {
+            pars_iter = repeat(pars, self.starts) if isinstance(pars, dict) else pars
+            pars = {
                 _n(n, i): pars_i[n]
-                for i, pars_i in enumerate(pars)
+                for i, pars_i in enumerate(pars_iter)
                 for n in pars_i.keys()
             }
-        else:
-            pars_ = None
         if vals0 is not None:
-            vals0_ = {
+            v0_iter = repeat(vals0, self.starts) if isinstance(vals0, dict) else vals0
+            vals0 = {
                 _n(n, i): vals0_i[n]
-                for i, vals0_i in enumerate(vals0)
+                for i, vals0_i in enumerate(v0_iter)
                 for n in vals0_i.keys()
             }
-        else:
-            vals0_ = None
-        multi_sol = self._multi_nlp.solve(pars=pars_, vals0=vals0_)
+        multi_sol = self._multi_nlp.solve(pars=pars, vals0=vals0)
         if return_multi_sol:
             return multi_sol
 

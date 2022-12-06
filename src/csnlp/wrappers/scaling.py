@@ -101,8 +101,12 @@ class NlpScaling(NonRetroactiveWrapper[T]):
 
     def solve_multi(
         self,
-        pars: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
-        vals0: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
+        pars: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[T], List[Solution[T]]]:
@@ -111,9 +115,17 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             self.nlp.is_multi
         ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
         if pars is not None:
-            pars = (self._scale_struct(pars_i) for pars_i in pars)
+            pars = (
+                self._scale_struct(pars)
+                if isinstance(pars, dict)
+                else (self._scale_struct(pars_i) for pars_i in pars)
+            )
         if vals0 is not None:
-            vals0 = (self._scale_struct(vals0_i) for vals0_i in vals0)
+            vals0 = (
+                self._scale_struct(vals0)
+                if isinstance(vals0, dict)
+                else (self._scale_struct(vals0_i) for vals0_i in vals0)
+            )
         return self.nlp.solve_multi(  # type: ignore
             pars,
             vals0,
