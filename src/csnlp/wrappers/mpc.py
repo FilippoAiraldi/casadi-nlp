@@ -313,12 +313,12 @@ class Mpc(NonRetroactiveWrapper[T]):
         X = cs.vertcat(*self._states.values())
         U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            get_args = lambda k: (X[:, k], U[:, k])  # type: ignore
+            args_at = lambda k: (X[:, k], U[:, k])  # type: ignore # noqa: E731
         else:
             D = cs.vertcat(*self._disturbances.values())
-            get_args = lambda k: (X[:, k], U[:, k], D[:, k])  # type: ignore
+            args_at = lambda k: (X[:, k], U[:, k], D[:, k])  # type: ignore # noqa: E731
         for k in range(self._prediction_horizon):
-            x_next = F(*get_args(k))
+            x_next = F(*args_at(k))
             if n_out != 1:
                 x_next = x_next[0]
             self.constraint(f"dyn_{k}", X[:, k + 1], "==", x_next)
@@ -329,13 +329,13 @@ class Mpc(NonRetroactiveWrapper[T]):
         Xk = cs.vertcat(*self._initial_states.values())
         U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            get_args = lambda k: (U[:, k],)  # type: ignore
+            args_at = lambda k: (U[:, k],)  # type: ignore  # noqa: E731
         else:
             D = cs.vertcat(*self._disturbances.values())
-            get_args = lambda k: (U[:, k], D[:, k])  # type: ignore
+            args_at = lambda k: (U[:, k], D[:, k])  # type: ignore  # noqa: E731
         X = [Xk]
         for k in range(self._prediction_horizon):
-            Xk = F(Xk, *get_args(k))
+            Xk = F(Xk, *args_at(k))
             if n_out != 1:
                 Xk = Xk[0]
             X.append(Xk)
