@@ -1,10 +1,11 @@
-from typing import Dict, Iterable, List, Literal, Tuple, TypeVar, Union
+from typing import Dict, Iterable, List, Literal, Optional, Tuple, TypeVar, Union
 from warnings import warn
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
-from csnlp.nlp.solutions import DMStruct, Solution, subsevalf
+from csnlp.nlp.solutions import Solution, subsevalf
 from csnlp.util.scaling import Scaler
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
@@ -33,8 +34,8 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         """See `Nlp.variable` method."""
         can_scale = name in self.scaler
@@ -88,8 +89,8 @@ class NlpScaling(NonRetroactiveWrapper[T]):
 
     def solve(
         self,
-        pars: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
-        vals0: Union[None, DMStruct, Dict[str, np.ndarray]] = None,
+        pars: Optional[Dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[Dict[str, npt.ArrayLike]] = None,
     ) -> Solution[T]:
         """See `Nlp.solve` method."""
         if pars is not None:
@@ -100,8 +101,8 @@ class NlpScaling(NonRetroactiveWrapper[T]):
 
     def solve_multi(
         self,
-        pars: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
-        vals0: Union[None, Iterable[DMStruct], Iterable[Dict[str, np.ndarray]]] = None,
+        pars: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
+        vals0: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[T], List[Solution[T]]]:
@@ -120,9 +121,8 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             return_multi_sol=return_multi_sol,
         )
 
-    def _scale_struct(
-        self, d: Union[DMStruct, Dict[str, np.ndarray]]
-    ) -> Dict[str, np.ndarray]:
+    def _scale_struct(self, d: Dict[str, npt.ArrayLike]) -> Dict[str, npt.ArrayLike]:
+        # sourcery skip: remove-dict-keys
         """Internal utility for scaling structures/dicts."""
         scaler = self.scaler
         return {

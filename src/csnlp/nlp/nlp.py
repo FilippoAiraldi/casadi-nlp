@@ -4,6 +4,7 @@ from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Type, TypeVar,
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.nlp.core.objective import HasObjective
 from csnlp.nlp.debug import NlpDebug
@@ -102,8 +103,8 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         out = super().variable(name, shape, lb, ub)
         if self._debug is not None:

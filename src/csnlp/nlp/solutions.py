@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
 
 import casadi as cs
 import numpy as np
-from casadi.tools.structure3 import CasadiStructured, DMStruct
+from casadi.tools.structure3 import CasadiStructured
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -13,8 +13,8 @@ class Solution(Generic[T]):
     """Class containing information on the solution of an NLP solver's run."""
 
     f: float
-    vars: Union[CasadiStructured, Dict[str, T]]
-    vals: Union[DMStruct, Dict[str, cs.DM]]
+    vars: Dict[str, T]
+    vals: Dict[str, cs.DM]
     stats: Dict[str, Any]
     _get_value: Callable[[T, bool], cs.DM]
 

@@ -2,6 +2,7 @@ from typing import Dict, Literal, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.nlp.core.variables import HasVariables
 from csnlp.nlp.funcs import cached_property, invalidate_cache
@@ -46,13 +47,13 @@ class HasConstraints(HasVariables[T]):
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
-    def lbx(self) -> np.ndarray:
+    def lbx(self) -> npt.NDArray[np.double]:
         """Gets the lower bound constraints of primary variables of the NLP scheme in
         vector form."""
         return self._lbx
 
     @property
-    def ubx(self) -> np.ndarray:
+    def ubx(self) -> npt.NDArray[np.double]:
         """Gets the upper bound constraints of primary variables of the NLP scheme in
         vector form."""
         return self._ubx
@@ -202,8 +203,8 @@ class HasConstraints(HasVariables[T]):
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         """
         Adds a variable to the NLP problem.

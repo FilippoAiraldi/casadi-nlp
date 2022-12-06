@@ -1,7 +1,8 @@
 from collections import UserDict
-from typing import Any, Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import numpy as np
+import numpy.typing as npt
 
 
 class Scaler(UserDict):
@@ -14,12 +15,14 @@ class Scaler(UserDict):
     algebraic operations.
     """
 
-    def __init__(self, d: Optional[Dict[str, Tuple[Any, Any]]] = None):
+    def __init__(
+        self, d: Optional[Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]] = None
+    ):
         """Initializes the scaling class.
 
         Parameters
         ----------
-        d : Dict[str, Tuple[array_like, array_like]], optional
+        d : dict[str, tuple[array_like, array_like]], optional
             A possible non-empty dict of variable group names with the corresponding
             scaling range.
         """
@@ -28,7 +31,9 @@ class Scaler(UserDict):
             for k, v in d.items():
                 self.register(k, *v)
 
-    def register(self, name: str, loc: Any = 0, scale: Any = 1) -> None:
+    def register(
+        self, name: str, loc: npt.ArrayLike = 0, scale: npt.ArrayLike = 1
+    ) -> None:
         """Registers a new variable's loc and scale for normalization, but raises if
         duplicates occur.
 
@@ -67,7 +72,7 @@ class Scaler(UserDict):
         """
         return name in self.data
 
-    def scale(self, name: str, x: Any) -> Any:
+    def scale(self, name: str, x: npt.ArrayLike) -> npt.ArrayLike:
         """Scales the value `x` according to the ranges of `name`.
 
         Parameters
@@ -92,7 +97,7 @@ class Scaler(UserDict):
         assert np.shape(out) == np.shape(x), "Scaling altered input shape."
         return out
 
-    def unscale(self, name: str, x: Any) -> Any:
+    def unscale(self, name: str, x: npt.ArrayLike) -> npt.ArrayLike:
         """Unscales the value `x` according to the ranges of `name`.
 
         Parameters
@@ -134,7 +139,9 @@ class MinMaxScaler(Scaler):
     algebraic operations.
     """
 
-    def register(self, name: str, min: Any = 0, max: Any = 1) -> None:
+    def register(
+        self, name: str, min: npt.ArrayLike = 0, max: npt.ArrayLike = 1
+    ) -> None:
         """Registers a new variable's min and max for normalization, but raises if
         duplicates occur.
 
@@ -153,4 +160,4 @@ class MinMaxScaler(Scaler):
             Raises if a duplicate name is detected.
         ValueError
         """
-        return super().register(name=name, loc=min, scale=max - min)
+        return super().register(name=name, loc=min, scale=max - min)  # type: ignore

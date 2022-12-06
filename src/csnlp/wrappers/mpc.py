@@ -2,6 +2,7 @@ from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
@@ -147,8 +148,8 @@ class Mpc(NonRetroactiveWrapper[T]):
         self,
         name: str,
         dim: int = 1,
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[Optional[T], T]:
         """Adds a state variable to the MPC controller along the whole prediction
         horizon. Automatically creates the constraint on the initial conditions for this
@@ -203,8 +204,8 @@ class Mpc(NonRetroactiveWrapper[T]):
         self,
         name: str,
         dim: int = 1,
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T]:
         """Adds a control action variable to the MPC controller along the whole control
         horizon. Automatically expands this action to be of the same length of the
@@ -216,9 +217,9 @@ class Mpc(NonRetroactiveWrapper[T]):
             Name of the control action.
         dim : int, optional
             Dimension of the control action (assumed to be a vector). Defaults to 1.
-        lb : Union[np.ndarray, cs.DM], optional
+        lb : array_like, casadi.DM, optional
             Hard lower bound of the control action, by default -np.inf.
-        ub : Union[np.ndarray, cs.DM], optional
+        ub : array_like, casadi.DM, optional
             Hard upper bound of the control action, by default +np.inf.
 
         Returns

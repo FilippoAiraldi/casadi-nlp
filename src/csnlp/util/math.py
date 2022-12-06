@@ -4,6 +4,7 @@ from typing import Optional, Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 from scipy.special import comb
 
 SQRT2 = sqrt(2)
@@ -142,7 +143,7 @@ def norm_ppf(
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
 
 
-def nchoosek(n: Union[int, np.ndarray], k: int) -> Union[int, np.ndarray]:
+def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
     """Emulates the `nchoosek` function from Matlab. Returns the binomial
     coefficient, i.e.,  the number of combinations of `n` items taken `k` at a
     time. If `n` is an array, then it is flatten and all possible combinations

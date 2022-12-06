@@ -16,6 +16,7 @@ from typing import (
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.nlp.funcs import invalidate_cache
 from csnlp.nlp.nlp import Nlp
@@ -134,8 +135,8 @@ class MultistartNlp(Nlp[T], Generic[T]):
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         out = super().variable(name, shape, lb, ub)
         for i in range(self._starts):
@@ -183,8 +184,8 @@ class MultistartNlp(Nlp[T], Generic[T]):
 
     def solve_multi(
         self,
-        pars: Optional[Iterable[Dict[str, np.ndarray]]] = None,
-        vals0: Optional[Iterable[Dict[str, np.ndarray]]] = None,
+        pars: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
+        vals0: Optional[Iterable[Dict[str, npt.ArrayLike]]] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[T], List[Solution[T]]]:

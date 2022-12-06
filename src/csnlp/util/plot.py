@@ -4,6 +4,7 @@ import casadi as cs
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from cycler import cycler
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -42,7 +43,7 @@ def save2tikz(*figs: Figure) -> None:
 
 
 def spy(
-    H: Union[cs.SX, cs.MX, cs.DM, np.ndarray], ax: Axes = None, **spy_kwargs
+    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: Axes = None, **spy_kwargs
 ) -> Union[AxesImage, Line2D]:
     """Equivalent of `matplotlib.pyplot.spy` that works also with casadi
     matrices.

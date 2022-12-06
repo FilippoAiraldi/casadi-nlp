@@ -3,6 +3,7 @@ from typing import Any, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.nlp.core.constraints import HasConstraints
 from csnlp.nlp.core.parameters import HasParameters
@@ -128,8 +129,8 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
 
     def solve(
         self,
-        pars: Optional[Dict[str, np.ndarray]] = None,
-        vals0: Optional[Dict[str, np.ndarray]] = None,
+        pars: Optional[Dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[Dict[str, npt.ArrayLike]] = None,
     ) -> Solution:
         """Solves the NLP optimization problem.
 

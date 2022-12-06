@@ -1,7 +1,8 @@
-from typing import Any, List, Optional, Union
+from typing import Any, Iterable, List, Optional, Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -26,25 +27,25 @@ def is_casadi_object(obj: Any) -> bool:
 
 
 def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
-    """Converts numpy array `x` of scalar symbolic variable to a single
-    symbolic instance. Opposite to `array2cs`. Note that all entries in `x`
-    must have the same type, either SX or MX.
+    """Converts numpy array `x` of scalar symbolic variable to a single symbolic
+    instance. Opposite to `array2cs`. Note that all entries in `x` must have the same
+    type, either SX or MX.
 
     Parameters
     ----------
     x : np.ndarray
-        Array whose entries are either MX or SX.
+        Array whose entries are either MX or SX. In case `x` is SX, MX or DM, it is
+        returned immediately.
 
     Returns
     -------
-    Union[cs.SX, cs.MX]
-        A single SX or MX instance.
+    casadi.SX or MX
+        A single SX or MX instance whose entries are `x`'s entries.
 
     Raises
     ------
     ValueError
-        Raises if the array is empty (zero dimensions), or if it has more than
-        2 dimensions.
+        Raises if the array is empty (zero dimensions), or if it has more than 2 dims.
     """
     if isinstance(x, (cs.SX, cs.MX, cs.DM)):
         return x
@@ -58,6 +59,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         o = x[0, 0]
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
+
     # infer type from first element
     sym_type = type(o)
     if sym_type is cs.SX:
@@ -70,16 +72,16 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
 
 
 def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
-    """Converts casadi symbolic variable `x` to a numpy array of scalars.
-    Opposite to `array2cs`.
+    """Converts casadi symbolic variable `x` to a numpy array of scalars. Opposite to
+    `array2cs`.
 
     Inspired by
     https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/tools.py
 
     Parameters
     ----------
-    x : Union[cs.MX, cs.SX]
-        _description_
+    x : casadi.SX or MX
+        A symbolic variable (with multiple entries).
 
     Returns
     -------
@@ -96,15 +98,14 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
 
 def jaggedstack(
-    arrays,
+    arrays: Iterable[npt.ArrayLike],
     axis: int = 0,
     out: Optional[np.ndarray] = None,
-    constant_values: Union[float, np.ndarray] = np.nan,
+    constant_values: Union[float, npt.ArrayLike] = np.nan,
 ) -> np.ndarray:
-    """Joins a sequence of arrays with different shapes along a new axis. To do
-    so, each array is padded with `constant_values` (see `numpy.pad`) to the
-    right to even out the shapes. Then, the same-shape-arrays are stacked via
-    `numpy.stack`.
+    """Joins a sequence of arrays with different shapes along a new axis. To do so, each
+    array is padded with `constant_values` (see `numpy.pad`) to the right to even out
+    the shapes. Then, the same-shape-arrays are stacked via `numpy.stack`.
 
     Parameters
     ----------

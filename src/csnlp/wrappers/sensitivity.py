@@ -2,6 +2,7 @@ from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from csnlp.nlp.funcs import cached_property, invalidate_cache
 from csnlp.nlp.solutions import Solution
@@ -149,7 +150,7 @@ class NlpSensitivity(Wrapper[T]):
         }
 
     @property
-    def licq(self) -> Union[np.ndarray, T]:
+    def licq(self) -> T:
         """Gets the symbolic matrix for LICQ, defined as
         ```
                     LICQ = [ dgdx^T, dhdx^T ]^T
@@ -171,7 +172,11 @@ class NlpSensitivity(Wrapper[T]):
         self,
         expr: T = None,
         solution: Optional[Solution] = None,
-    ) -> Union[Tuple[np.ndarray, np.ndarray], Tuple[T, T]]:
+    ) -> Union[
+        Tuple[T, T],
+        Tuple[cs.DM, cs.DM],
+        Tuple[npt.NDArray[np.double], npt.NDArray[np.double]],
+    ]:
         """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
         parametrization, according to [1].
 
@@ -189,9 +194,9 @@ class NlpSensitivity(Wrapper[T]):
 
         Returns
         -------
-        Union[np.ndarray, casadi.SX, casadi.MX]
-            The NLP parametric sensitivity in the form of an numerical array, if a
-            solution is passed, or a symbolic vector.
+        2-element tuple of casadi.SX, or MX, or DM, or arrays
+            The 1st and 2nd-order NLP parametric sensitivity in the form of an array/DM,
+            if a solution is passed, or a symbolic vector SX/MX.
 
         Raises
         ------
@@ -281,8 +286,8 @@ class NlpSensitivity(Wrapper[T]):
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
-        lb: Union[np.ndarray, cs.DM] = -np.inf,
-        ub: Union[np.ndarray, cs.DM] = +np.inf,
+        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
+        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T, T]:
         """See `Nlp.variable` method."""
         return self.nlp.variable(name, shape, lb, ub)
@@ -306,7 +311,7 @@ class NlpSensitivity(Wrapper[T]):
         return self.nlp.minimize(objective)
 
     @property
-    def _y_idx(self) -> Tuple[T, Union[slice, np.ndarray]]:
+    def _y_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return all the primal-dual variables and indices that are
         associated to non-redundant entries in the kkt conditions."""
         if self.nlp._csXX is cs.SX:

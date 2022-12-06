@@ -4,6 +4,7 @@
 import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 from csnlp import MultistartNlp, Solution, scaling, wrappers
 
@@ -57,14 +58,14 @@ for i, SCALED in enumerate((False, True)):
         scaler.register("x", scale=x_nom)
         scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
-        nlp = wrappers.NlpScaling[cs.SX](nlp, scaler=scaler)
+        nlp = wrappers.NlpScaling[cs.SX](nlp, scaler=scaler)  # type: ignore
     mpc = wrappers.Mpc[cs.SX](nlp, prediction_horizon=N)
 
     # state and actions
     x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
-    y = x[0, :]  # height
-    v = x[1, :]  # velocity
-    m = x[2, :]  # mass
+    y = x[0, :]  # type: ignore
+    v = x[1, :]  # type: ignore
+    m = x[2, :]  # type: ignore
     u, _ = mpc.action("u", lb=0, ub=5e7)
 
     # dynamics
@@ -79,7 +80,7 @@ for i, SCALED in enumerate((False, True)):
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
     x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
-    sol: Solution = mpc.solve_multi(
+    S: Solution = mpc.solve_multi(
         pars=({"x_0": x0} for _ in range(K)),
         vals0=(
             {
@@ -91,16 +92,16 @@ for i, SCALED in enumerate((False, True)):
     )
 
     # plotting
-    u: np.ndarray = sol.value(u).full()
-    x: np.ndarray = sol.value(x).full()
-    axs[0, i].step(time[:-1], u.flat, where="post")
-    axs[1, i].plot(time, x[0, :].flat)
-    axs[2, i].plot(time, x[1, :].flat)
-    axs[3, i].plot(time, x[2, :].flat)
+    u_: npt.NDArray[np.double] = S.value(u).full()
+    x_: npt.NDArray[np.double] = S.value(x).full()
+    axs[0, i].step(time[:-1], u_.flat, where="post")
+    axs[1, i].plot(time, x_[0, :].flat)
+    axs[2, i].plot(time, x_[1, :].flat)
+    axs[3, i].plot(time, x_[2, :].flat)
     if SCALED:
         axs2 = [axs[j, i].twinx() for j in range(4)]
-        u_scaled: np.ndarray = sol.value(mpc.unscaled_variables["u"]).full()
-        x_scaled: np.ndarray = sol.value(mpc.unscaled_variables["x"]).full()
+        u_scaled: npt.NDArray[np.double] = S.value(mpc.unscaled_variables["u"]).full()
+        x_scaled: npt.NDArray[np.double] = S.value(mpc.unscaled_variables["x"]).full()
         axs2[0].step(time[:-1], u_scaled.flat, "r--", where="post")
         axs2[1].plot(time, x_scaled[0, :].flat, "r--")
         axs2[2].plot(time, x_scaled[1, :].flat, "r--")
@@ -109,7 +110,7 @@ for i, SCALED in enumerate((False, True)):
             ax.spines["right"].set_color("r")
             ax.tick_params(axis="y", colors="r")
     axs[4, i].semilogy(
-        sol.stats["iterations"]["inf_pr"], "-", sol.stats["iterations"]["inf_du"], "-"
+        S.stats["iterations"]["inf_pr"], "-", S.stats["iterations"]["inf_du"], "-"
     )
 
 plt.show()
