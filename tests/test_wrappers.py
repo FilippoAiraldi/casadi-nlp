@@ -6,12 +6,16 @@ import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 
-from csnlp import Nlp
-from csnlp.nlp.solutions import subsevalf
+from csnlp import Nlp, scaling
+from csnlp.core.solutions import subsevalf
 from csnlp.util.math import log
-from csnlp.util.scaling import Scaler
-from csnlp.wrappers import Mpc, NlpSensitivity, NonRetroactiveWrapper, Wrapper
-from csnlp.wrappers.scaling import NlpScaling
+from csnlp.wrappers import (
+    Mpc,
+    NlpScaling,
+    NlpSensitivity,
+    NonRetroactiveWrapper,
+    Wrapper,
+)
 
 OPTS = {
     "expand": True,
@@ -604,7 +608,7 @@ class TestMpc(unittest.TestCase):
 class TestNlpScaling(unittest.TestCase):
     @parameterized.expand([("variable",), ("parameter",)])
     def test_parameter_and_variable__warns__when_cannot_scale(self, method: str):
-        scaler = Scaler()
+        scaler = scaling.Scaler()
         nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         with warnings.catch_warnings():
             warnings.filterwarnings("error")
@@ -614,7 +618,7 @@ class TestNlpScaling(unittest.TestCase):
                 getattr(nlp, method)("p")
 
     def test_parameter__scales_correctly(self):
-        scaler = Scaler({"p": (0, 2)})
+        scaler = scaling.Scaler({"p": (0, 2)})
         nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         p = nlp.parameter("p")
         self.assertIn("p", nlp.unscaled_parameters.keys())
@@ -623,7 +627,7 @@ class TestNlpScaling(unittest.TestCase):
         np.testing.assert_allclose(cs.evalf(nlp._unscaled_pars["p"] - p_), 0)
 
     def test_variable__scales_correctly(self):
-        scaler = Scaler({"x": (0, 2)})
+        scaler = scaling.Scaler({"x": (0, 2)})
         nlp = NlpScaling[cs.SX](Nlp(sym_type="SX"), scaler=scaler, warns=True)
         lb, ub = -5, 4
         x, _, _ = nlp.variable("x", lb=lb, ub=ub)

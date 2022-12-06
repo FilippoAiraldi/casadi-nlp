@@ -1,7 +1,5 @@
 from functools import _lru_cache_wrapper, cached_property, wraps
-from typing import Callable, List, Optional, Tuple
-
-import numpy as np
+from typing import Callable, List
 
 
 def invalidate_cache(*callables: Callable) -> Callable:

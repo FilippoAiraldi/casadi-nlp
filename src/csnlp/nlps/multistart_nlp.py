@@ -18,9 +18,9 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.funcs import invalidate_cache
-from csnlp.nlp.nlp import Nlp
-from csnlp.nlp.solutions import Solution, subsevalf
+from csnlp.core.cache import invalidate_cache
+from csnlp.core.solutions import Solution, subsevalf
+from csnlp.nlps.nlp import Nlp
 
 T = TypeVar("T", cs.SX, cs.MX)
 

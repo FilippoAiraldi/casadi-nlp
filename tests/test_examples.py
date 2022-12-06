@@ -5,8 +5,7 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp import MultistartNlp, Nlp, wrappers
-from csnlp.util.scaling import Scaler
+from csnlp import MultistartNlp, Nlp, scaling, wrappers
 
 OPTS = {
     "expand": True,
@@ -199,7 +198,7 @@ class TestExamples(unittest.TestCase):
         m_nom = 3e5
         x_nom = cs.vertcat(y_nom, v_nom, m_nom)
         u_nom = 1e8
-        scaler = Scaler()
+        scaler = scaling.Scaler()
         scaler.register("x", scale=x_nom)
         scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)

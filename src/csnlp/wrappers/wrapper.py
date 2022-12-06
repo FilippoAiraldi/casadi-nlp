@@ -3,8 +3,8 @@ from typing import Any, Generic, Iterator, List, Type, TypeVar, Union
 
 import casadi as cs
 
-from csnlp.nlp.nlp import Nlp
-from csnlp.nlp.solutions import Solution
+from csnlp.core.solutions import Solution
+from csnlp.nlps.nlp import Nlp
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)

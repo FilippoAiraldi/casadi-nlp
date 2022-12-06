@@ -7,7 +7,26 @@ from pickletools import optimize
 from typing import Any, Dict, Iterator, Optional, TypeVar
 from warnings import warn
 
-from csnlp.util.data import is_casadi_object
+
+def is_casadi_object(obj: Any) -> bool:
+    """Checks if the object belongs to the CasADi module.
+
+    See https://stackoverflow.com/a/52783240/19648688 for more details.
+
+    Parameters
+    ----------
+    obj : Any
+        Any type of object.
+
+    Returns
+    -------
+    bool
+        A flag that states whether the object belongs to CasADi or not.
+    """
+    if not hasattr(obj, "__module__"):
+        return False
+    module: str = obj.__module__.split(".")[0]
+    return module == "casadi"
 
 
 def is_pickleable(obj: Any) -> bool:

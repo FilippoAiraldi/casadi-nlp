@@ -2,148 +2,20 @@ import math as _math
 import os
 import tempfile
 import unittest
-from functools import cached_property, lru_cache
-from itertools import product
-from typing import Any, Optional, Tuple, Type, Union
+from typing import Any, Optional, Tuple
 
 import casadi as cs
 import numpy as np
 from parameterized import parameterized
 from scipy.stats import norm
 
-from csnlp.nlp import funcs
-from csnlp.nlp.solutions import subsevalf
-from csnlp.util import data, derivatives, io, math, scaling
+from csnlp.core.solutions import subsevalf
+from csnlp.util import io, math
+
+TMPFILENAME: str = ""
 
 
-class Dummy:
-    def __init__(self) -> None:
-        self.counter1 = 0
-        self.counter2 = 0
-
-    @cached_property
-    def prop1(self) -> int:
-        self.counter1 += 1
-        return self.counter1
-
-    @lru_cache
-    def method2(self) -> int:
-        self.counter2 += 1
-        return self.counter2
-
-    @funcs.invalidate_cache(prop1, method2)
-    def clear_cache(self) -> None:
-        return
-
-
-class Dummy2(Dummy):
-    def __init__(self) -> None:
-        super().__init__()
-        self.counter3 = 0
-
-    @cached_property
-    def prop3(self) -> int:
-        self.counter3 += 1
-        return self.counter3
-
-    @funcs.invalidate_cache(prop3)
-    def clear_cache(self) -> None:
-        return super().clear_cache()
-
-
-class TestFuncs(unittest.TestCase):
-    def test_invalidate_cache__raises__with_invalid_type(self):
-        with self.assertRaises(TypeError):
-            funcs.invalidate_cache(5)
-
-    def test_invalidate_cache__clears_property_cache(self):
-        dummy = Dummy()
-        dummy.prop1
-        dummy.prop1
-        dummy.method2()
-        dummy.method2()
-        self.assertEqual(dummy.counter1, 1)
-        self.assertEqual(dummy.counter2, 1)
-        dummy.clear_cache()
-        dummy.prop1
-        dummy.method2()
-        self.assertEqual(dummy.counter1, 2)
-        self.assertEqual(dummy.counter2, 2)
-        dummy.clear_cache()
-        dummy.prop1
-        dummy.prop1
-        dummy.method2()
-        dummy.method2()
-        self.assertEqual(dummy.counter1, 3)
-        self.assertEqual(dummy.counter2, 3)
-
-    def test_invalidate_cache__invalidates_only_current_object(self):
-        dummy1, dummy2 = Dummy(), Dummy()
-        dummy1.prop1
-        dummy2.prop1
-        self.assertEqual(dummy1.counter1, 1)
-        self.assertEqual(dummy2.counter1, 1)
-        dummy1.clear_cache()
-        dummy1.prop1
-        dummy2.prop1
-        self.assertEqual(dummy1.counter1, 2)
-        self.assertEqual(dummy2.counter1, 1)
-
-    def test_invalidate_cache__accepts_new_caches_to_clear(self):
-        dummy = Dummy2()
-        dummy.prop1
-        dummy.prop1
-        dummy.method2()
-        dummy.method2()
-        dummy.prop3
-        dummy.prop3
-        self.assertEqual(dummy.counter1, 1)
-        self.assertEqual(dummy.counter2, 1)
-        self.assertEqual(dummy.counter3, 1)
-        dummy.clear_cache()
-        dummy.prop1
-        dummy.method2()
-        dummy.prop3
-        self.assertEqual(dummy.counter1, 2)
-        self.assertEqual(dummy.counter2, 2)
-        self.assertEqual(dummy.counter3, 2)
-
-
-class TestArray(unittest.TestCase):
-    @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
-    def test_hojacobian__computes_right_derivatives(self, shape: Tuple[int, int]):
-        x = cs.SX.sym("x", *shape)
-        y = (
-            (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
-            if x.is_vector()
-            else (x * x.T - x)
-        )
-        J = derivatives.hojacobian(y, x)
-        self.assertEqual(J.ndim, 4)
-        for index in np.ndindex(J.shape):
-            x_ = np.random.randn(*x.shape)
-            idx1, idx2 = index[:2], index[2:]
-            o = cs.evalf(cs.substitute(J[index] - cs.jacobian(y[idx1], x[idx2]), x, x_))
-            np.testing.assert_allclose(o, 0, atol=1e-9)
-
-    @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
-    def test_hohessian__computes_right_derivatives(self, shape: Tuple[int, int]):
-        x = cs.SX.sym("x", *shape)
-        y = (
-            (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
-            if x.is_vector()
-            else (x * x.T - x)
-        )
-        H, _ = derivatives.hohessian(y, x)
-        self.assertEqual(H.ndim, 6)
-        for i in np.ndindex(y.shape):
-            x_ = np.random.randn(*x.shape)
-            H_ = data.cs2array(cs.hessian(y[i], x)[0])
-            o = cs.evalf(cs.substitute(H[i].reshape(H_.shape, order="F") - H_, x, x_))
-            np.testing.assert_allclose(o, 0, atol=1e-9)
-
-
-class TestData(unittest.TestCase):
+class TestIo(unittest.TestCase):
     @parameterized.expand(
         [
             (5.0, False),
@@ -154,31 +26,8 @@ class TestData(unittest.TestCase):
         ]
     )
     def test_is_casadi_object__guesses_correctly(self, obj: Any, result: bool):
-        self.assertEqual(data.is_casadi_object(obj), result)
+        self.assertEqual(io.is_casadi_object(obj), result)
 
-    @parameterized.expand(product([cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]))
-    def test_cs2array_array2cs__convert_properly(
-        self, sym_type: Union[Type[cs.SX], Type[cs.MX]], shape: Tuple[int, int]
-    ):
-        x = sym_type.sym("x", *shape)
-        a = data.cs2array(x)
-        y = data.array2cs(a)
-        for i in np.ndindex(shape):
-            if sym_type is cs.SX:
-                self.assertTrue(cs.is_equal(x[i], a[i]))
-                self.assertTrue(cs.is_equal(x[i], y[i]))
-            else:
-                x_ = cs.DM(np.random.rand(*x.shape))
-                o = cs.evalf(cs.substitute(x[i] - a[i], x, x_))
-                np.testing.assert_allclose(o, 0, atol=1e-9)
-                o = cs.evalf(cs.substitute(y[i] - a[i], x, x_))
-                np.testing.assert_allclose(o, 0, atol=1e-9)
-
-
-TMPFILENAME: str = ""
-
-
-class TestIo(unittest.TestCase):
     def test_is_pickleable__fails_with_casadi_obj(self):
         self.assertTrue(io.is_pickleable(5))
         self.assertTrue(io.is_pickleable({5}))
@@ -328,56 +177,6 @@ class TestMath(unittest.TestCase):
         np.testing.assert_allclose(p.sum(axis=1), k)
         if out is not None:
             np.testing.assert_allclose(p, out)
-
-
-class TestScaling(unittest.TestCase):
-    def test_str_and_repr(self):
-        N = scaling.Scaler({"x": [-1, 1]})
-        for S in [N.__str__(), N.__repr__()]:
-            self.assertIn(scaling.Scaler.__name__, S)
-
-    def test_register__raises__when_registering_duplicate_ranges(self):
-        N = scaling.Scaler({"x": [-1, 1]})
-        with self.assertRaises(KeyError):
-            N.register("x", 0, 2)
-        with self.assertRaises(KeyError):
-            N.register("x", 0, 2)
-        N.register("y", 0, 2)
-
-    def test_can_scale__only_valid_ranges(self):
-        N = scaling.Scaler({"x": [-1, 1]})
-        self.assertTrue(N.can_scale("x"))
-        self.assertFalse(N.can_scale("u"))
-
-    def test_scaling__scale_unscale__computes_right_values(self):
-        N = scaling.Scaler({"x1": (-5, 2), "x2": ([-1, 7], [2, 10])})
-        x1 = 4
-        y1 = N.scale("x1", x1)
-        z1 = N.unscale("x1", y1)
-        np.testing.assert_equal(y1, (4 + 5) / 2)
-        np.testing.assert_equal(x1, z1)
-
-        x2 = np.asarray([-5, 2])
-        y2 = N.scale("x2", x2)
-        z2 = N.unscale("x2", y2)
-        np.testing.assert_equal(y2, [(-5 + 1) / 2, (2 - 7) / 10])
-        np.testing.assert_equal(x2, z2)
-
-    def test_minmaxscaling_scale_unscale__computes_right_values(self):
-        N = scaling.MinMaxScaler(
-            {"x1": (-5, 2), "x2": (np.asarray([-1, 7]), np.asarray([2, 10]))}
-        )
-        x1 = 4
-        y1 = N.scale("x1", x1)
-        z1 = N.unscale("x1", y1)
-        np.testing.assert_equal(y1, (4 + 5) / (5 + 2))
-        np.testing.assert_equal(x1, z1)
-
-        x2 = np.asarray([-5, 2])
-        y2 = N.scale("x2", x2)
-        z2 = N.unscale("x2", y2)
-        np.testing.assert_equal(y2, [(-5 + 1) / (2 + 1), (2 - 7) / (10 - 7)])
-        np.testing.assert_equal(x2, z2)
 
 
 if __name__ == "__main__":

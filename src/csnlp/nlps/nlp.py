@@ -6,8 +6,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.core.objective import HasObjective
-from csnlp.nlp.debug import NlpDebug
+from csnlp.core.debug import NlpDebug
+from csnlp.core.objective import HasObjective
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)

@@ -1,28 +1,7 @@
-from typing import Any, Union
+from typing import Union
 
 import casadi as cs
 import numpy as np
-
-
-def is_casadi_object(obj: Any) -> bool:
-    """Checks if the object belongs to the CasADi module.
-
-    See https://stackoverflow.com/a/52783240/19648688 for more details.
-
-    Parameters
-    ----------
-    obj : Any
-        Any type of object.
-
-    Returns
-    -------
-    bool
-        A flag that states whether the object belongs to CasADi or not.
-    """
-    if not hasattr(obj, "__module__"):
-        return False
-    module: str = obj.__module__.split(".")[0]
-    return module == cs.__name__
 
 
 def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:

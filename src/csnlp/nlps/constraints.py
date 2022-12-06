@@ -4,8 +4,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.core.variables import HasVariables
-from csnlp.nlp.funcs import cached_property, invalidate_cache
+from csnlp.core.cache import cached_property, invalidate_cache
+from csnlp.nlps.variables import HasVariables
 
 T = TypeVar("T", cs.SX, cs.MX)
 

@@ -3,7 +3,7 @@ from typing import Tuple, Union
 import casadi as cs
 import numpy as np
 
-from csnlp.util.data import array2cs, cs2array
+from csnlp.core.data import array2cs, cs2array
 
 
 def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:

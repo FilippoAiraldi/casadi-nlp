@@ -5,9 +5,9 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.core.constraints import HasConstraints
-from csnlp.nlp.core.parameters import HasParameters
-from csnlp.nlp.solutions import Solution, subsevalf
+from csnlp.core.solutions import Solution, subsevalf
+from csnlp.nlps.constraints import HasConstraints
+from csnlp.nlps.parameters import HasParameters
 
 T = TypeVar("T", cs.SX, cs.MX)
 

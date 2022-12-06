@@ -7,7 +7,7 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 
 from csnlp import Nlp
-from csnlp.nlp.solutions import subsevalf
+from csnlp.core.solutions import subsevalf
 from csnlp.util.math import log
 
 OPTS = {

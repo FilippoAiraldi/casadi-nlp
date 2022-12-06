@@ -5,8 +5,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.solutions import Solution, subsevalf
-from csnlp.util.scaling import Scaler
+from csnlp.core.scaling import Scaler
+from csnlp.core.solutions import Solution, subsevalf
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 T = TypeVar("T", cs.SX, cs.MX)

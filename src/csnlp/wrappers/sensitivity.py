@@ -4,10 +4,10 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.nlp.funcs import cached_property, invalidate_cache
-from csnlp.nlp.solutions import Solution
-from csnlp.util.data import array2cs, cs2array
-from csnlp.util.derivatives import hohessian, hojacobian
+from csnlp.core.cache import cached_property, invalidate_cache
+from csnlp.core.data import array2cs, cs2array
+from csnlp.core.derivatives import hohessian, hojacobian
+from csnlp.core.solutions import Solution
 from csnlp.wrappers.wrapper import Nlp, Wrapper
 
 T = TypeVar("T", cs.SX, cs.MX)
