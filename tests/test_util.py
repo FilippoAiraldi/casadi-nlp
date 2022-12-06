@@ -142,21 +142,6 @@ class TestArray(unittest.TestCase):
             o = cs.evalf(cs.substitute(H[i].reshape(H_.shape, order="F") - H_, x, x_))
             np.testing.assert_allclose(o, 0, atol=1e-9)
 
-    def test_jaggedstack__raises__with_empty_array(self):
-        with self.assertRaises(ValueError):
-            data.jaggedstack([])
-
-    def test_jaggedstack__returns_correct_output(self):
-        a1 = np.asarray([1, 2, 3]).astype(float)
-        a2 = np.asarray([1, 2, 3, 4, 5]).astype(float)
-        out_ = np.asarray([[1, 2, 3, np.nan, np.nan], [1, 2, 3, 4, 5]])
-        out = data.jaggedstack((a1, a2), axis=0)
-        np.testing.assert_allclose(out, out_)
-        out = data.jaggedstack((a1, a2), axis=1)
-        np.testing.assert_allclose(out, out_.T)
-        with self.assertRaises(np.AxisError):
-            data.jaggedstack((a1, a2), axis=2)
-
 
 class TestData(unittest.TestCase):
     @parameterized.expand(
