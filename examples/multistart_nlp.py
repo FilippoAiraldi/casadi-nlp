@@ -4,8 +4,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from csnlp import MultistartNlp
-from csnlp.nlp.solutions import Solution
+from csnlp import MultistartNlp, Solution
 
 plt.style.use("bmh")
 
