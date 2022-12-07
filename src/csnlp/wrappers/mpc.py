@@ -147,7 +147,7 @@ class Mpc(NonRetroactiveWrapper[T]):
     def state(
         self,
         name: str,
-        dim: int = 1,
+        size: int = 1,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[Optional[T], T]:
@@ -159,8 +159,8 @@ class Mpc(NonRetroactiveWrapper[T]):
         ----------
         name : str
             Name of the state.
-        dim : int
-            Dimension of the state (assumed to be a vector).
+        size : int
+            Size of the state (assumed to be a vector).
         lb : array_like, casadi.DM, optional
             Hard lower bound of the state, by default -np.inf.
         ub : array_like, casadi.DM, optional
@@ -185,8 +185,8 @@ class Mpc(NonRetroactiveWrapper[T]):
         """
         x0_name = _n(name)
         if self._is_multishooting:
-            x = self.nlp.variable(name, (dim, self._prediction_horizon + 1), lb, ub)[0]
-            x0 = self.nlp.parameter(x0_name, (dim, 1))
+            x = self.nlp.variable(name, (size, self._prediction_horizon + 1), lb, ub)[0]
+            x0 = self.nlp.parameter(x0_name, (size, 1))
             self.nlp.constraint(x0_name, x[:, 0], "==", x0)
         else:
             if np.any(lb != -np.inf) or np.any(ub != +np.inf):
@@ -195,7 +195,7 @@ class Mpc(NonRetroactiveWrapper[T]):
                     " be created after the dynamics have been set"
                 )
             x = None
-            x0 = self.nlp.parameter(x0_name, (dim, 1))
+            x0 = self.nlp.parameter(x0_name, (size, 1))
         self._states[name] = x
         self._initial_states[x0_name] = x0
         return x, x0
@@ -203,7 +203,7 @@ class Mpc(NonRetroactiveWrapper[T]):
     def action(
         self,
         name: str,
-        dim: int = 1,
+        size: int = 1,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> Tuple[T, T]:
@@ -215,8 +215,8 @@ class Mpc(NonRetroactiveWrapper[T]):
         ----------
         name : str
             Name of the control action.
-        dim : int, optional
-            Dimension of the control action (assumed to be a vector). Defaults to 1.
+        size : int, optional
+            Size of the control action (assumed to be a vector). Defaults to 1.
         lb : array_like, casadi.DM, optional
             Hard lower bound of the control action, by default -np.inf.
         ub : array_like, casadi.DM, optional
@@ -230,14 +230,14 @@ class Mpc(NonRetroactiveWrapper[T]):
             The same control  action variable, but expanded to the same length of the
             prediction horizon.
         """
-        u = self.nlp.variable(name, (dim, self._control_horizon), lb, ub)[0]
+        u = self.nlp.variable(name, (size, self._control_horizon), lb, ub)[0]
         gap = self._prediction_horizon - self._control_horizon
         u_exp = cs.horzcat(u, *(u[:, -1] for _ in range(gap)))
         self._actions[name] = u
         self._actions_exp[name] = u_exp
         return u, u_exp
 
-    def disturbance(self, name: str, dim: int = 1) -> T:
+    def disturbance(self, name: str, size: int = 1) -> T:
         """Adds a disturbance parameter to the MPC controller along the whole prediction
         horizon.
 
@@ -245,15 +245,15 @@ class Mpc(NonRetroactiveWrapper[T]):
         ----------
         name : str
             Name of the disturbance.
-        dim : int, optional
-            Dimension of the disturbance (assumed to be a vector). Defaults to 1.
+        size : int, optional
+            Size of the disturbance (assumed to be a vector). Defaults to 1.
 
         Returns
         -------
         casadi.SX or MX
             The symbol for the new disturbance in the MPC controller.
         """
-        d = self.nlp.parameter(name=name, shape=(dim, self._prediction_horizon))
+        d = self.nlp.parameter(name=name, shape=(size, self._prediction_horizon))
         self._disturbances[name] = d
         return d
 
