@@ -17,18 +17,64 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         super().__init__(nlp)
         self.scaler = scaler
         self.warns = warns
-        self._unscaled_vars: Dict[str, T] = {}
-        self._unscaled_pars: Dict[str, T] = {}
+        self._svars: Dict[str, T] = {}
+        self._spars: Dict[str, T] = {}
+        self._uvars: Dict[str, T] = {}
+        self._upars: Dict[str, T] = {}
+
+    @property
+    def scaled_variables(self) -> Dict[str, T]:
+        """Gets the scaled variables of the NLP scheme."""
+        return self._svars
+
+    @property
+    def scaled_parameters(self) -> Dict[str, T]:
+        """Gets the scaled parameters of the NLP scheme."""
+        return self._spars
 
     @property
     def unscaled_variables(self) -> Dict[str, T]:
         """Gets the unscaled variables of the NLP scheme."""
-        return self._unscaled_vars
+        return self._uvars
 
     @property
     def unscaled_parameters(self) -> Dict[str, T]:
         """Gets the unscaled parameters of the NLP scheme."""
-        return self._unscaled_pars
+        return self._upars
+
+    def scale(self, expr: T) -> T:
+        """Scales an expression with the MPC's scaled variables and parameters.
+
+        Parameters
+        ----------
+        expr : casadi.SX or MX
+            The expression to be scaled.
+
+        Returns
+        -------
+        casadi.SX or MX
+            The scaled expression.
+        """
+        expr = subsevalf(expr, self.nlp.variables, self._svars, eval=False)
+        expr = subsevalf(expr, self.nlp.parameters, self._spars, eval=False)
+        return expr
+
+    def unscale(self, expr: T) -> T:
+        """Unscales an expression with the MPC's unscaled variables and parameters.
+
+        Parameters
+        ----------
+        expr : casadi.SX or MX
+            The expression to be unscaled.
+
+        Returns
+        -------
+        casadi.SX or MX
+            The unscaled expression.
+        """
+        expr = subsevalf(expr, self.nlp.variables, self._uvars, eval=False)
+        expr = subsevalf(expr, self.nlp.parameters, self._upars, eval=False)
+        return expr
 
     def variable(
         self,
@@ -45,24 +91,28 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             ub = self.scaler.scale(name, ub)
         var, lam_lb, lam_ub = self.nlp.variable(name, shape, lb, ub)
         if can_scale:
+            svar = self.scaler.scale(name, var)
             uvar = self.scaler.unscale(name, var)
         else:
             if self.warns:
                 warn(f"Scaling for variable {name} not found.", RuntimeWarning)
-            uvar = var
-        self._unscaled_vars[name] = uvar
+            svar = uvar = var
+        self._svars[name] = svar
+        self._uvars[name] = uvar
         return var, lam_lb, lam_ub
 
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
         """See `Nlp.parameter` method."""
         par = self.nlp.parameter(name, shape)
         if name in self.scaler:
+            spar = self.scaler.scale(name, par)
             upar = self.scaler.unscale(name, par)
         else:
             if self.warns:
                 warn(f"Scaling for parameter {name} not found.", RuntimeWarning)
-            upar = par
-        self._unscaled_pars[name] = upar
+            spar = upar = par
+        self._spars[name] = spar
+        self._upars[name] = upar
         return par
 
     def constraint(
@@ -75,17 +125,13 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         simplify: bool = True,
     ) -> Tuple[T, ...]:
         """See `Nlp.constraint` method."""
-        e = lhs - rhs
-        e = subsevalf(e, self.nlp.variables, self.unscaled_variables, eval=False)
-        e = subsevalf(e, self.nlp.parameters, self.unscaled_parameters, eval=False)
-        return self.nlp.constraint(name, e, op, 0, soft=soft, simplify=simplify)
+        return self.nlp.constraint(
+            name, self.unscale(lhs - rhs), op, 0, soft=soft, simplify=simplify
+        )
 
     def minimize(self, objective: T) -> None:
         """See `Nlp.minimize` method."""
-        o = objective
-        o = subsevalf(o, self.nlp.variables, self.unscaled_variables, eval=False)
-        o = subsevalf(o, self.nlp.parameters, self.unscaled_parameters, eval=False)
-        return self.nlp.minimize(o)
+        return self.nlp.minimize(self.unscale(objective))
 
     def solve(
         self,
@@ -94,9 +140,9 @@ class NlpScaling(NonRetroactiveWrapper[T]):
     ) -> Solution[T]:
         """See `Nlp.solve` method."""
         if pars is not None:
-            pars = self._scale_struct(pars)
+            pars = self._scale_dict(pars)
         if vals0 is not None:
-            vals0 = self._scale_struct(vals0)
+            vals0 = self._scale_dict(vals0)
         return self.nlp.solve(pars, vals0)
 
     def solve_multi(
@@ -116,15 +162,15 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
         if pars is not None:
             pars = (
-                self._scale_struct(pars)
+                self._scale_dict(pars)
                 if isinstance(pars, dict)
-                else (self._scale_struct(pars_i) for pars_i in pars)
+                else (self._scale_dict(pars_i) for pars_i in pars)
             )
         if vals0 is not None:
             vals0 = (
-                self._scale_struct(vals0)
+                self._scale_dict(vals0)
                 if isinstance(vals0, dict)
-                else (self._scale_struct(vals0_i) for vals0_i in vals0)
+                else (self._scale_dict(vals0_i) for vals0_i in vals0)
             )
         return self.nlp.solve_multi(  # type: ignore
             pars,
@@ -133,7 +179,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
             return_multi_sol=return_multi_sol,
         )
 
-    def _scale_struct(self, d: Dict[str, npt.ArrayLike]) -> Dict[str, npt.ArrayLike]:
+    def _scale_dict(self, d: Dict[str, npt.ArrayLike]) -> Dict[str, npt.ArrayLike]:
         # sourcery skip: remove-dict-keys
         """Internal utility for scaling structures/dicts."""
         scaler = self.scaler

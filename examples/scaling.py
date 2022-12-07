@@ -84,7 +84,7 @@ for i, SCALED in enumerate((False, True)):
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
     x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
-    S: Solution = mpc.solve_multi(
+    sol: Solution = mpc.solve_multi(
         pars=({"x_0": x0} for _ in range(K)),
         vals0=(
             {
@@ -96,25 +96,25 @@ for i, SCALED in enumerate((False, True)):
     )
 
     # plotting
-    u_: npt.NDArray[np.double] = S.value(u).full()
-    x_: npt.NDArray[np.double] = S.value(x).full()
+    u_: npt.NDArray[np.double] = sol.value(u).full()
+    x_: npt.NDArray[np.double] = sol.value(x).full()
     axs[0, i].step(time[:-1], u_.flat, where="post")
     axs[1, i].plot(time, x_[0, :].flat)
     axs[2, i].plot(time, x_[1, :].flat)
     axs[3, i].plot(time, x_[2, :].flat)
     if SCALED:
         axs2 = [axs[j, i].twinx() for j in range(4)]
-        u_scaled: npt.NDArray[np.double] = S.value(mpc.unscaled_variables["u"]).full()
-        x_scaled: npt.NDArray[np.double] = S.value(mpc.unscaled_variables["x"]).full()
-        axs2[0].step(time[:-1], u_scaled.flat, "r--", where="post")
-        axs2[1].plot(time, x_scaled[0, :].flat, "r--")
-        axs2[2].plot(time, x_scaled[1, :].flat, "r--")
-        axs2[3].plot(time, x_scaled[2, :].flat, "r--")
+        u_us: npt.NDArray[np.double] = sol.value(mpc.unscale(mpc.actions["u"])).full()
+        x_us: npt.NDArray[np.double] = sol.value(mpc.unscale(mpc.states["x"])).full()
+        axs2[0].step(time[:-1], u_us.flat, "r--", where="post")
+        axs2[1].plot(time, x_us[0, :].flat, "r--")
+        axs2[2].plot(time, x_us[1, :].flat, "r--")
+        axs2[3].plot(time, x_us[2, :].flat, "r--")
         for ax in axs2:
             ax.spines["right"].set_color("r")
             ax.tick_params(axis="y", colors="r")
     axs[4, i].semilogy(
-        S.stats["iterations"]["inf_pr"], "-", S.stats["iterations"]["inf_du"], "-"
+        sol.stats["iterations"]["inf_pr"], "-", sol.stats["iterations"]["inf_du"], "-"
     )
 
 plt.show()
