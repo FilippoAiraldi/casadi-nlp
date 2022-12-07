@@ -25,7 +25,7 @@ class Solution(Generic[T]):
 
     @property
     def success(self) -> bool:
-        """Gets whether the run was run successfully."""
+        """Gets whether the solver's run was successful."""
         return self.stats["success"]
 
     @property
