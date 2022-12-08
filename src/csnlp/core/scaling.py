@@ -1,11 +1,10 @@
-from collections import UserDict
 from typing import Dict, Optional, Tuple
 
 import numpy as np
 import numpy.typing as npt
 
 
-class Scaler(UserDict):
+class Scaler(Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]):
     """Class for scaling of quantities. It suffices to register the scale of each the
     variable, and then it can be easily (un-)scaled according to
     ```
@@ -17,7 +16,7 @@ class Scaler(UserDict):
 
     def __init__(
         self, d: Optional[Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]] = None
-    ):
+    ) -> None:
         """Initializes the scaling class.
 
         Parameters
@@ -41,9 +40,9 @@ class Scaler(UserDict):
         ----------
         name : str
             Variable group to register for normalization.
-        loc : array_like or support algebraic operations, optional
+        loc : array_like or supports_algebraic_operations, optional
             Mean value of the variable, by default 0.
-        scale : array_like or supports algebraic operations, optional
+        scale : array_like or supports_algebraic_operations, optional
             Standard deviation of the variable, by default 1.
 
         Raises
@@ -52,9 +51,9 @@ class Scaler(UserDict):
             Raises if a duplicate name is detected.
         ValueError
         """
-        if name in self.data:
+        if name in self:
             raise KeyError(f"'{name}' already registered for normalization.")
-        self.data[name] = (loc, scale)
+        self[name] = (loc, scale)
 
     def can_scale(self, name: str) -> bool:
         """Checks whether the given variable's name was previously registered for
@@ -70,7 +69,7 @@ class Scaler(UserDict):
         bool
             Whether the variable `name` has been registered.
         """
-        return name in self.data
+        return name in self
 
     def scale(self, name: str, x: npt.ArrayLike) -> npt.ArrayLike:
         """Scales the value `x` according to the ranges of `name`.
@@ -79,12 +78,12 @@ class Scaler(UserDict):
         ----------
         name : str
             Variable group `x` belongs to.
-        x : array_like or supports algebraic operations
+        x : array_like or supports_algebraic_operations
             Value to be scaled.
 
         Returns
         -------
-        array_like or supports algebraic operations
+        array_like or supports_algebraic_operations
             Normalized `x`.
 
         Raises
@@ -92,8 +91,8 @@ class Scaler(UserDict):
         AssertionError
             Raises if the scaled output's shape does not match input's shape.
         """
-        loc, scale = self.data[name]
-        out = (x - loc) / scale
+        loc, scale = self[name]
+        out = (x - loc) / scale  # type: ignore
         assert np.shape(out) == np.shape(x), "Scaling altered input shape."
         return out
 
@@ -104,7 +103,7 @@ class Scaler(UserDict):
         ----------
         name : str
             Variable group `x` belongs to.
-        x : array_like or supports algebraic operations
+        x : array_like or supports_algebraic_operations
             Value to be unscaled.
 
         Returns
@@ -117,8 +116,8 @@ class Scaler(UserDict):
         AssertionError
             Raises if the unscaled output's shape does not match input's shape.
         """
-        loc, scale = self.data[name]
-        out = x * scale + loc
+        loc, scale = self[name]
+        out = x * scale + loc  # type: ignore
         assert np.shape(out) == np.shape(x), "Unscaling altered input shape."
         return out
 
@@ -149,9 +148,9 @@ class MinMaxScaler(Scaler):
         ----------
         name : str
             Variable group to register for normalization.
-        min : array_like or support algebraic operations, optional
+        min : array_like or supports_algebraic_operations, optional
             Minimum of the variable, by default 0.
-        max : array_like or supports algebraic operations, optional
+        max : array_like or supports_algebraic_operations, optional
             Maximum of the variable, by default 1.
 
         Raises
