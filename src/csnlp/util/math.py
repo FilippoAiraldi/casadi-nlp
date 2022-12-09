@@ -158,7 +158,7 @@ def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
 
     Returns
     -------
-    int or array_like
+    int or array
         Depending on the type of input `n`, the output is either the total
         number of combinations or the combinations in a matrix.
     """
@@ -169,7 +169,7 @@ def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
     )
 
 
-def monomial_powers(d: int, k: int) -> np.ndarray:
+def monomial_powers(d: int, k: int) -> npt.NDArray[np.int64]:
     """Computes the powers of all `d`-dimensional monomials of degree `k`.
 
     Parameters
@@ -181,7 +181,7 @@ def monomial_powers(d: int, k: int) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    array of ints
         An array containing in each row the power of each index in order to
         obtain the desired monomial of power `k`.
     """
