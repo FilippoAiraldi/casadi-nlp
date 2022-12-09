@@ -11,6 +11,9 @@ from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
 
+from csnlp.core.data import array2cs
+
+
 MATLAB_COLORS = [
     "#0072BD",
     "#D95319",
@@ -62,15 +65,15 @@ def spy(
     AxesImage or Line2D
         Same return types of `matplotlib.pyplot.spy`.
     """
+    H = array2cs(H)
     try:
         # try convert to numerical; if it fails, use symbolic method from cs
-        H = np.asarray(H)
+        H = np.asarray(H, dtype=float)
     except Exception:
-        import io
         from contextlib import redirect_stdout
+        from io import StringIO
 
-        assert hasattr(H, "sparsity"), "No sparsity method found."
-        f = io.StringIO()
+        f = StringIO()
         with redirect_stdout(f):
             H.sparsity().spy()
         out = f.getvalue()
@@ -83,7 +86,7 @@ def spy(
         )
 
     if "markersize" not in spy_kwargs:
-        spy_kwargs["markersize"] = 1
+        spy_kwargs["markersize"] = 4
     if ax is None:
         _, ax = plt.subplots(1, 1)
     o = ax.spy(H, **spy_kwargs)
