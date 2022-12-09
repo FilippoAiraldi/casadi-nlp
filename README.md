@@ -63,11 +63,11 @@ x_opt = sol.vals["x"]
 y_opt = sol.value(y)
 ```
 
-The package also allows to enhance the NLP with different capabilities by wrapping it. As of now, wrappers have been implemented for
+The package also allows to enhance the NLP with different capabilities with, e.g., multistart (see `csnlp.MultistartNlp`) or by wrapping it. As of now, wrappers have been implemented for
 
-- sensitivity analysis (see [[3]](#3) for details)
-- Model Predictive Control (see [[4]](#4) for details)
-- NLP scaling.
+- sensitivity analysis (see `csnlp.wrappers.NlpSensitivity`; based on [[3]](#3))
+- Model Predictive Control (see `csnlp.wrappers.Mpc`; [[4]](#4) for details)
+- NLP scaling (see `csnlp.wrappers.NlpScaling`).
 
 For instance, to compute the sensitivity of the optimal primal-dual variables `y` with respect to the parameters `p` of the NLP , first we need to augment the capabilities of the NLP with a wrapper specialized in differentiating the optimization problem, and then compute the first-order and second sensitivities (`dydp` and `d2ydp2`, respectively) as such:
 
