@@ -4,7 +4,7 @@ from typing import (
     Any,
     ClassVar,
     Dict,
-    Iterable,
+    Iterator,
     Literal,
     Optional,
     Sequence,
@@ -35,7 +35,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
     constraints, objective, solver).
     """
 
-    __ids: ClassVar[Iterable[int]] = count(0)
+    __ids: ClassVar[Iterator[int]] = count(0)
     is_multi: ClassVar[bool] = False
 
     def __init__(
@@ -66,11 +66,9 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         AttributeError
             Raises if the specified CasADi's symbolic type is neither "SX" nor "MX".
         """
-        super().__init__(
-            sym_type=sym_type, remove_redundant_x_bounds=remove_redundant_x_bounds
-        )
         self.id = next(self.__ids)
-        self.name = f"{self.__class__.__name__}{self.id}" if name is None else name
+        name = f"{self.__class__.__name__}{self.id}" if name is None else name
+        super().__init__(sym_type, remove_redundant_x_bounds, name)
         self._debug = NlpDebug() if debug else None
 
     @property

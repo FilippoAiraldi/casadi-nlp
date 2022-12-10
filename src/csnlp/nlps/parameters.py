@@ -8,6 +8,8 @@ T = TypeVar("T", cs.SX, cs.MX)
 class HasParameters(Generic[T]):
     """Class for creating and storing symbolic parameters of an NLP problem."""
 
+    __slots__ = ("_csXX", "_pars", "_p")
+
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
         """Instantiate the class.
 
@@ -16,6 +18,7 @@ class HasParameters(Generic[T]):
         sym_type : "SX" or "MX", optional
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
+        super().__init__()
         self._csXX: Type[T] = getattr(cs, sym_type)
         self._pars: Dict[str, T] = {}
         self._p = self._csXX()

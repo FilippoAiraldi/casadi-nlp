@@ -33,10 +33,8 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
             properties `h_lbx` and `h_ubx` are called. See these two properties for more
             details. By default, `True`.
         """
-        HasParameters.__init__(self, sym_type=sym_type)
-        HasConstraints.__init__(
-            self, sym_type=sym_type, remove_redundant_x_bounds=remove_redundant_x_bounds
-        )
+        HasParameters.__init__(self, sym_type)
+        HasConstraints.__init__(self, sym_type, remove_redundant_x_bounds)
         self.name = name
         self._f: Optional[T] = None
         self._solver: Optional[cs.Function] = None

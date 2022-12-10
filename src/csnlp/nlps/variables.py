@@ -16,6 +16,7 @@ class HasVariables(Generic[T]):
         sym_type : "SX" or "MX", optional
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
+        super().__init__()
         self._csXX: Type[T] = getattr(cs, sym_type)
         self._vars: Dict[str, T] = {}
         self._x = self._csXX()

@@ -32,7 +32,7 @@ class HasConstraints(HasVariables[T]):
             properties `h_lbx` and `h_ubx` are called. See these two properties for more
             details. By default, `True`.
         """
-        super().__init__(sym_type=sym_type)
+        super().__init__(sym_type)
 
         self._dual_vars: Dict[str, T] = {}
         self._pars: Dict[str, T] = {}
