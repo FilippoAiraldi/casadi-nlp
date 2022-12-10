@@ -1,6 +1,18 @@
 import warnings
 from itertools import count
-from typing import Any, Dict, Literal, Optional, Sequence, Tuple, Type, TypeVar, Union
+from typing import (
+    Any,
+    ClassVar,
+    Dict,
+    Iterable,
+    Literal,
+    Optional,
+    Sequence,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
 import casadi as cs
 import numpy as np
@@ -23,8 +35,8 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
     constraints, objective, solver).
     """
 
-    __ids = count(0)
-    is_multi: bool = False
+    __ids: ClassVar[Iterable[int]] = count(0)
+    is_multi: ClassVar[bool] = False
 
     def __init__(
         self,

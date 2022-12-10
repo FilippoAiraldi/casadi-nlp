@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, TypeVar, Union
+from typing import ClassVar, Dict, Literal, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -13,7 +13,7 @@ T = TypeVar("T", cs.SX, cs.MX)
 class HasConstraints(HasVariables[T]):
     """Class for creating and storing symbolic constraints for an NLP problem."""
 
-    _DUAL_VARIABLES_ORDER = ("g", "h", "h_lbx", "h_ubx")
+    _DUAL_VARIABLES_ORDER: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
     """This tuple dictates the order for operations related to dual variables."""
 
     def __init__(

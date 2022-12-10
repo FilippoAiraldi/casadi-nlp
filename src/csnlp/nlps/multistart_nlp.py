@@ -3,6 +3,7 @@ from functools import lru_cache, partial
 from itertools import repeat
 from typing import (
     Any,
+    ClassVar,
     Dict,
     Generic,
     Iterable,
@@ -42,7 +43,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
     solver's initial conditions play a great role in the optimality of the solution
     (rather, its sub-optimality)."""
 
-    is_multi: bool = True
+    is_multi: ClassVar[bool] = True
 
     def __init__(
         self,
@@ -64,16 +65,15 @@ class MultistartNlp(Nlp[T], Generic[T]):
         ValueError
             Raises if the scenario number is invalid.
         """
+        # this class essentially is a facade that hides an internal nlp in which the
+        # problem (variables, parameters, etc.) are duplicated by the requested number
+        # of multiple starts. For this reason, all methods are overridden to create
+        # multiples of these in the hidden nlp.
         if starts <= 0:
             raise ValueError("Number of scenarios must be positive and > 0.")
-        self._starts = starts
-        # this class essentially is a facade that hides an internal nlp in
-        # which the problem (variables, parameters, etc.) are duplicated by the
-        # requested number of multiple starts. For this reason, all methods are
-        # overridden to create multiples of these in the hidden nlp
         super().__init__(*args, **kwargs)
+        self._starts = starts
         self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
-        self._vars_per_start: Dict[int, Dict[str, T]] = {}
 
     @contextmanager
     def fullstate(self) -> Iterator[None]:
