@@ -74,7 +74,7 @@ for i, SCALED in enumerate((False, True)):
 
     # dynamics
     F = get_dynamics(g, alpha, dt)
-    mpc.dynamics = F
+    mpc.set_dynamics(F)
 
     # boundary conditions
     x0 = cs.vertcat(0, 0, m0)

@@ -34,12 +34,12 @@ mpc = wrappers.Mpc[cs.SX](
 u, _ = mpc.action("u", lb=-1, ub=+1)
 if shooting == "single":
     mpc.state("x", 2)
-    mpc.dynamics = F
+    mpc.set_dynamics(F)
     x = mpc.states["x"]  # only accessible after dynamics have been set
     mpc.constraint("c0", x, ">=", -0.2)
 else:
     x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
-    mpc.dynamics = F
+    mpc.set_dynamics(F)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}

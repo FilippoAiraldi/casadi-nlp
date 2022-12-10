@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -144,6 +144,15 @@ class Mpc(NonRetroactiveWrapper[T]):
         """Gets the number of disturbances in the MPC controller."""
         return sum(d.shape[0] for d in self._disturbances.values())
 
+    @property
+    def dynamics(self) -> Optional[cs.Function]:
+        """Dynamics of the controller's prediction model, i.e., a CasADi function of the
+        form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where `x,u,d` are the state, action,
+        disturbances respectively, and `x+` is the next state. The function can have
+        multiple outputs, in which case `x+` is assumed to be the first one.
+        """
+        return self._dynamics
+
     def state(
         self,
         name: str,
@@ -274,12 +283,30 @@ class Mpc(NonRetroactiveWrapper[T]):
             self._slacks[f"slack_{name}"] = out[2]
         return out
 
-    @property
-    def dynamics(self) -> Optional[cs.Function]:
-        """Dynamics of the controller's prediction model, i.e., a CasADi function of the
-        form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where `x,u,d` are the state, action,
-        disturbances respectively, and `x+` is the next state. The function can have
-        multiple outputs, in which case `x+` is assumed to be the first one.
+    def set_dynamics(
+        self,
+        F: Union[
+            cs.Function,
+            Callable[[Tuple[npt.ArrayLike, ...]], Tuple[npt.ArrayLike, ...]],
+        ],
+        n_in: Optional[int] = None,
+        n_out: Optional[int] = None,
+    ) -> None:
+        """Sets the dynamics of the controller's prediction model and creates the
+        dynamics constraints.
+
+        Parameters
+        ----------
+        F : casadi.Function or callable
+            A CasADi function of the form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where
+            `x, u, d` are the state, action, disturbances respectively, and `x+` is the
+            next state. The function can have multiple outputs, in which case `x+` is
+            assumed to be the first one.
+        n_in : int, optional
+            In case a callable is passed instead of a casadi.Function, then the number
+            of inputs must be manually specified via this argument.
+        n_out : int, optional
+            Same as above, for outputs.
 
         Raises
         ------
@@ -289,23 +316,25 @@ class Mpc(NonRetroactiveWrapper[T]):
             When setting, raises if the dynamics have been already set; or if the
             function `F` does not take accept the expected input sizes.
         """
-        return self._dynamics
-
-    @dynamics.setter
-    def dynamics(self, F: cs.Function) -> None:
         if self._dynamics is not None:
             raise RuntimeError("Dynamics were already set.")
-        n_in = F.n_in()
-        n_out = F.n_out()
-        if n_in < 2 or n_in > 3 or n_out < 1:
+        if isinstance(F, cs.Function):
+            n_in = F.n_in()
+            n_out = F.n_out()
+        elif n_in is None or n_out is None:
+            raise ValueError(
+                "Args `n_in` and `n_out` must be manually specified since F is not a "
+                "casadi function."
+            )
+        if n_in < 2 or n_in > 3 or n_out < 1:  # type: ignore
             raise ValueError(
                 "The dynamics function must accepted 2 or 3 arguments and return at "
                 f"at least 1 output; got {n_in} inputs and {n_out} outputs instead."
             )
         if self._is_multishooting:
-            self._multishooting_dynamics(F, n_in, n_out)
+            self._multishooting_dynamics(F, n_in, n_out)  # type: ignore
         else:
-            self._singleshooting_dynamics(F, n_in, n_out)
+            self._singleshooting_dynamics(F, n_in, n_out)  # type: ignore
         self._dynamics = F
 
     def _multishooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
