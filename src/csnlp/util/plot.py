@@ -13,7 +13,6 @@ from matplotlib.lines import Line2D
 
 from csnlp.core.data import array2cs
 
-
 MATLAB_COLORS = [
     "#0072BD",
     "#D95319",
@@ -71,7 +70,7 @@ def spy(
         H = np.asarray(H, dtype=float)
     except Exception:
         from contextlib import redirect_stdout
-        from io import StringIO
+        from io import StringIO  # type: ignore
 
         f = StringIO()
         with redirect_stdout(f):
