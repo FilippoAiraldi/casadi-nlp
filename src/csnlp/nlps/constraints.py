@@ -13,7 +13,7 @@ T = TypeVar("T", cs.SX, cs.MX)
 class HasConstraints(HasVariables[T]):
     """Class for creating and storing symbolic constraints for an NLP problem."""
 
-    _DUAL_VARIABLES_ORDER: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
+    dual_variables_order: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
     """This tuple dictates the order for operations related to dual variables."""
 
     def __init__(
@@ -141,15 +141,15 @@ class HasConstraints(HasVariables[T]):
         """Gets the dual variables of the NLP scheme in vector form.
 
         Note: The order of the dual variables can be adjusted via the class attribute
-        `_DUAL_VARIABLES_ORDER`."""
+        `dual_variables_order`."""
         items = {
             "g": self._lam_g,
             "h": self._lam_h,
             "h_lbx": self.h_lbx[1],
             "h_ubx": self.h_ubx[1],
         }
-        dual = cs.vertcat(*(items.pop(v) for v in self._DUAL_VARIABLES_ORDER))
-        assert not items, "Internal error. _DUAL_VARIABLES_ORDER modified."
+        dual = cs.vertcat(*(items.pop(v) for v in self.dual_variables_order))
+        assert not items, "Internal error. `dual_variables_order` modified."
         return dual
 
     @cached_property
@@ -159,15 +159,15 @@ class HasConstraints(HasVariables[T]):
         property is equivalent to the `lam` property.
 
         Note: The order of the dual variables can be adjusted via the class attribute
-        `_DUAL_VARIABLES_ORDER`."""
+        `dual_variables_order`."""
         items = {
             "g": self._lam_g,
             "h": self._lam_h,
             "h_lbx": self._lam_lbx,
             "h_ubx": self._lam_ubx,
         }
-        dual = cs.vertcat(*(items.pop(v) for v in self._DUAL_VARIABLES_ORDER))
-        assert not items, "Internal error. _DUAL_VARIABLES_ORDER modified."
+        dual = cs.vertcat(*(items.pop(v) for v in self.dual_variables_order))
+        assert not items, "Internal error. `dual_variables_order` modified."
         return dual
 
     def primal_dual_vars(self, all: bool = False) -> T:
@@ -193,7 +193,7 @@ class HasConstraints(HasVariables[T]):
         Note
         ----
         The order of the dual variables can be adjusted via the class attribute
-        `_DUAL_VARIABLES_ORDER`.
+        `dual_variables_order`.
         """
         return cs.vertcat(self._x, self.lam_all if all else self.lam)
 

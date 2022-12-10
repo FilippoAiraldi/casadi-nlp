@@ -49,9 +49,9 @@ class NlpSensitivity(Wrapper[T]):
         h_lbx, lam_h_lbx = self.nlp.h_lbx
         h_ubx, lam_h_ubx = self.nlp.h_ubx
         return (
-            self.nlp._f
-            + cs.dot(self.nlp._lam_g, self.nlp._g)
-            + cs.dot(self.nlp._lam_h, self.nlp._h)
+            self.nlp.f
+            + cs.dot(self.nlp.lam_g, self.nlp.g)
+            + cs.dot(self.nlp.lam_h, self.nlp.h)
             + cs.dot(lam_h_lbx, h_lbx)
             + cs.dot(lam_h_ubx, h_ubx)
         )
@@ -80,16 +80,16 @@ class NlpSensitivity(Wrapper[T]):
         `_PRIMAL_DUAL_ORDER`.
         """
         items = {
-            "g": self.nlp._g,
-            "h": (self.nlp._lam_h * self.nlp._h) + self._tau,
+            "g": self.nlp.g,
+            "h": (self.nlp.lam_h * self.nlp.h) + self._tau,
             "h_lbx": (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
             "h_ubx": (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau,
         }
         kkt = cs.vertcat(
-            cs.jacobian(self.lagrangian, self.nlp._x).T,
-            *(items.pop(v) for v in self.nlp._DUAL_VARIABLES_ORDER)
+            cs.jacobian(self.lagrangian, self.nlp.x).T,
+            *(items.pop(v) for v in self.nlp.dual_variables_order)
         )
-        assert not items, "Internal error. _DUAL_VARIABLES_ORDER modified."
+        assert not items, "Internal error. `dual_variables_order` modified."
         return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property
@@ -105,10 +105,10 @@ class NlpSensitivity(Wrapper[T]):
         K = self.kkt[0]
         y, idx = self._y_idx
         return {
-            "L-p": cs.jacobian(self.lagrangian, self.nlp._p),
-            "g-x": cs.jacobian(self.nlp._g, self.nlp._x),
-            "h-x": cs.jacobian(self.nlp._h, self.nlp._x),
-            "K-p": cs.jacobian(K, self.nlp._p),
+            "L-p": cs.jacobian(self.lagrangian, self.nlp.p),
+            "g-x": cs.jacobian(self.nlp.g, self.nlp.x),
+            "h-x": cs.jacobian(self.nlp.h, self.nlp.x),
+            "K-p": cs.jacobian(K, self.nlp.p),
             "K-y": cs.jacobian(K, y)[:, idx],
         }
 
@@ -121,11 +121,11 @@ class NlpSensitivity(Wrapper[T]):
             - `L-px`: lagrangian w.r.t. parameters and then primal variables
         """
         L = self.lagrangian
-        Lpp, Lp = cs.hessian(L, self.nlp._p)
-        Lpx = cs.jacobian(Lp, self.nlp._x)
+        Lpp, Lp = cs.hessian(L, self.nlp.p)
+        Lpx = cs.jacobian(Lp, self.nlp.x)
         return {
             "L-pp": Lpp,
-            "L-xx": cs.hessian(L, self.nlp._x)[0],
+            "L-xx": cs.hessian(L, self.nlp.x)[0],
             "L-px": Lpx,
         }
 
@@ -143,8 +143,8 @@ class NlpSensitivity(Wrapper[T]):
         Ky = jacobians["K-y"]
         y, idx = self._y_idx
         return {
-            "K-pp": hojacobian(Kp, self.nlp._p)[..., 0],
-            "K-yp": hojacobian(Ky, self.nlp._p)[..., 0],
+            "K-pp": hojacobian(Kp, self.nlp.p)[..., 0],
+            "K-yp": hojacobian(Ky, self.nlp.p)[..., 0],
             "K-yy": hojacobian(Ky, y)[..., idx, 0],
             "K-py": hojacobian(Kp, y)[..., idx, 0],
         }
@@ -251,7 +251,7 @@ class NlpSensitivity(Wrapper[T]):
         Zshape = Z.shape
         Z = cs.vec(Z)
 
-        p = self.nlp._p
+        p = self.nlp.p
         y, idx = self._y_idx
         Zpp, Zp = hohessian(Z, p)
         Zyy, Zy = hohessian(Z, y)
@@ -314,7 +314,7 @@ class NlpSensitivity(Wrapper[T]):
     def _y_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return all the primal-dual variables and indices that are
         associated to non-redundant entries in the kkt conditions."""
-        if self.nlp._csXX is cs.SX:
+        if self.nlp.sym_type is cs.SX:
             y = self.nlp.primal_dual_vars()
             idx = slice(None)
         else:
@@ -322,8 +322,8 @@ class NlpSensitivity(Wrapper[T]):
             # symbolical according to the exception). So we take the jacobian
             # with all primal-dual vars, and then index the relevant rows/cols.
             y = self.nlp.primal_dual_vars(all=True)
-            h_lbx_idx = np.where(self.nlp._lbx != -np.inf)[0]
-            h_ubx_idx = np.where(self.nlp._ubx != +np.inf)[0]
+            h_lbx_idx = np.where(self.nlp.lbx != -np.inf)[0]
+            h_ubx_idx = np.where(self.nlp.ubx != +np.inf)[0]
             n = self.nlp.nx + self.nlp.ng + self.nlp.nh
             idx = np.concatenate(
                 (np.arange(n), h_lbx_idx + n, h_ubx_idx + n + h_lbx_idx.size)
