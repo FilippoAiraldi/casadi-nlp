@@ -42,8 +42,7 @@ class NlpDebug:
      - the inequality constraints `h`
     """
 
-    __slots__ = ["_p_info", "_x_info", "_g_info", "_h_info"]
-
+    __slots__ = ("_p_info", "_x_info", "_g_info", "_h_info")
     types = MappingProxyType(
         {
             "p": "Parameter",

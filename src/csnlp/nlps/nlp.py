@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from csnlp.core.debug import NlpDebug
-from csnlp.core.objective import HasObjective
+from csnlp.nlps.objective import HasObjective
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
 T = TypeVar("T", cs.SX, cs.MX)
