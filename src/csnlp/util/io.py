@@ -4,7 +4,7 @@ from copy import deepcopy
 from functools import cached_property
 from inspect import getmembers
 from pickletools import optimize
-from typing import Any, Dict, Iterator, Optional, TypeVar
+from typing import Any, Dict, Iterator, Optional, Tuple, TypeVar, Union
 from warnings import warn
 
 
@@ -48,6 +48,38 @@ def is_pickleable(obj: Any) -> bool:
         return True
     except Exception:
         return False
+
+
+def _get_dict_state(obj: Any) -> Dict[str, Any]:
+    """Internal utility for SupportsDeepcopyAndPickle."""
+    dictstate: Dict = obj.__dict__.copy()
+    dictstate["_GETFULLSTATE"] = None
+    if not obj._GETFULLSTATE:
+        warn(
+            f"to pickle {obj.__class__.__name__} all references to CasADi and "
+            "unpickleable objects are removed from __dict__.",
+            RuntimeWarning,
+        )
+        for attr, val in obj.__dict__.items():
+            if is_casadi_object(val) or not is_pickleable(val):
+                dictstate.pop(attr, None)
+    return dictstate
+
+
+def _get_slots_state(obj: Any) -> Dict[str, Any]:
+    """Internal utility for SupportsDeepcopyAndPickle."""
+    slotsstate: Dict[str, Any] = {n: getattr(obj, n, None) for n in obj.__slots__}
+    if not obj._GETFULLSTATE:
+        warn(
+            f"to pickle {obj.__class__.__name__} all references to CasADi and "
+            "unpickleable objects are removed from __slots__.",
+            RuntimeWarning,
+        )
+        for attr in obj.__slots__:
+            val = slotsstate[attr]
+            if val is None or is_casadi_object(val) or not is_pickleable(val):
+                slotsstate.pop(attr, None)
+    return slotsstate
 
 
 T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
@@ -107,25 +139,28 @@ class SupportsDeepcopyAndPickle:
                         del new.__dict__[membername]
         return new
 
-    def __getstate__(self) -> Dict[str, Any]:
+    def __getstate__(
+        self,
+    ) -> Union[None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]]:
         """Returns the instance's state to be pickled or copied."""
+        # https://docs.python.org/3/library/pickle.html#pickle-inst
+        has_dict = hasattr(self, "__dict__")
+        has_slots = hasattr(self, "__slots__")
+        if not has_dict and not has_slots:
+            return None
+
         if self._GETFULLSTATE is None:
             raise RuntimeError(
                 f"Trying to get the state of {self.__class__.__name__} without using "
                 "context manager `pickleable` or `fullstate`."
             )
-        state = self.__dict__.copy()
-        state["_GETFULLSTATE"] = None
-        if not self._GETFULLSTATE:
-            warn(
-                f"to pickle {self.__class__.__name__} all references to CasADi and "
-                "unpickleable objects are removed.",
-                RuntimeWarning,
-            )
-            for attr, val in self.__dict__.items():
-                if is_casadi_object(val) or not is_pickleable(val):
-                    state.pop(attr)
-        return state
+
+        if has_dict and not has_slots:
+            return _get_dict_state(self)
+
+        if has_dict:
+            return _get_dict_state(self), _get_slots_state(self)
+        return None, _get_slots_state(self)
 
 
 def save(filename: str, **data: Any) -> str:
