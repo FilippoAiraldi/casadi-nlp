@@ -13,7 +13,26 @@ T = TypeVar("T", cs.SX, cs.MX)
 
 
 class NlpScaling(NonRetroactiveWrapper[T]):
+    """
+    Wraps an NLP problem to facilitate the scaling of parameters and variables as well
+    as the automatic scaling of expression (e.g., objective and constraints).
+    """
+
     def __init__(self, nlp: Nlp[T], scaler: Scaler, warns: bool = True) -> None:
+        """Initializes a scaling wrapper around an NLP instance.
+
+        Parameters
+        ----------
+        nlp : Nlp[T]
+            The NLP problem to be wrapped.
+        scaler : Scaler
+            A class for scaling the NLP's quantities. See `csnlp.core.scaling` for a
+            collection of these.
+        warns : bool, optional
+            If `True`, warns each time a variable or parameter is created which has not
+            been registered to the scaler and thus cannot be scaled; otherwise, it will
+            not raise warnings.
+        """
         super().__init__(nlp)
         self.scaler = scaler
         self.warns = warns
