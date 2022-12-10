@@ -198,7 +198,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
             p=p,
             lbx=self._lbx,
             ubx=self._ubx,
-            lbg=np.concatenate((self._lbg, self._lbh)),
+            lbg=np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
             ubg=0,
             lam_x0=0,
             lam_g0=0,

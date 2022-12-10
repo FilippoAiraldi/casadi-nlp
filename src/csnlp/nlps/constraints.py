@@ -42,7 +42,6 @@ class HasConstraints(HasVariables[T]):
         self._lam_lbx, self._lam_ubx = self._csXX(), self._csXX()
         self._g, self._lam_g = self._csXX(), self._csXX()
         self._h, self._lam_h = self._csXX(), self._csXX()
-        self._lbg, self._lbh = np.asarray([]), np.asarray([])
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
@@ -317,18 +316,15 @@ class HasConstraints(HasVariables[T]):
         shape = expr.shape
         if op == "==":
             is_eq = True
-            lb = np.zeros(np.prod(shape))
             if soft:
                 raise NotImplementedError(
                     "Soft equality constraints are not currently supported."
                 )
         elif op == "<=":
             is_eq = False
-            lb = np.full(np.prod(shape), -np.inf)
         elif op == ">=":
             is_eq = False
             expr = -expr
-            lb = np.full(np.prod(shape), -np.inf)
         else:
             raise ValueError(f"Unrecognized operator {op}.")
 
@@ -337,14 +333,11 @@ class HasConstraints(HasVariables[T]):
             expr -= slack
 
         self._cons[name] = expr
-        group, con, lam = (
-            ("_g", "_lbg", "_lam_g") if is_eq else ("_h", "_lbh", "_lam_h")
-        )
+        group, lam = ("_g", "_lam_g") if is_eq else ("_h", "_lam_h")
         name_lam = f"{lam[1:]}_{name}"
         lam_c = self._csXX.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_c
 
         setattr(self, group, cs.vertcat(getattr(self, group), cs.vec(expr)))
-        setattr(self, con, np.concatenate((getattr(self, con), lb)))
         setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_c)))
         return (expr, lam_c, slack) if soft else (expr, lam_c)
