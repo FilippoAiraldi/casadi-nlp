@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
 
 import casadi as cs
 import numpy as np
-from casadi.tools.structure3 import CasadiStructured
+from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 T = TypeVar("T", cs.SX, cs.MX)
 
@@ -59,20 +59,54 @@ class Solution(Generic[T]):
         return self._get_value(x, eval=eval)  # type: ignore
 
 
+def _internal_subsevalf_cs(
+    expr: T,
+    old: Union[T, Dict[str, T], Iterable[T]],
+    new: Union[T, Dict[str, T], Iterable[T]],
+    eval: bool,
+) -> Union[T, cs.DM]:
+    """Internal utility for substituting and evaluting casadi objects."""
+    if isinstance(expr, (cs.DM, DMStruct)):
+        return expr
+
+    if isinstance(old, dict):
+        for name, o in old.items():
+            expr = cs.substitute(expr, o, new[name])  # type: ignore
+    elif isinstance(old, Iterable) and not isinstance(
+        old, (cs.SX, cs.MX, CasadiStructured)
+    ):
+        for o, n in zip(old, new):
+            expr = cs.substitute(expr, o, n)
+    else:
+        expr = cs.substitute(expr, old, new)
+
+    if eval:
+        expr = cs.evalf(expr)
+    return expr
+
+
+def _internal_subsevalf_np(
+    expr: np.ndarray,
+    old: Union[T, Dict[str, T], Iterable[T]],
+    new: Union[T, Dict[str, T], Iterable[T]],
+    eval: bool,
+) -> Union[T, np.ndarray, cs.DM]:
+    """Internal utility for substituting and evaluting arrays of casadi objects."""
+    if expr.dtype != object:
+        return expr
+
+    out = np.empty(expr.shape, dtype=object)
+    for i in np.ndindex(expr.shape):
+        out[i] = subsevalf(expr[i], old, new, eval=eval)
+    if eval:
+        out = out.astype(float)
+    return out
+
+
 def subsevalf(
     expr: Union[T, np.ndarray],
-    old: Union[
-        T,
-        Dict[str, T],
-        Iterable[T],
-        CasadiStructured,
-    ],
-    new: Union[
-        T,
-        Dict[str, T],
-        Iterable[T],
-        CasadiStructured,
-    ],
+    old: Union[T, Dict[str, T], Iterable[T]],
+    new: Union[T, Dict[str, T], Iterable[T]],
     eval: bool = True,
 ) -> Union[T, cs.DM, np.ndarray]:
     """
@@ -100,32 +134,13 @@ def subsevalf(
 
     Raises
     ------
-    TypeError
-        Raises if the `old` and `new` are neither SX, MX, dict, Iterable.
     RuntimeError
-        Raises if `eval=True` but there are symbolic variables that are still
-        free, i.e., the expression cannot be evaluated numerically since it is
-        still (partially) symbolic.
+        Raises if `old` and `new` are not compatible with `casadi.substitute`; or if
+        `eval=True` but there are symbolic variables that are still free, i.e., the
+        expression cannot be evaluated numerically since it is still (partially)
+        symbolic.
     """
     if isinstance(expr, np.ndarray):
-        out = np.empty(expr.shape, dtype=object)
-        for i in np.ndindex(expr.shape):
-            out[i] = subsevalf(expr[i], old, new, eval=eval)
-        if eval:
-            out = out.astype(float)
-        return out
-
-    if isinstance(old, (cs.SX, cs.MX, CasadiStructured)):
-        expr = cs.substitute(expr, old, new)
-    elif isinstance(old, dict):
-        for name, o in old.items():
-            expr = cs.substitute(expr, o, new[name])  # type: ignore
-    elif isinstance(old, Iterable):
-        for o, n in zip(old, new):
-            expr = cs.substitute(expr, o, n)
+        return _internal_subsevalf_np(expr, old, new, eval)
     else:
-        raise TypeError(f"Invalid type {old.__class__.__name__} for old.")
-
-    if eval:
-        expr = cs.evalf(expr)
-    return expr
+        return _internal_subsevalf_cs(expr, old, new, eval)
