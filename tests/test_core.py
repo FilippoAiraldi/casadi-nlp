@@ -158,7 +158,7 @@ class TestNlpDebug(unittest.TestCase):
 
 class TestSolutions(unittest.TestCase):
     def test_subsevalf__raises__when_type_is_invalid(self):
-        with self.assertRaises(TypeError):
+        with self.assertRaises(Exception):
             subsevalf(None, unittest.TestCase, None)
 
     def test_subsevalf__raises__when_evaluating_a_symbolic_expr(self):

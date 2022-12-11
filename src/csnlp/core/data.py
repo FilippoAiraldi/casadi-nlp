@@ -27,6 +27,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     """
     if isinstance(x, (cs.SX, cs.MX, cs.DM)):
         return x
+
     ndim = x.ndim
     if ndim == 0:
         raise ValueError("Cannot convert empty arrays.")
@@ -39,8 +40,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
 
     # infer type from first element
-    sym_type = type(o)
-    if sym_type is cs.SX:
+    if isinstance(o, cs.SX):
         return cs.SX(x)
     shape = x.shape
     m = cs.MX(*shape)
@@ -68,6 +68,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     """
     if isinstance(x, np.ndarray):
         return x
+
     shape = x.shape
     y = np.empty(shape, dtype=object)
     for i in np.ndindex(shape):
