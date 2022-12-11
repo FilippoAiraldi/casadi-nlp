@@ -5,6 +5,8 @@ import casadi as cs
 import numpy as np
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
+from csnlp.core.data import array2cs, cs2array
+
 T = TypeVar("T", cs.SX, cs.MX)
 
 
@@ -91,13 +93,32 @@ def _internal_subsevalf_np(
     new: Union[T, Dict[str, T], Iterable[T]],
     eval: bool,
 ) -> Union[T, np.ndarray, cs.DM]:
+    # sourcery skip: remove-redundant-slice-index
     """Internal utility for substituting and evaluting arrays of casadi objects."""
+    # if not symbolic, return it
     if expr.dtype != object:
         return expr
 
-    out = np.empty(expr.shape, dtype=object)
-    for i in np.ndindex(expr.shape):
-        out[i] = subsevalf(expr[i], old, new, eval=eval)
+    # up to 2D, we can get away with only one substitution
+    if expr.ndim <= 2:
+        return _internal_subsevalf_cs(array2cs(expr), old, new, eval)
+
+    # for tensors, check if the right end or the left is bigger, then loop over the
+    # rest while substituing in the right/left end of the array
+    shape = expr.shape
+    transposed = (shape[0] * shape[1]) > (shape[-2] * shape[-1])
+    if transposed:
+        shape = shape[::-1]
+        expr = expr.transpose()
+    out = np.empty(shape, dtype=object)
+    for i in np.ndindex(shape[0:-2:]):  # 0 is needed to avoid wrapping around the shape
+        out[i] = cs2array(
+            _internal_subsevalf_cs(array2cs(expr[i]), old, new, eval)
+        ).squeeze()
+    if transposed:
+        out = out.transpose()
+        expr = expr.transpose()
+
     if eval:
         out = out.astype(float)
     return out
@@ -134,7 +155,7 @@ def subsevalf(
 
     Raises
     ------
-    RuntimeError
+    Exception
         Raises if `old` and `new` are not compatible with `casadi.substitute`; or if
         `eval=True` but there are symbolic variables that are still free, i.e., the
         expression cannot be evaluated numerically since it is still (partially)
