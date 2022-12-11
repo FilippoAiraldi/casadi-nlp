@@ -162,7 +162,7 @@ class TestExamples(unittest.TestCase):
             ]
         )
         z0, j0, h0 = [], [], []
-        J, H = nlp.parametric_sensitivity(expr=Z)
+        J, H = nlp.parametric_sensitivity(expr=Z, second_order=True)
         for p0 in (1.2, 1.45, 1.9):
             sol = nlp.solve(pars={"p": [0.2, p0]})
             z0.append(sol.value(Z))

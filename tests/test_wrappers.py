@@ -310,10 +310,11 @@ class TestNlpSensitivity(unittest.TestCase):
         np.testing.assert_allclose(S2.flat, [1, 0, 2, 0], atol=1e-5)
 
         Fp1, Fpp1 = (
-            sol.value(o).item() for o in nlp.parametric_sensitivity(expr=nlp.f)
+            sol.value(o)
+            for o in nlp.parametric_sensitivity(expr=nlp.f, second_order=True)
         )
-        Fp2, Fpp2 = (
-            o.item() for o in nlp.parametric_sensitivity(expr=nlp.f, solution=sol)
+        Fp2, Fpp2 = nlp.parametric_sensitivity(
+            expr=nlp.f, solution=sol, second_order=True
         )
         np.testing.assert_allclose(Fp1, 4, atol=1e-7)
         np.testing.assert_allclose(Fp2, 4, atol=1e-7)
@@ -367,13 +368,15 @@ class TestNlpSensitivity(unittest.TestCase):
         nlp.init_solver(OPTS)
 
         Z1_ = z(x)
-        J1_, H1_ = (np.squeeze(o) for o in nlp.parametric_sensitivity(expr=Z1_))
+        J1_, H1_ = nlp.parametric_sensitivity(expr=Z1_, second_order=True)
         for p, (Z, J, H) in p_values_and_solutions:
             sol = nlp.solve(pars={"p": [0.2, p]})
             Z1 = sol.value(Z1_)
             J1 = sol.value(J1_)
             H1 = sol.value(H1_)
-            J2, H2 = nlp.parametric_sensitivity(expr=Z1_, solution=sol)
+            J2, H2 = nlp.parametric_sensitivity(
+                expr=Z1_, solution=sol, second_order=True
+            )
             J2, H2 = np.squeeze(J2), np.squeeze(H2)
             np.testing.assert_allclose(J1.full().flat, J2, atol=1e-7)
             np.testing.assert_allclose(H1.full(), H2, atol=1e-7)

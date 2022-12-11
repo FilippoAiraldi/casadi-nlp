@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -171,11 +171,12 @@ class NlpSensitivity(Wrapper[T]):
     def parametric_sensitivity(
         self,
         expr: T = None,
-        solution: Optional[Solution] = None,
+        solution: Optional[Solution[T]] = None,
+        second_order: bool = False,
     ) -> Union[
-        Tuple[T, T],
-        Tuple[cs.DM, cs.DM],
-        Tuple[npt.NDArray[np.double], npt.NDArray[np.double]],
+        Tuple[T, Optional[T]],
+        Tuple[cs.DM, Optional[cs.DM]],
+        Tuple[npt.NDArray[np.double], Optional[npt.NDArray[np.double]]],
     ]:
         """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
         parametrization, according to [1].
@@ -191,12 +192,16 @@ class NlpSensitivity(Wrapper[T]):
             If a solution is passed, then the sensitivity is numerically computed for
             that solution; otherwise, the sensitivity is carried out symbolically
             (however, this is much more computationally intensive).
+        second_order : bool, optional
+            If `second_order=False`, the analysis is stopped at the first order;
+            otherwise, also second-order information is computed.
 
         Returns
         -------
         2-element tuple of casadi.SX, or MX, or DM, or arrays
             The 1st and 2nd-order NLP parametric sensitivity in the form of an array/DM,
-            if a solution is passed, or a symbolic vector SX/MX.
+            if a solution is passed, or a symbolic vector SX/MX. When
+            `second_order=False` the second element in the tuple is `None`.
 
         Raises
         ------
@@ -210,71 +215,86 @@ class NlpSensitivity(Wrapper[T]):
             S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale
             Systems, 3–16. Springer, Berlin, Heidelberg.
         """
+        d: Callable[[T], Union[T, cs.DM, np.ndarray]] = (
+            (lambda o: o)
+            if solution is None
+            else (lambda o: solution.value(o))  # type: ignore
+        )
+
         # first order sensitivity, a.k.a., dydp
-        Ky = self.jacobians["K-y"]
-        Kp = self.jacobians["K-p"]
+        Ky = d(self.jacobians["K-y"])
+        Kp = d(self.jacobians["K-p"])
         if solution is None:
-            dydp = -cs.inv(Ky) @ Kp
+            Ky_inv = cs.inv(Ky)
+            dydp = -Ky_inv @ Kp
         else:
-            A = solution.value(Ky)
-            b = -solution.value(Kp)
-            dydp = np.linalg.solve(A, b)
+            dydp = -np.linalg.solve(Ky, Kp)
+
+        # first order sensitivity of Z, a.k.a., dZdp
+        Z = expr  # Z := z(x(p),lam(p),p)
+        if Z is not None:
+            Zshape = Z.shape
+            Z = cs.vec(Z)
+            p = self.nlp.p
+            np_ = self.nlp.np
+            y, idx = self._y_idx
+
+            if second_order:
+                Zpp, Zp = hohessian(Z, p)
+                Zyy, Zy = hohessian(Z, y)
+            else:
+                Zp = hojacobian(Z, p)
+                Zy = hojacobian(Z, y)
+            Zp = d(array2cs(Zp.squeeze((1, 3))))
+            Zy = d(array2cs(Zy[:, 0, idx, 0]))
+
+            dZdp = Zy @ dydp + Zp
+            dZdp = cs2array(dZdp).reshape(Zshape + (np_,), order="F").squeeze()
+            if dZdp.ndim <= 2:
+                dZdp = array2cs(dZdp)
+
+        # if no second order is required, just return
+        if not second_order:
+            return dydp if Z is None else dZdp, None
 
         # second order sensitivity, a.k.a., d2ydp2
         dydp = cs2array(dydp)
-        Kpp = self.hojacobians["K-pp"]
-        Kpy = self.hojacobians["K-py"]
-        Kyp = self.hojacobians["K-yp"]
-        Kyy = self.hojacobians["K-yy"]
+        Kpp = d(self.hojacobians["K-pp"])
+        Kpy = d(self.hojacobians["K-py"])
+        Kyp = d(self.hojacobians["K-yp"])
+        Kyy = d(self.hojacobians["K-yy"])
         M = (
             Kpp
             + (Kpy.transpose((0, 2, 1)) + Kyp + (Kyy @ dydp)).transpose((0, 2, 1))
             @ dydp
-        )
+        ).transpose((2, 0, 1))
         if solution is None:
-            A = cs2array(cs.inv(Ky))
-            b = -M.transpose((2, 0, 1))
-            d2ydp2 = (A @ b).transpose((1, 2, 0))
+            d2ydp2 = -(cs2array(Ky_inv) @ M).transpose((1, 2, 0))
         else:
-            A = solution.value(Ky)
-            b = -solution.value(M).transpose((2, 0, 1))
-            d2ydp2 = np.linalg.solve(A, b).transpose((1, 2, 0))
+            d2ydp2 = -np.linalg.solve(Ky, M).transpose((1, 2, 0))
 
-        # sensitivity of custom expression
-        Z = expr  # Z := z(x(p),lam(p),p)
+        # if no expression is given, just return
         if Z is None:
-            dydp = dydp.squeeze()
+            dydp = array2cs(dydp.squeeze())
             d2ydp2 = d2ydp2.squeeze()
-            if solution is not None:
-                return dydp, d2ydp2
-            return (array2cs(dydp), array2cs(d2ydp2) if d2ydp2.ndim <= 2 else d2ydp2)
-        Zshape = Z.shape
-        Z = cs.vec(Z)
+            if d2ydp2.ndim <= 2:
+                d2ydp2 = array2cs(d2ydp2)
+            return dydp, d2ydp2
 
-        p = self.nlp.p
-        y, idx = self._y_idx
-        Zpp, Zp = hohessian(Z, p)
-        Zyy, Zy = hohessian(Z, y)
+        # second order sensitivity of Z, a.k.a., d2Zdp2
         Zyp = hohessian(Z, y, p)[0]
         Zpy = hohessian(Z, p, y)[0]
-        Zpp = Zpp.squeeze((1, 3, 5))
-        Zp = Zp.squeeze((1, 3))
-        Zy = Zy[:, 0, idx, 0]
-        Zyy = Zyy.squeeze((1, 3, 5))[:, idx, :][..., idx]
-        Zyp = Zyp.squeeze((1, 3, 5))[:, idx, :]
-        Zpy = Zpy.squeeze((1, 3, 5))[..., idx]
-
-        dzdp = Zy @ dydp + Zp
-        T1 = (d2ydp2.transpose((1, 2, 0)) @ Zy.T).transpose((2, 0, 1))
+        Zpp = d(Zpp.squeeze((1, 3, 5)))
+        Zyy = d(Zyy.squeeze((1, 3, 5))[:, idx, :][..., idx])
+        Zyp = d(Zyp.squeeze((1, 3, 5))[:, idx, :])
+        Zpy = d(Zpy.squeeze((1, 3, 5))[..., idx])
+        T1 = (d2ydp2.transpose((1, 2, 0)) @ cs2array(Zy).T).transpose((2, 0, 1))
         T2 = Zyy.transpose((0, 2, 1)) @ dydp + Zpy.transpose((0, 2, 1)) + Zyp
-        d2zdp2 = Zpp + T1 + dydp.T @ T2
-
-        np_ = self.nlp.np
-        dzdp = dzdp.reshape(Zshape + (np_,), order="F")
-        d2zdp2 = d2zdp2.reshape(Zshape + (np_, np_), order="F")
-        if solution is not None:
-            return solution.value(dzdp), solution.value(d2zdp2)
-        return dzdp, d2zdp2
+        d2Zdp2 = Zpp + T1 + dydp.T @ T2
+        d2Zdp2 = d2Zdp2.reshape(Zshape + (np_, np_), order="F").squeeze()
+        if d2Zdp2.ndim <= 2:
+            d2Zdp2 = array2cs(d2Zdp2)
+        return dZdp, d2Zdp2
 
     @invalidate_cache(jacobians, hessians, hojacobians)
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
