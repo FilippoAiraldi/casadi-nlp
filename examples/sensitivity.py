@@ -82,7 +82,7 @@ for p0, ax in zip(p_values, axs):
 
 # How does the optimal solution vary along p?
 nlp = wrappers.NlpSensitivity[cs.MX](nlp)  # type: ignore
-nlp.constraint
+
 # a bunch of strange equations we want to compute sensitivity of w.r.t. p[1]
 Z = cs.blockcat(
     [
