@@ -40,6 +40,8 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
 
     # infer type from first element
+    if x.dtype != object or isinstance(o, cs.DM):
+        return cs.DM(x)
     if isinstance(o, cs.SX):
         return cs.SX(x)
     shape = x.shape
