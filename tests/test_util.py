@@ -207,8 +207,8 @@ class TestMath(unittest.TestCase):
         )
         cdf = norm.ppf(x, loc=loc, scale=scale)
 
-        np.testing.assert_allclose(cdf, cdf_sx, atol=1e-7, rtol=1e-5)
-        np.testing.assert_allclose(cdf, cdf_mx, atol=1e-7, rtol=1e-5)
+        np.testing.assert_allclose(cdf, cdf_sx, atol=1e-5, rtol=1e-5)
+        np.testing.assert_allclose(cdf, cdf_mx, atol=1e-5, rtol=1e-5)
 
     @parameterized.expand(
         [

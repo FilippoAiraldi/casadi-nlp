@@ -112,9 +112,10 @@ def _internal_subsevalf_np(
         expr = expr.transpose()
     out = np.empty(shape, dtype=object)
     for i in np.ndindex(shape[0:-2:]):  # 0 is needed to avoid wrapping around the shape
+        shape_i = expr[i].shape
         out[i] = cs2array(
             _internal_subsevalf_cs(array2cs(expr[i]), old, new, eval)
-        ).squeeze()
+        ).reshape(shape_i)
     if transposed:
         out = out.transpose()
         expr = expr.transpose()
