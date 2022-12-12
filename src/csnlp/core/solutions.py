@@ -111,11 +111,11 @@ def _internal_subsevalf_np(
         shape = shape[::-1]
         expr = expr.transpose()
     out = np.empty(shape, dtype=object)
-    for i in np.ndindex(shape[0:-2:]):  # 0 is needed to avoid wrapping around the shape
-        shape_i = expr[i].shape
+    shape_iter, shape_cs = shape[:-2], shape[-2:]
+    for i in np.ndindex(shape_iter):
         out[i] = cs2array(
             _internal_subsevalf_cs(array2cs(expr[i]), old, new, eval)
-        ).reshape(shape_i)
+        ).reshape(shape_cs)
     if transposed:
         out = out.transpose()
         expr = expr.transpose()
