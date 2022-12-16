@@ -103,13 +103,13 @@ class NlpSensitivity(Wrapper[T]):
             - `K-y`: kkt conditions w.r.t. primal-dual variables
         """
         K = self.kkt[0]
-        y, idx = self._y_idx
+        y, y_idx = self._y_idx
         return {
             "L-p": cs.jacobian(self.lagrangian, self.nlp.p),
             "g-x": cs.jacobian(self.nlp.g, self.nlp.x),
             "h-x": cs.jacobian(self.nlp.h, self.nlp.x),
             "K-p": cs.jacobian(K, self.nlp.p),
-            "K-y": cs.jacobian(K, y)[:, idx],
+            "K-y": cs.jacobian(K, y)[:, y_idx],
         }
 
     @cached_property
@@ -141,12 +141,12 @@ class NlpSensitivity(Wrapper[T]):
         jacobians = self.jacobians
         Kp = jacobians["K-p"]
         Ky = jacobians["K-y"]
-        y, idx = self._y_idx
+        y, y_idx = self._y_idx
         return {
             "K-pp": hojacobian(Kp, self.nlp.p)[..., 0],
             "K-yp": hojacobian(Ky, self.nlp.p)[..., 0],
-            "K-yy": hojacobian(Ky, y)[..., idx, 0],
-            "K-py": hojacobian(Kp, y)[..., idx, 0],
+            "K-yy": hojacobian(Ky, y)[..., y_idx, 0],
+            "K-py": hojacobian(Kp, y)[..., y_idx, 0],
         }
 
     @property
@@ -183,7 +183,7 @@ class NlpSensitivity(Wrapper[T]):
 
         Parameters
         ----------
-        expression : casadi.SX or MX, optional
+        expr : casadi.SX or MX, optional
             If provided, computes the sensitivity of this expression (which must be
             dependent on the primal-dual variables and/or parameters of the NLP) w.r.t.
             the NLP parameters. If `None`, then the sensitivity of the primal-dual
