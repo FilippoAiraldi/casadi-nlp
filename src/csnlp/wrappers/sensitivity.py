@@ -26,13 +26,25 @@ class NlpSensitivity(Wrapper[T]):
         Springer, Berlin, Heidelberg.
     """
 
-    def __init__(self, nlp: Nlp[T], include_barrier_term: bool = True) -> None:
+    def __init__(
+        self,
+        nlp: Nlp[T],
+        target_parameters: Optional[T] = None,
+        include_barrier_term: bool = True,
+    ) -> None:
         """Instantiates the wrapper for performing NLP sensitivities.
 
         Parameters
         ----------
         nlp : Nlp
             The NLP problem to be wrapped.
+        target_parameters : casadi.SX or MX, optional
+            If provided, computes the sensitibity only w.r.t. these parameters. Of
+            course, these parameters must be a subset of all the NLP's parameters. If
+            `None`, then the derivatives and sensitivity are computed w.r.t. all
+            parameters.
+            If new parameters are added after wrapping the nlp in this, be sure to call
+            `set_target_parameters` again.
         include_barrier_term : bool, optional
             If `True`, includes in the KKT matrix a new symbolic variable that
             represents the barrier function of the interior-point solver. Otherwise, no
@@ -41,7 +53,14 @@ class NlpSensitivity(Wrapper[T]):
         """
         super().__init__(nlp)
         self.include_barrier_term = include_barrier_term
+        self.set_target_parameters(target_parameters)
         self._tau = nlp.sym_type.sym("tau") if include_barrier_term else 0
+
+    @property
+    def target_parameters(self) -> T:
+        """Gets the parameters of the NLP that are the target of the sensitivity
+        wrapper, i.e., derivatives and sensitivities are limited to these parameters."""
+        return self._p_idx[0]
 
     @cached_property
     def lagrangian(self) -> T:
@@ -104,11 +123,12 @@ class NlpSensitivity(Wrapper[T]):
         """
         K = self.kkt[0]
         y, y_idx = self._y_idx
+        p, p_idx = self._p_idx
         return {
-            "L-p": cs.jacobian(self.lagrangian, self.nlp.p),
+            "L-p": cs.jacobian(self.lagrangian, p)[:, p_idx],
             "g-x": cs.jacobian(self.nlp.g, self.nlp.x),
             "h-x": cs.jacobian(self.nlp.h, self.nlp.x),
-            "K-p": cs.jacobian(K, self.nlp.p),
+            "K-p": cs.jacobian(K, p)[:, p_idx],
             "K-y": cs.jacobian(K, y)[:, y_idx],
         }
 
@@ -120,13 +140,14 @@ class NlpSensitivity(Wrapper[T]):
             - `L-xx`: lagrangian w.r.t. primal variables (twice)
             - `L-px`: lagrangian w.r.t. parameters and then primal variables
         """
+        p, p_idx = self._p_idx
         L = self.lagrangian
-        Lpp, Lp = cs.hessian(L, self.nlp.p)
+        Lpp, Lp = cs.hessian(L, p)
         Lpx = cs.jacobian(Lp, self.nlp.x)
         return {
-            "L-pp": Lpp,
             "L-xx": cs.hessian(L, self.nlp.x)[0],
-            "L-px": Lpx,
+            "L-pp": Lpp[p_idx, :][:, p_idx],
+            "L-px": Lpx[p_idx, :],
         }
 
     @cached_property
@@ -142,9 +163,10 @@ class NlpSensitivity(Wrapper[T]):
         Kp = jacobians["K-p"]
         Ky = jacobians["K-y"]
         y, y_idx = self._y_idx
+        p, p_idx = self._p_idx
         return {
-            "K-pp": hojacobian(Kp, self.nlp.p)[..., 0],
-            "K-yp": hojacobian(Ky, self.nlp.p)[..., 0],
+            "K-pp": hojacobian(Kp, p)[..., p_idx, 0],
+            "K-yp": hojacobian(Ky, p)[..., p_idx, 0],
             "K-yy": hojacobian(Ky, y)[..., y_idx, 0],
             "K-py": hojacobian(Kp, y)[..., y_idx, 0],
         }
@@ -235,9 +257,9 @@ class NlpSensitivity(Wrapper[T]):
         if Z is not None:
             Zshape = Z.shape
             Z = cs.vec(Z)
-            p = self.nlp.p
-            np_ = self.nlp.np
-            y, idx = self._y_idx
+            y, y_idx = self._y_idx
+            p, p_idx = self._p_idx
+            np_ = p.shape[0] if isinstance(p_idx, slice) else p_idx.size
 
             if second_order:
                 Zpp, Zp = hohessian(Z, p)
@@ -245,8 +267,8 @@ class NlpSensitivity(Wrapper[T]):
             else:
                 Zp = hojacobian(Z, p)
                 Zy = hojacobian(Z, y)
-            Zp = d(array2cs(Zp.squeeze((1, 3))))
-            Zy = d(array2cs(Zy[:, 0, idx, 0]))
+            Zp = d(array2cs(Zp[:, 0, p_idx, 0]))
+            Zy = d(array2cs(Zy[:, 0, y_idx, 0]))
 
             dZdp = Zy @ dydp + Zp
             dZdp = cs2array(dZdp).reshape(Zshape + (np_,), order="F").squeeze()
@@ -282,12 +304,10 @@ class NlpSensitivity(Wrapper[T]):
             return dydp, d2ydp2
 
         # second order sensitivity of Z, a.k.a., d2Zdp2
-        Zyp = hohessian(Z, y, p)[0]
-        Zpy = hohessian(Z, p, y)[0]
-        Zpp = d(Zpp.squeeze((1, 3, 5)))
-        Zyy = d(Zyy.squeeze((1, 3, 5))[:, idx, :][..., idx])
-        Zyp = d(Zyp.squeeze((1, 3, 5))[:, idx, :])
-        Zpy = d(Zpy.squeeze((1, 3, 5))[..., idx])
+        Zyp = d(hohessian(Z, y, p)[0][:, 0, y_idx, 0][:, :, p_idx, 0])
+        Zpy = d(hohessian(Z, p, y)[0][:, 0, p_idx, 0][:, :, y_idx, 0])
+        Zpp = d(Zpp[:, 0, p_idx, 0][:, :, p_idx, 0])
+        Zyy = d(Zyy[:, 0, y_idx, 0][:, :, y_idx, 0])
         T1 = (d2ydp2.transpose((1, 2, 0)) @ cs2array(Zy).T).transpose((2, 0, 1))
         T2 = Zyy.transpose((0, 2, 1)) @ dydp + Zpy.transpose((0, 2, 1)) + Zyp
         d2Zdp2 = Zpp + T1 + dydp.T @ T2
@@ -330,6 +350,32 @@ class NlpSensitivity(Wrapper[T]):
         """See `Nlp.minimize` method."""
         return self.nlp.minimize(objective)
 
+    @invalidate_cache(jacobians, hessians, hojacobians)
+    def set_target_parameters(self, parameters: Optional[T]) -> None:
+        """Sets the target parameters of the sensitivity wrapper.
+
+        Parameters
+        ----------
+        parameters : casadi.MX or SX or None
+            New parameters to target during the sensitivity analyses. If `None`, all
+            NLP parameters are included.
+        """
+        if parameters is None:
+            p_idx = None, slice(None)
+        else:
+            p: T = cs.vec(parameters)
+            if self.nlp.sym_type is cs.SX:
+                p_idx = p, slice(None)
+            else:
+                sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
+                idx = np.asarray(sp_J.get_crs()[1], dtype=int)
+                assert idx.size == p.shape[0], (
+                    "Invalid subset of target parameters (some werer not found in "
+                    " original NLP parameters)."
+                )
+                p_idx = self.nlp.p, idx  # type: ignore
+        self._p_idx_: Tuple[Optional[T], Union[slice, npt.NDArray[np.int64]]] = p_idx
+
     @property
     def _y_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return all the primal-dual variables and indices that are
@@ -348,3 +394,11 @@ class NlpSensitivity(Wrapper[T]):
             (np.arange(n), h_lbx_idx + n, h_ubx_idx + n + h_lbx_idx.size)
         )
         return y, idx
+
+    @property
+    def _p_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
+        """Internal utility to return the indices of p from all the NLP pars. Like for
+        _y_idx, SX is fine with jacobians, but MX jacobians need to be computed for
+        all elements and then indexed."""
+        p = self._p_idx_[0]
+        return (self.nlp.p if p is None else p), self._p_idx_[1]

@@ -386,6 +386,44 @@ class TestNlpSensitivity(unittest.TestCase):
             np.testing.assert_allclose(H, H1[1, 1], atol=1e-4)
             np.testing.assert_allclose(H, H2[1, 1], atol=1e-4)
 
+    def test_parametric_sensitivity__with_specific_pars__is_correct(self):
+        # https://web.casadi.org/blog/nlp_sens/
+        p_values_and_solutions = [
+            (1.25, (-0.442401495488, 0.400036517837, 3.516850030791)),
+            (1.4, (-0.350853791920, 0.766082818877, 1.401822559490)),
+            (2, (-0.000000039328, 0, 0)),
+        ]
+
+        def z(x):
+            return x[1, :] - x[0, :]
+
+        nlp = Nlp(sym_type=self.sym_type)
+        x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
+        p = nlp.parameter("p", (2, 1))
+        p2 = nlp.parameter("p2", (1, 1))
+        nlp.minimize((1 - x[0]) ** 2 + p[0] * (x[1] - x[0] ** 2) ** 2)
+        g = (x[0] + 0.5) ** 2 + x[1] ** 2 + p2
+        nlp.constraint("c1", (p[1] / 2) ** 2, "<=", g)
+        nlp.constraint("c2", g, "<=", p[1] ** 2)
+        nlp.init_solver(OPTS)
+
+        sensitivity_all = NlpSensitivity(nlp)
+        sensitivity_partial = NlpSensitivity(nlp, target_parameters=p[1])
+
+        kwargs = dict(expr=z(x), second_order=True)
+        J1_, H1_ = sensitivity_all.parametric_sensitivity(**kwargs)
+        J2_, H2_ = sensitivity_partial.parametric_sensitivity(**kwargs)
+        for p, (_, J_exp, H_exp) in p_values_and_solutions:
+            sol = nlp.solve(pars={"p": [0.2, p], "p2": 0})
+            J1_act = sol.value(J1_)
+            H1_act = sol.value(H1_)
+            J2_act = sol.value(J2_)
+            H2_act = sol.value(H2_)
+            np.testing.assert_allclose(J_exp, J1_act[1], atol=1e-4)
+            np.testing.assert_allclose(H_exp, H1_act[1, 1], atol=1e-4)
+            np.testing.assert_allclose(J_exp, J2_act, atol=1e-4)
+            np.testing.assert_allclose(H_exp, H2_act, atol=1e-4)
+
     def test_can_be_pickled(self):
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         x = nlp.variable("x", (2, 1), lb=[[0], [-np.inf]])[0]
