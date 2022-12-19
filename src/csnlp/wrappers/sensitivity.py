@@ -361,20 +361,21 @@ class NlpSensitivity(Wrapper[T]):
             NLP parameters are included.
         """
         if parameters is None:
-            p_idx = None, slice(None)
-        else:
-            p: T = cs.vec(parameters)
-            if self.nlp.sym_type is cs.SX:
-                p_idx = p, slice(None)
-            else:
-                sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
-                idx = np.asarray(sp_J.get_crs()[1], dtype=int)
-                assert idx.size == p.shape[0], (
-                    "Invalid subset of target parameters (some werer not found in "
-                    " original NLP parameters)."
-                )
-                p_idx = self.nlp.p, idx  # type: ignore
-        self._p_idx_: Tuple[Optional[T], Union[slice, npt.NDArray[np.int64]]] = p_idx
+            self._p_idx_internal = None, slice(None)
+            return
+
+        p: T = cs.vec(parameters)
+        if self.nlp.sym_type is cs.SX:
+            self._p_idx_internal = p, slice(None)
+            return
+
+        sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
+        idx = np.asarray(sp_J.get_crs()[1], dtype=int)
+        assert idx.size == p.shape[0], (
+            "Invalid subset of target parameters (some were not found in the"
+            " original NLP parameters)."
+        )
+        self._p_idx_internal = self.nlp.p, idx  # type: ignore
 
     @property
     def _y_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
@@ -400,5 +401,5 @@ class NlpSensitivity(Wrapper[T]):
         """Internal utility to return the indices of p from all the NLP pars. Like for
         _y_idx, SX is fine with jacobians, but MX jacobians need to be computed for
         all elements and then indexed."""
-        p = self._p_idx_[0]
-        return (self.nlp.p if p is None else p), self._p_idx_[1]
+        p = self._p_idx_internal[0]
+        return (self.nlp.p if p is None else p), self._p_idx_internal[1]
