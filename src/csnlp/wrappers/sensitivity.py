@@ -115,19 +115,23 @@ class NlpSensitivity(Wrapper[T]):
     def jacobians(self) -> Dict[str, T]:
         """Computes various partial derivatives, which are then grouped in a dict with
         the following entries
+            - `L-x`: lagrangian w.r.t. primal variables
             - `L-p`: lagrangian w.r.t. parameters
             - `g-x`: equality constraints w.r.t. primal variables
             - `h-x`: inequality constraints w.r.t. primal variables
             - `K-p`: kkt conditions w.r.t. parameters
             - `K-y`: kkt conditions w.r.t. primal-dual variables
         """
+        L = self.lagrangian
         K = self.kkt[0]
+        x = self.nlp.x
         y, y_idx = self._y_idx
         p, p_idx = self._p_idx
         return {
-            "L-p": cs.jacobian(self.lagrangian, p)[:, p_idx],
-            "g-x": cs.jacobian(self.nlp.g, self.nlp.x),
-            "h-x": cs.jacobian(self.nlp.h, self.nlp.x),
+            "L-x": cs.jacobian(L, x).T,
+            "L-p": cs.jacobian(L, p)[:, p_idx].T,
+            "g-x": cs.jacobian(self.nlp.g, x),
+            "h-x": cs.jacobian(self.nlp.h, x),
             "K-p": cs.jacobian(K, p)[:, p_idx],
             "K-y": cs.jacobian(K, y)[:, y_idx],
         }
@@ -140,14 +144,14 @@ class NlpSensitivity(Wrapper[T]):
             - `L-xx`: lagrangian w.r.t. primal variables (twice)
             - `L-px`: lagrangian w.r.t. parameters and then primal variables
         """
+        x = self.nlp.x
         p, p_idx = self._p_idx
-        L = self.lagrangian
-        Lpp, Lp = cs.hessian(L, p)
-        Lpx = cs.jacobian(Lp, self.nlp.x)
+        Lx = self.jacobians["L-x"]
+        Lp = self.jacobians["L-p"]
         return {
-            "L-xx": cs.hessian(L, self.nlp.x)[0],
-            "L-pp": Lpp[p_idx, :][:, p_idx],
-            "L-px": Lpx[p_idx, :],
+            "L-xx": cs.jacobian(Lx, x),
+            "L-pp": cs.jacobian(Lp, p)[:, p_idx],
+            "L-px": cs.jacobian(Lp, x),
         }
 
     @cached_property
