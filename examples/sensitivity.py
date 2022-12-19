@@ -80,8 +80,8 @@ for p0, ax in zip(p_values, axs):
     x_ = M([0.2, p0], 0).full()
     plot_nlp(ax, 0.2, p0, x_[0], x_[1])
 
-# How does the optimal solution vary along p?
-nlp = wrappers.NlpSensitivity[cs.MX](nlp)  # type: ignore
+# How does the optimal solution vary along p[1]?
+nlp = wrappers.NlpSensitivity[cs.MX](nlp, target_parameters=p[1])  # type: ignore
 
 # a bunch of strange equations we want to compute sensitivity of w.r.t. p[1]
 Z = cs.blockcat(
@@ -113,7 +113,7 @@ for p0, clr in zip(p_values, ["r", "g", "b"]):
         axs[i].plot(p0, float(z0[i]), "o", color=clr, markersize=6)
         axs[i].plot(
             t,
-            z0[i] + j0[i][1] * (t - p0) + 0.5 * h0[i][1, 1] * (t - p0) ** 2,
+            z0[i] + j0[i] * (t - p0) + 0.5 * h0[i] * (t - p0) ** 2,
             color=clr,
             ls="--",
         )
