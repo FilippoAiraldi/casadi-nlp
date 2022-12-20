@@ -64,13 +64,20 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         """Gets the cumulative number of failures of the NLP solver."""
         return self._failures
 
-    def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
-        """Initializes the IPOPT solver for this NLP with the given options.
+    def init_solver(
+        self,
+        opts: Optional[Dict[str, Any]] = None,
+        solver: Literal["opti", "qp"] = "opti",
+    ) -> None:
+        """Initializes the solver for this NLP with the given options.
 
         Parameters
         ----------
         opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
+        solver : 'ipopt' or 'qp', optional
+            Type of solver to instantiate. By default, IPOPT is chosen to deal with
+            NLPs. However, if the optimization problem is linear, `qp` can be specified.
 
         Raises
         ------
@@ -81,15 +88,17 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
             raise RuntimeError("NLP objective not set.")
         opts = {} if opts is None else opts.copy()
         con = cs.vertcat(self._g, self._h)
-        nlp = {"x": self._x, "p": self._p, "g": con, "f": self._f}
-        self._solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)
+        problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
+        func, stype = (cs.qpsol, "qrqp") if solver == "qp" else (cs.nlpsol, "ipopt")
+        self._solver = func(f"solver_{stype}_{self.name}", stype, problem, opts)
+        self._solver_type = solver
         self._solver_opts = opts
 
     def refresh_solver(self) -> None:
         """Refresh and resets the internal solver function (with the same options, if
         previously set)."""
         if self._solver is not None:
-            self.init_solver(self._solver_opts)
+            self.init_solver(self._solver_opts, self._solver_type)
 
     def minimize(self, objective: T) -> None:
         """Sets the objective function to be minimized.

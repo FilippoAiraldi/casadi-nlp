@@ -177,9 +177,13 @@ class MultistartNlp(Nlp[T], Generic[T]):
         self._multi_nlp.minimize(sum(self._fs))
         return out
 
-    def init_solver(self, opts: Optional[Dict[str, Any]] = None) -> None:
-        out = super().init_solver(opts)
-        self._multi_nlp.init_solver(opts)
+    def init_solver(
+        self,
+        opts: Optional[Dict[str, Any]] = None,
+        solver: Literal["opti", "qp"] = "opti",
+    ) -> None:
+        out = super().init_solver(opts, solver)
+        self._multi_nlp.init_solver(opts, solver)
         return out
 
     def solve_multi(
