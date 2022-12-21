@@ -300,8 +300,9 @@ class TestDerivatives(unittest.TestCase):
         self.assertEqual(H.ndim, 6)
         for i in np.ndindex(y.shape):
             x_ = np.random.randn(*x.shape)
-            H_ = cs2array(cs.hessian(y[i], x)[0])
-            o = cs.evalf(cs.substitute(H[i].reshape(H_.shape, order="F") - H_, x, x_))
+            H_ = cs.hessian(y[i], x)[0]
+            diff = array2cs(H[i].reshape(H_.shape, order="F")) - H_
+            o = cs.evalf(cs.substitute(diff, x, x_))
             np.testing.assert_allclose(o, 0, atol=1e-9)
 
 
