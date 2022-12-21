@@ -22,25 +22,13 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
 
     Raises
     ------
-    ValueError
+    NotImplementedError
         Raises if the array is empty (zero dimensions), or if it has more than 2 dims.
     """
     if isinstance(x, (cs.SX, cs.MX, cs.DM)):
         return x
 
-    ndim = x.ndim
-    if ndim == 0:
-        first_item = x.item()
-        x = x.reshape(1, 1)
-    elif ndim == 1:
-        first_item = x[0]
-        x = x.reshape(-1, 1)
-    elif ndim == 2:
-        first_item = x[0, 0]
-    else:
-        raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
-
-    # infer type from first element
+    first_item = next(x.flat)
     if x.dtype != object or isinstance(first_item, cs.DM):
         return cs.DM(x)
     if isinstance(first_item, cs.SX):
