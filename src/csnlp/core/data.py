@@ -31,11 +31,8 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     first_item = next(x.flat)
     if x.dtype != object or isinstance(first_item, cs.DM):
         return cs.DM(x)
-    if isinstance(first_item, cs.SX):
-        return cs.SX(x)
-    shape = x.shape
-    m = cs.MX(*shape)
-    for i in np.ndindex(shape):
+    m: Union[cs.SX, cs.MX] = type(first_item)(*x.shape)
+    for i in np.ndindex(x.shape):
         m[i] = x[i]
     return m
 
