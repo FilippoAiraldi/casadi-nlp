@@ -56,7 +56,7 @@ def _get_dict_state(obj: Any) -> Dict[str, Any]:
     dictstate["_GETFULLSTATE"] = None
     if not obj._GETFULLSTATE:
         warn(
-            f"to pickle {obj.__class__.__name__} all references to CasADi and "
+            f"to pickle {obj.__class__.__name__}, all references to CasADi and "
             "unpickleable objects are removed from __dict__.",
             RuntimeWarning,
         )
@@ -71,7 +71,7 @@ def _get_slots_state(obj: Any) -> Dict[str, Any]:
     slotsstate: Dict[str, Any] = {n: getattr(obj, n, None) for n in obj.__slots__}
     if not obj._GETFULLSTATE:
         warn(
-            f"to pickle {obj.__class__.__name__} all references to CasADi and "
+            f"to pickle {obj.__class__.__name__}, all references to CasADi and "
             "unpickleable objects are removed from __slots__.",
             RuntimeWarning,
         )
