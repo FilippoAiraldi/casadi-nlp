@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Union
 
 import casadi as cs
@@ -27,25 +28,23 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     """
     if isinstance(x, (cs.SX, cs.MX, cs.DM)):
         return x
-
+    cls = type(next(x.flat))
+    if x.dtype != object or cls is cs.DM:
+        return cs.DM(x)  # meaning it is not SX or MX, thus a number
     ndim = x.ndim
     if ndim == 0:
-        first_item = x.item()
-        x = x.reshape(1, 1)
+        return x.item()
     elif ndim == 1:
-        first_item = x[0]
-        x = x.reshape(-1, 1)
+        indices = range(x.shape[0])
+        shape = (x.shape[0], 1)
     elif ndim == 2:
-        first_item = x[0, 0]
+        indices = product(range(x.shape[0]), range(x.shape[1]))  # type: ignore
+        shape = x.shape  # type: ignore
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
-
-    # infer type from first element
-    if x.dtype != object or isinstance(first_item, cs.DM):
-        return cs.DM(x)
-    m: Union[cs.SX, cs.MX] = type(first_item)(*x.shape)
-    for i in np.ndindex(x.shape):
-        m[i] = x[i]
+    m: Union[cs.SX, cs.MX] = cls(*shape)
+    for idx in indices:
+        m[idx] = x[idx]
     return m
 
 
@@ -73,6 +72,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
     shape = x.shape
     y = np.empty(shape, dtype=object)
-    for i in np.ndindex(shape):
-        y[i] = x[i]
+    indices = product(range(shape[0]), range(shape[1]))
+    for idx in indices:
+        y[idx] = x[idx]
     return y
