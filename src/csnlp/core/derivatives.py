@@ -1,3 +1,4 @@
+from itertools import product
 from typing import Tuple, Union
 
 import casadi as cs
@@ -55,6 +56,6 @@ def hohessian(
         y = x
     J = hojacobian(ex, x)
     H = np.empty(ex.shape + x.shape + y.shape, dtype=object)
-    for i in np.ndindex(ex.shape):
+    for i in product(*map(range, ex.shape)):
         H[i] = hojacobian(array2cs(J[i]), y)
     return H, J

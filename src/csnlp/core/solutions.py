@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from itertools import product
 from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
 
 import casadi as cs
@@ -112,7 +113,7 @@ def _internal_subsevalf_np(
         expr = expr.transpose()
     out = np.empty(shape, dtype=object)
     shape_iter, shape_cs = shape[:-2], shape[-2:]
-    for i in np.ndindex(shape_iter):
+    for i in product(*map(range, shape_iter)):
         out[i] = cs2array(
             _internal_subsevalf_cs(array2cs(expr[i]), old, new, eval)
         ).reshape(shape_cs)
