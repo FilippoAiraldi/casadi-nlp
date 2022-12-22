@@ -13,9 +13,9 @@ SQRT2 = sqrt(2)
 def log(
     x: Union[cs.SX, cs.MX, cs.DM], base: Union[None, cs.SX, cs.MX, cs.DM] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Logarithm. With one argument, return the natural logarithm of `x` (to
-    base `e`). With two arguments, return the logarithm of x to the given base,
-    calculated as `log(x) / log(base)`.
+    """Logarithm. With one argument, return the natural logarithm of `x` (to base `e`).
+    With two arguments, return the logarithm of x to the given base, calculated as
+    `log(x) / log(base)`.
 
     Parameters
     ----------
@@ -35,17 +35,16 @@ def log(
 def prod(
     x: Union[cs.SX, cs.MX, cs.DM], axis: Optional[int] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Computes the product of all the elements in `x` (CasADi version of
-    `numpy.prod`).
+    """Computes the product of all the elements in `x` (CasADi version of `numpy.prod`).
 
     Parameters
     ----------
     x : Union[cs.SX, cs.MX, cs.DM]
         The variable whose entries must be multiplied together.
     axis : {0, 1, None}
-        Axis or along which a product is performed. The default, `axis=None`,
-        will calculate the product of all the elements in the matrix. If axis
-        is negative it counts from the last to the first axis.
+        Axis or along which a product is performed. The default, `axis=None`, will
+        calculate the product of all the elements in the matrix. If axis is negative it
+        counts from the last to the first axis.
 
     Returns
     -------
@@ -71,8 +70,8 @@ def quad_form(
     Parameters
     ----------
     A : Union[cs.SX, cs.MX, cs.DM]
-        The matrix of weights in the quadratic form. If a vector, a matrix with
-        the vector as diagonal is used instead.
+        The matrix of weights in the quadratic form. If a vector, a matrix with the
+        vector as diagonal is used instead.
     x : Union[cs.SX, cs.MX, cs.DM]
         The vector in the quadratic form.
 
@@ -144,10 +143,10 @@ def norm_ppf(
 
 
 def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
-    """Emulates the `nchoosek` function from Matlab. Returns the binomial
-    coefficient, i.e.,  the number of combinations of `n` items taken `k` at a
-    time. If `n` is an array, then it is flatten and all possible combinations
-    of its elements are returned.
+    """Emulates the `nchoosek` function from Matlab. Returns the binomial coefficient,
+    i.e.,  the number of combinations of `n` items taken `k` at a time. If `n` is an
+    array, then it is flatten and all possible combinations of its elements are
+    returned.
 
     Parameters
     ----------
@@ -159,8 +158,8 @@ def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
     Returns
     -------
     int or array
-        Depending on the type of input `n`, the output is either the total
-        number of combinations or the combinations in a matrix.
+        Depending on the type of input `n`, the output is either the total number of
+        combinations or the combinations in a matrix.
     """
     return (
         comb(n, k, exact=True)
@@ -182,8 +181,8 @@ def monomial_powers(d: int, k: int) -> npt.NDArray[np.int64]:
     Returns
     -------
     array of ints
-        An array containing in each row the power of each index in order to
-        obtain the desired monomial of power `k`.
+        An array containing in each row the power of each index in order to obtain the
+        desired monomial of power `k`.
     """
     m = nchoosek(k + d - 1, d - 1)
     dividers = np.column_stack(

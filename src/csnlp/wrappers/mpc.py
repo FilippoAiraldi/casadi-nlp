@@ -350,7 +350,7 @@ class Mpc(NonRetroactiveWrapper[T]):
             x_next = F(*args_at(k))
             if n_out != 1:
                 x_next = x_next[0]
-            self.constraint(f"dyn_{k}", X[:, k + 1], "==", x_next)
+            self.constraint(f"dyn_{k}", x_next, "==", X[:, k + 1])
 
     def _singleshooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
         """Internal utility to create dynamics constraints and states in single
