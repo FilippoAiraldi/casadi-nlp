@@ -593,8 +593,7 @@ class TestMpc(unittest.TestCase):
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_dynamics(F)
-        for k in range(N):
-            self.assertIn(f"dyn_{k}", mpc.constraints.keys())
+        self.assertIn("dyn", mpc.constraints.keys())
         self.assertEqual(mpc.ng, (1 + N) * 5)
 
     @parameterized.expand([(0,), (1,)])

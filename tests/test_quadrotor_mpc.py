@@ -604,7 +604,7 @@ class QuadRotorMPC(GenericMPC):
 # =================================== end old code =================================== #
 
 
-class QuadRotorMpcActual(Mpc):
+class QuadRotorMpcActual(Mpc[cs.SX]):
     def __init__(self, env: QuadRotorEnv, mpctype: str = "V") -> None:
         N = QuadRotorMPCConfig.N
         super().__init__(Nlp(sym_type="SX"), prediction_horizon=N, shooting="multi")

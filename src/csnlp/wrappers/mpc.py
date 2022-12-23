@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Dict, List, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -346,11 +346,13 @@ class Mpc(NonRetroactiveWrapper[T]):
         else:
             D = cs.vertcat(*self._disturbances.values())
             args_at = lambda k: (X[:, k], U[:, k], D[:, k])  # type: ignore # noqa: E731
+        xs_next = []
         for k in range(self._prediction_horizon):
             x_next = F(*args_at(k))
             if n_out != 1:
                 x_next = x_next[0]
-            self.constraint(f"dyn_{k}", x_next, "==", X[:, k + 1])
+            xs_next.append(x_next)
+        self.constraint("dyn", cs.horzcat(*xs_next), "==", X[:, 1:])
 
     def _singleshooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
         """Internal utility to create dynamics constraints and states in single
