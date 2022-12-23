@@ -199,10 +199,9 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         )
 
     def _scale_dict(self, d: Dict[str, npt.ArrayLike]) -> Dict[str, npt.ArrayLike]:
-        # sourcery skip: remove-dict-keys
         """Internal utility for scaling structures/dicts."""
         scaler = self.scaler
         return {
             name: scaler.scale(name, d[name]) if scaler.can_scale(name) else d[name]
-            for name in d.keys()
+            for name in d
         }

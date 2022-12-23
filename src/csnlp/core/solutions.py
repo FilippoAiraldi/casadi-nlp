@@ -94,7 +94,6 @@ def _internal_subsevalf_np(
     new: Union[T, Dict[str, T], Iterable[T]],
     eval: bool,
 ) -> Union[T, np.ndarray, cs.DM]:
-    # sourcery skip: remove-redundant-slice-index
     """Internal utility for substituting and evaluting arrays of casadi objects."""
     # if not symbolic, return it
     if expr.dtype != object:
