@@ -213,7 +213,7 @@ class QuadRotorEnv:
             ]
         )
         if is_casadi:
-            diag = lambda o: cs.diag(cs.vertcat(*o))
+            diag = lambda o: cs.diag(cs.vertcat(*o))  # noqa: E731
             block = cs.blockcat
         else:
             diag = np.diag
@@ -399,14 +399,13 @@ class GenericMPC:
         D = cs.vertcat(p, sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=S, new=D)
         vals = {name: get_value(var) for name, var in self.vars.items()}
-        sol_ = QuadRotorSolution(
+        return QuadRotorSolution(
             f=float(sol["f"]),
             vars=self.vars.copy(),
             vals=vals,
             get_value=get_value,
             stats=self.solver.stats().copy(),
         )
-        return sol_
 
     def __str__(self) -> str:
         msg = "not initialized" if self.solver is None else "initialized"
@@ -535,7 +534,7 @@ class QuadRotorMPC(GenericMPC):
 
         # 1) constraint on initial conditions
         x0 = self.add_par("x0", env.nx, 1)
-        cs.horzcat(x0, x)
+        x_ = cs.horzcat(x0, x)
 
         # 2) constraints on dynamics
         A, B, e = env.get_dynamics(
@@ -548,7 +547,7 @@ class QuadRotorMPC(GenericMPC):
             roll_dd=self.pars["roll_dd"],
             roll_gain=self.pars["roll_gain"],
         )
-        # self.add_con("dyn", x_[:, 1:], "==", A @ x_[:, :-1] + B @ u + e)
+        self.add_con("dyn", x_[:, 1:], "==", A @ x_[:, :-1] + B @ u + e)
 
         # 3) constraint on state (soft, backed off, without infinity in g, and
         # removing redundant entries, no constraint on first state)
@@ -651,7 +650,7 @@ class QuadRotorMpcActual(Mpc):
             roll_dd=self.parameters["roll_dd"],
             roll_gain=self.parameters["roll_gain"],
         )
-        # self.set_dynamics(lambda x, u: A @ x + B @ u + e, n_in=2, n_out=1)
+        self.set_dynamics(lambda x, u: A @ x + B @ u + e, n_in=2, n_out=1)
 
         # 3) constraint on state
         bo = self.parameter("backoff", (1, 1))
