@@ -241,20 +241,15 @@ class NlpSensitivity(Wrapper[T]):
             S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale
             Systems, 3–16. Springer, Berlin, Heidelberg.
         """
-        d: Callable[[T], Union[T, cs.DM, np.ndarray]] = (
+        # first and second order sensitivities, a.k.a., dydp and d2dydp2
+        d: Callable[[T], Union[T, cs.DM]] = (
             (lambda o: o)
             if solution is None
             else (lambda o: solution.value(o))  # type: ignore
         )
-
-        # first order sensitivity, a.k.a., dydp
-        Ky = d(self.jacobians["K-y"])
-        Kp = d(self.jacobians["K-p"])
-        if solution is None:
-            Ky_inv = cs.inv(Ky)
-            dydp = -Ky_inv @ Kp
-        else:
-            dydp = -np.linalg.solve(Ky, Kp)
+        dydp, dydp_np, d2ydp2 = self._y_parametric_sensitivity(
+            solution, second_order, d
+        )
 
         # first order sensitivity of Z, a.k.a., dZdp
         Z = expr  # Z := z(x(p),lam(p),p)
@@ -283,25 +278,8 @@ class NlpSensitivity(Wrapper[T]):
         if not second_order:
             return dydp if Z is None else dZdp, None
 
-        # second order sensitivity, a.k.a., d2ydp2
-        dydp = cs2array(dydp)
-        Kpp = d(self.hojacobians["K-pp"])
-        Kpy = d(self.hojacobians["K-py"])
-        Kyp = d(self.hojacobians["K-yp"])
-        Kyy = d(self.hojacobians["K-yy"])
-        M = (
-            Kpp
-            + (Kpy.transpose((0, 2, 1)) + Kyp + (Kyy @ dydp)).transpose((0, 2, 1))
-            @ dydp
-        ).transpose((2, 0, 1))
-        if solution is None:
-            d2ydp2 = -(cs2array(Ky_inv) @ M).transpose((1, 2, 0))
-        else:
-            d2ydp2 = -np.linalg.solve(Ky, M).transpose((1, 2, 0))
-
         # if no expression is given, just return
         if Z is None:
-            dydp = array2cs(dydp.squeeze())
             d2ydp2 = d2ydp2.squeeze()
             if d2ydp2.ndim <= 2:
                 d2ydp2 = array2cs(d2ydp2)
@@ -313,12 +291,51 @@ class NlpSensitivity(Wrapper[T]):
         Zpp = d(Zpp[:, 0, p_idx, 0][:, :, p_idx, 0])
         Zyy = d(Zyy[:, 0, y_idx, 0][:, :, y_idx, 0])
         T1 = (d2ydp2.transpose((1, 2, 0)) @ cs2array(Zy).T).transpose((2, 0, 1))
-        T2 = Zyy.transpose((0, 2, 1)) @ dydp + Zpy.transpose((0, 2, 1)) + Zyp
-        d2Zdp2 = Zpp + T1 + dydp.T @ T2
+        T2 = Zyy.transpose((0, 2, 1)) @ dydp_np + Zpy.transpose((0, 2, 1)) + Zyp
+        d2Zdp2 = Zpp + T1 + dydp_np.T @ T2
         d2Zdp2 = d2Zdp2.reshape(Zshape + (np_, np_), order="F").squeeze()
         if d2Zdp2.ndim <= 2:
             d2Zdp2 = array2cs(d2Zdp2)
         return dZdp, d2Zdp2
+
+    def _y_parametric_sensitivity(
+        self,
+        solution: Solution,
+        second_order: bool,
+        d: Callable[[T], Union[T, cs.DM]],
+    ) -> Union[
+        Tuple[T, np.ndarray, T],
+        Tuple[cs.DM, np.ndarray, cs.DM],
+        Tuple[npt.NDArray[np.double], np.ndarray, npt.NDArray[np.double]],
+    ]:
+        """Internal utility to compute the sensitivity of y w.r.t. p."""
+        # first order sensitivity, a.k.a., dydp
+        Ky = d(self.jacobians["K-y"])
+        Kp = d(self.jacobians["K-p"])
+        if solution is None:
+            Ky_inv = cs.inv(Ky)
+            dydp = -Ky_inv @ Kp
+        else:
+            dydp = -np.linalg.solve(Ky, Kp)
+        if not second_order:
+            return dydp, None, None  # type: ignore
+
+        # second order sensitivity, a.k.a., d2ydp2
+        dydp_ = cs2array(dydp)
+        Kpp = d(self.hojacobians["K-pp"])
+        Kpy = d(self.hojacobians["K-py"])
+        Kyp = d(self.hojacobians["K-yp"])
+        Kyy = d(self.hojacobians["K-yy"])
+        M = (
+            Kpp
+            + (Kpy.transpose((0, 2, 1)) + Kyp + (Kyy @ dydp_)).transpose((0, 2, 1))
+            @ dydp_
+        ).transpose((2, 0, 1))
+        if solution is None:
+            d2ydp2 = -(cs2array(cs.inv(Ky)) @ M).transpose((1, 2, 0))
+        else:
+            d2ydp2 = -np.linalg.solve(Ky, M).transpose((1, 2, 0))
+        return dydp, dydp_, d2ydp2
 
     @invalidate_cache(jacobians, hessians, hojacobians)
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
