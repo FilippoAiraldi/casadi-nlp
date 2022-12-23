@@ -698,9 +698,9 @@ class QuadRotorMpcActual(Mpc):
         )
 
 
-class TestFuncs(unittest.TestCase):
+class TestQuadRotorMpc(unittest.TestCase):
     @parameterized.expand([("V", 10), ("Q", 10)])
-    def test_quad_rotor_mpc_V(self, mpctype: str, N: int):
+    def test(self, mpctype: str, N: int):
         env = QuadRotorEnv()
         mpc_expected = QuadRotorMPC(mpctype=mpctype, env=env)
         mpc_actual = QuadRotorMpcActual(mpctype=mpctype, env=env)
