@@ -82,7 +82,7 @@ class SupportsDeepcopyAndPickle:
 
     When pickled, use the context manager `pickleable` in order to automatically remove
     states that cannot be pickled (e.g., CasADi objects); otherwise, use `fullstate`
-    for, e.g., `deepcopy`ing the class instance."""
+    for, e.g., `deepcopy`-ing the class instance."""
 
     _GETFULLSTATE: Optional[bool] = None
 

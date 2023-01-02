@@ -178,8 +178,8 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         return_multi_sol: bool = False,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         """See `MultistartNlp.solve` method."""
-        assert (
-            self.nlp.is_multi and hasattr(self.nlp, "solve_multi")
+        assert self.nlp.is_multi and hasattr(
+            self.nlp, "solve_multi"
         ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
         if pars is not None:
             pars = (
