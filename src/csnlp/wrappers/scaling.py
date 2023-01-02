@@ -9,16 +9,16 @@ from csnlp.core.scaling import Scaler
 from csnlp.core.solutions import Solution, subsevalf
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class NlpScaling(NonRetroactiveWrapper[T]):
+class NlpScaling(NonRetroactiveWrapper[SymType]):
     """
     Wraps an NLP problem to facilitate the scaling of parameters and variables as well
     as the automatic scaling of expression (e.g., objective and constraints).
     """
 
-    def __init__(self, nlp: Nlp[T], scaler: Scaler, warns: bool = True) -> None:
+    def __init__(self, nlp: Nlp[SymType], scaler: Scaler, warns: bool = True) -> None:
         """Initializes a scaling wrapper around an NLP instance.
 
         Parameters
@@ -36,32 +36,32 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         super().__init__(nlp)
         self.scaler = scaler
         self.warns = warns
-        self._svars: Dict[str, T] = {}
-        self._spars: Dict[str, T] = {}
-        self._uvars: Dict[str, T] = {}
-        self._upars: Dict[str, T] = {}
+        self._svars: Dict[str, SymType] = {}
+        self._spars: Dict[str, SymType] = {}
+        self._uvars: Dict[str, SymType] = {}
+        self._upars: Dict[str, SymType] = {}
 
     @property
-    def scaled_variables(self) -> Dict[str, T]:
+    def scaled_variables(self) -> Dict[str, SymType]:
         """Gets the scaled variables of the NLP scheme."""
         return self._svars
 
     @property
-    def scaled_parameters(self) -> Dict[str, T]:
+    def scaled_parameters(self) -> Dict[str, SymType]:
         """Gets the scaled parameters of the NLP scheme."""
         return self._spars
 
     @property
-    def unscaled_variables(self) -> Dict[str, T]:
+    def unscaled_variables(self) -> Dict[str, SymType]:
         """Gets the unscaled variables of the NLP scheme."""
         return self._uvars
 
     @property
-    def unscaled_parameters(self) -> Dict[str, T]:
+    def unscaled_parameters(self) -> Dict[str, SymType]:
         """Gets the unscaled parameters of the NLP scheme."""
         return self._upars
 
-    def scale(self, expr: T) -> T:
+    def scale(self, expr: SymType) -> SymType:
         """Scales an expression with the MPC's scaled variables and parameters.
 
         Parameters
@@ -78,7 +78,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         expr = subsevalf(expr, self.nlp.parameters, self._spars, eval=False)
         return expr
 
-    def unscale(self, expr: T) -> T:
+    def unscale(self, expr: SymType) -> SymType:
         """Unscales an expression with the MPC's unscaled variables and parameters.
 
         Parameters
@@ -101,7 +101,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[T, T, T]:
+    ) -> Tuple[SymType, SymType, SymType]:
         """See `Nlp.variable` method."""
         can_scale = name in self.scaler
         if can_scale:
@@ -120,7 +120,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self._uvars[name] = uvar
         return var, lam_lb, lam_ub
 
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         """See `Nlp.parameter` method."""
         par = self.nlp.parameter(name, shape)
         if name in self.scaler:
@@ -137,18 +137,18 @@ class NlpScaling(NonRetroactiveWrapper[T]):
     def constraint(
         self,
         name: str,
-        lhs: Union[T, np.ndarray, cs.DM],
+        lhs: Union[SymType, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[T, np.ndarray, cs.DM],
+        rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[T, ...]:
+    ) -> Tuple[SymType, ...]:
         """See `Nlp.constraint` method."""
         return self.nlp.constraint(
             name, self.unscale(lhs - rhs), op, 0, soft=soft, simplify=simplify
         )
 
-    def minimize(self, objective: T) -> None:
+    def minimize(self, objective: SymType) -> None:
         """See `Nlp.minimize` method."""
         return self.nlp.minimize(self.unscale(objective))
 
@@ -156,7 +156,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         self,
         pars: Optional[Dict[str, npt.ArrayLike]] = None,
         vals0: Optional[Dict[str, npt.ArrayLike]] = None,
-    ) -> Solution[T]:
+    ) -> Solution[SymType]:
         """See `Nlp.solve` method."""
         if pars is not None:
             pars = self._scale_dict(pars)
@@ -174,7 +174,7 @@ class NlpScaling(NonRetroactiveWrapper[T]):
         ] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
-    ) -> Union[Solution[T], List[Solution[T]]]:
+    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         """See `MultistartNlp.solve` method."""
         assert (
             self.nlp.is_multi

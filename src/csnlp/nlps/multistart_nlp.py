@@ -24,7 +24,7 @@ from csnlp.core.cache import invalidate_cache
 from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.nlp import Nlp
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 def _n(sym_name: str, scenario: int) -> str:
@@ -37,7 +37,7 @@ def _get_value(x, sol: Solution, old, new, eval: bool = True):
     return sol._get_value(cs.substitute(x, old, new), eval=eval)  # type: ignore
 
 
-class MultistartNlp(Nlp[T], Generic[T]):
+class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """A class to easily model and solve an NLP from multiple starting initial guesses
     in parallel. This is especially useful in case of strong nonlinearities, where the
     solver's initial conditions play a great role in the optimality of the solution
@@ -97,9 +97,9 @@ class MultistartNlp(Nlp[T], Generic[T]):
         vars: bool = False,
         pars: bool = False,
         dual: bool = False,
-    ) -> Dict[str, T]:
+    ) -> Dict[str, SymType]:
         """Internal utility to retrieve the symbols of the i-th scenario."""
-        S: Dict[str, T] = {}
+        S: Dict[str, SymType] = {}
         if vars:
             S.update(
                 self._vars
@@ -124,7 +124,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         return S
 
     @invalidate_cache(_symbols)
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         for i in range(self._starts):
             self._multi_nlp.parameter(_n(name, i), shape)
@@ -137,7 +137,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[T, T, T]:
+    ) -> Tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, lb, ub)
         for i in range(self._starts):
             self._multi_nlp.variable(_n(name, i), shape, lb, ub)
@@ -147,12 +147,12 @@ class MultistartNlp(Nlp[T], Generic[T]):
     def constraint(
         self,
         name: str,
-        lhs: Union[T, np.ndarray, cs.DM],
+        lhs: Union[SymType, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[T, np.ndarray, cs.DM],
+        rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[T, ...]:
+    ) -> Tuple[SymType, ...]:
         expr = lhs - rhs
         if simplify:
             expr = cs.simplify(expr)
@@ -165,10 +165,10 @@ class MultistartNlp(Nlp[T], Generic[T]):
             self._multi_nlp.constraint(_n(name, i), expr_i, op, 0, soft, simplify=False)
         return out
 
-    def minimize(self, objective: T) -> None:
+    def minimize(self, objective: SymType) -> None:
         out = super().minimize(objective)
         symbols = self._symbols(vars=True, pars=True)
-        self._fs: List[T] = [
+        self._fs: List[SymType] = [
             subsevalf(
                 objective, symbols, self._symbols(i, vars=True, pars=True), eval=False
             )
@@ -196,7 +196,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
         ] = None,
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
-    ) -> Union[Solution[T], List[Solution[T]]]:
+    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         """Solves the NLP with multiple initial conditions.
 
         Parameters
@@ -258,7 +258,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
 
-        sols: List[Solution[T]] = []
+        sols: List[Solution[SymType]] = []
         fs = [float(multi_sol.value(f)) for f in self._fs]
         idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
         for i in idx:
@@ -269,7 +269,7 @@ class MultistartNlp(Nlp[T], Generic[T]):
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
 
             sols.append(
-                Solution[T](
+                Solution[SymType](
                     f=fs[i],  # type: ignore
                     vars=vars,
                     vals=vals,

@@ -22,10 +22,10 @@ from csnlp.core.debug import NlpDebug
 from csnlp.nlps.objective import HasObjective
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
+class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     """
     The generic NLP class is a controller that solves a (possibly, nonlinear)
     optimization problem to yield a (possibly, sub-) optimal solution.
@@ -72,9 +72,9 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         self._debug = NlpDebug() if debug else None
 
     @property
-    def sym_type(self) -> Type[T]:
+    def sym_type(self) -> Type[SymType]:
         """Gets the CasADi symbolic type used in this NLP scheme."""
-        return self._csXX
+        return self._sym_type
 
     @property
     def debug(self) -> Optional[NlpDebug]:
@@ -90,7 +90,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
 
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         if self._debug is not None:
             self._debug.register("p", name, shape)
@@ -102,7 +102,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[T, T, T]:
+    ) -> Tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, lb, ub)
         if self._debug is not None:
             self._debug.register("x", name, shape)
@@ -111,12 +111,12 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
     def constraint(
         self,
         name: str,
-        lhs: Union[T, np.ndarray, cs.DM],
+        lhs: Union[SymType, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[T, np.ndarray, cs.DM],
+        rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[T, ...]:
+    ) -> Tuple[SymType, ...]:
         out = super().constraint(name, lhs, op, rhs, soft, simplify)
         if self._debug is not None:
             self._debug.register("g" if op == "==" else "h", name, out[0].shape)
@@ -167,7 +167,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
             Raises if the input or output expressions have free variables that
             are not provided or cannot be computed by the solver.
         """
-        if self._csXX is cs.SX:
+        if self._sym_type is cs.SX:
             warnings.warn(
                 "The IPOPT interface does not support SX expansion, "
                 "so the function must be wrapped in MX.",
@@ -197,7 +197,7 @@ class Nlp(HasObjective[T], SupportsDeepcopyAndPickle):
             )
 
         # call the solver
-        if self._csXX is cs.SX:
+        if self._sym_type is cs.SX:
             Fin = Fin.wrap()
             Fout = Fout.wrap()
             ins = [Fin.mx_in(i) for i in range(len(ins))]

@@ -2,10 +2,10 @@ from typing import Dict, Generic, Literal, Tuple, Type, TypeVar
 
 import casadi as cs
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HasVariables(Generic[T]):
+class HasVariables(Generic[SymType]):
     """Class for creating and storing symbolic variables of an NLP problem."""
 
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
@@ -17,12 +17,12 @@ class HasVariables(Generic[T]):
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
         super().__init__()
-        self._csXX: Type[T] = getattr(cs, sym_type)
-        self._vars: Dict[str, T] = {}
-        self._x = self._csXX()
+        self._sym_type: Type[SymType] = getattr(cs, sym_type)
+        self._vars: Dict[str, SymType] = {}
+        self._x = self._sym_type()
 
     @property
-    def x(self) -> T:
+    def x(self) -> SymType:
         """Gets the primary variables of the NLP scheme in vector form."""
         return self._x
 
@@ -32,11 +32,11 @@ class HasVariables(Generic[T]):
         return self._x.shape[0]
 
     @property
-    def variables(self) -> Dict[str, T]:
+    def variables(self) -> Dict[str, SymType]:
         """Gets the primal variables of the NLP scheme."""
         return self._vars
 
-    def variable(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+    def variable(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         """Adds a variable to the NLP problem.
 
         Parameters
@@ -58,7 +58,7 @@ class HasVariables(Generic[T]):
         """
         if name in self._vars:
             raise ValueError(f"Variable name '{name}' already exists.")
-        var = self._csXX.sym(name, *shape)
+        var = self._sym_type.sym(name, *shape)
         self._vars[name] = var
         self._x = cs.vertcat(self._x, cs.vec(var))
         return var

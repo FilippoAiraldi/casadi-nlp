@@ -72,7 +72,7 @@ def _get_dict_state(
     return state
 
 
-T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
+SymType = TypeVar("SymType", bound="SupportsDeepcopyAndPickle")
 
 
 class SupportsDeepcopyAndPickle:
@@ -102,7 +102,7 @@ class SupportsDeepcopyAndPickle:
         yield
         self._GETFULLSTATE = None
 
-    def copy(self: T, invalidate_caches: bool = True) -> T:
+    def copy(self: SymType, invalidate_caches: bool = True) -> SymType:
         """Creates a deepcopy of this instance.
 
         Parameters

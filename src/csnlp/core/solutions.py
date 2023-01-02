@@ -8,18 +8,18 @@ from casadi.tools.structure3 import CasadiStructured, DMStruct
 
 from csnlp.core.data import array2cs, cs2array
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 @dataclass(frozen=True)
-class Solution(Generic[T]):
+class Solution(Generic[SymType]):
     """Class containing information on the solution of an NLP solver's run."""
 
     f: float
-    vars: Dict[str, T]
+    vars: Dict[str, SymType]
     vals: Dict[str, cs.DM]
     stats: Dict[str, Any]
-    _get_value: Callable[[T, bool], cs.DM]
+    _get_value: Callable[[SymType, bool], cs.DM]
 
     @property
     def status(self) -> str:
@@ -36,7 +36,7 @@ class Solution(Generic[T]):
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
 
-    def value(self, x: T, eval: bool = True) -> Union[T, cs.DM]:
+    def value(self, x: SymType, eval: bool = True) -> Union[SymType, cs.DM]:
         """Computes the value of the expression substituting the values of this
         solution in the expression.
 
@@ -63,11 +63,11 @@ class Solution(Generic[T]):
 
 
 def _internal_subsevalf_cs(
-    expr: T,
-    old: Union[T, Dict[str, T], Iterable[T]],
-    new: Union[T, Dict[str, T], Iterable[T]],
+    expr: SymType,
+    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
     eval: bool,
-) -> Union[T, cs.DM]:
+) -> Union[SymType, cs.DM]:
     """Internal utility for substituting and evaluting casadi objects."""
     if isinstance(expr, (cs.DM, DMStruct)):
         return expr
@@ -90,10 +90,10 @@ def _internal_subsevalf_cs(
 
 def _internal_subsevalf_np(
     expr: np.ndarray,
-    old: Union[T, Dict[str, T], Iterable[T]],
-    new: Union[T, Dict[str, T], Iterable[T]],
+    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
     eval: bool,
-) -> Union[T, np.ndarray, cs.DM]:
+) -> Union[SymType, np.ndarray, cs.DM]:
     """Internal utility for substituting and evaluting arrays of casadi objects."""
     # if not symbolic, return it
     if expr.dtype != object:
@@ -126,11 +126,11 @@ def _internal_subsevalf_np(
 
 
 def subsevalf(
-    expr: Union[T, np.ndarray],
-    old: Union[T, Dict[str, T], Iterable[T]],
-    new: Union[T, Dict[str, T], Iterable[T]],
+    expr: Union[SymType, np.ndarray],
+    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
     eval: bool = True,
-) -> Union[T, cs.DM, np.ndarray]:
+) -> Union[SymType, cs.DM, np.ndarray]:
     """
     Substitutes the old variables with the new ones in the symbolic expression,
     and evaluates it, if required.

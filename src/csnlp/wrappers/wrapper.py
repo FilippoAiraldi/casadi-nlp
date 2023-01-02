@@ -7,10 +7,10 @@ from csnlp.core.solutions import Solution
 from csnlp.nlps.nlp import Nlp
 from csnlp.util.io import SupportsDeepcopyAndPickle
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
+class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
     """Wraps an NLP to allow a modular transformation of its methods. This class is the
     base class for all wrappers. The subclass could override some methods to change the
     behavior of the original environment without touching the original code.
@@ -20,7 +20,7 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
     `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is defined.
     """
 
-    def __init__(self, nlp: Nlp[T]) -> None:
+    def __init__(self, nlp: Nlp[SymType]) -> None:
         """Wraps an NLP instance.
 
         Parameters
@@ -32,11 +32,11 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
         self.nlp = nlp
 
     @property
-    def unwrapped(self) -> Nlp[T]:
+    def unwrapped(self) -> Nlp[SymType]:
         """'Returns the original NLP of the wrapper."""
         return self.nlp.unwrapped
 
-    def is_wrapped(self, wrapper_type: Type["Wrapper[T]"]) -> bool:
+    def is_wrapped(self, wrapper_type: Type["Wrapper[SymType]"]) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type.
 
         Parameters
@@ -71,7 +71,7 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
 
     def __call__(
         self, *args: Any, **kwds: Any
-    ) -> Union[Solution[T], List[Solution[T]]]:
+    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         return (self.solve_multi if self.nlp.is_multi else self.solve)(*args, **kwds)
 
     def __str__(self) -> str:
@@ -83,12 +83,12 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[T]):
         return f"<{self.__class__.__name__}: {self.nlp.__repr__()}>"
 
 
-class NonRetroactiveWrapper(Wrapper[T], Generic[T]):
+class NonRetroactiveWrapper(Wrapper[SymType], Generic[SymType]):
     """Same as `Wrapper`, but the wrapped NLP instance must have no variable, parameter
     or objective specified; in other words, the wrapper must wrap the NLP before it gets
     defined."""
 
-    def __init__(self, nlp: Nlp[T]) -> None:
+    def __init__(self, nlp: Nlp[SymType]) -> None:
         """Initializes the non-retroactive wrapper around an NLP.
 
         Parameters

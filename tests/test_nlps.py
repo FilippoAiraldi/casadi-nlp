@@ -48,7 +48,7 @@ class TestNlp(unittest.TestCase):
 
     def test_init__saves_sym_type(self):
         nlp = Nlp(sym_type=self.sym_type)
-        self.assertEqual(nlp._csXX.__name__, self.sym_type)
+        self.assertEqual(nlp._sym_type.__name__, self.sym_type)
 
     def test_parameter__creates_correct_parameter(self):
         shape1 = (4, 3)
@@ -580,7 +580,7 @@ class TestNlp(unittest.TestCase):
         x = nlp.variable("x", lb=0)[0]
         y = nlp.variable("y")[0]
         xy = cs.vertcat(x, y)
-        c = nlp._csXX.sym("c")
+        c = nlp._sym_type.sym("c")
         p = nlp.parameter("p")
         nlp.minimize((1 - x) ** 2 + a * (y - x**2) ** 2)
         nlp.init_solver(OPTS)

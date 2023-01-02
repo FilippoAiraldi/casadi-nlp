@@ -9,10 +9,10 @@ from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
 from csnlp.nlps.parameters import HasParameters
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HasObjective(HasParameters[T], HasConstraints[T]):
+class HasObjective(HasParameters[SymType], HasConstraints[SymType]):
     """Class for creating an NLP problem with parameters, variables, constraints and an
     objective."""
 
@@ -36,13 +36,13 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         HasParameters.__init__(self, sym_type)
         HasConstraints.__init__(self, sym_type, remove_redundant_x_bounds)
         self.name = name
-        self._f: Optional[T] = None
+        self._f: Optional[SymType] = None
         self._solver: Optional[cs.Function] = None
         self._solver_opts: Dict[str, Any] = {}
         self._failures = 0
 
     @property
-    def f(self) -> Optional[T]:
+    def f(self) -> Optional[SymType]:
         """Gets the objective of the NLP scheme, which is `None` if not set previously
         set via the `minimize` method."""
         return self._f
@@ -100,7 +100,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         if self._solver is not None:
             self.init_solver(self._solver_opts, self._solver_type)
 
-    def minimize(self, objective: T) -> None:
+    def minimize(self, objective: SymType) -> None:
         """Sets the objective function to be minimized.
 
         Parameters
@@ -200,7 +200,7 @@ class HasObjective(HasParameters[T], HasConstraints[T]):
         )
         new = cs.vertcat(p, sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        solution = Solution[T](
+        solution = Solution[SymType](
             f=float(sol["f"]),
             vars=vars,
             vals=vals,

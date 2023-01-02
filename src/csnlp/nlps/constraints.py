@@ -7,10 +7,10 @@ import numpy.typing as npt
 from csnlp.core.cache import cached_property, invalidate_cache
 from csnlp.nlps.variables import HasVariables
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HasConstraints(HasVariables[T]):
+class HasConstraints(HasVariables[SymType]):
     """Class for creating and storing symbolic constraints for an NLP problem."""
 
     dual_variables_order: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
@@ -34,14 +34,14 @@ class HasConstraints(HasVariables[T]):
         """
         super().__init__(sym_type)
 
-        self._dual_vars: Dict[str, T] = {}
-        self._pars: Dict[str, T] = {}
-        self._cons: Dict[str, T] = {}
+        self._dual_vars: Dict[str, SymType] = {}
+        self._pars: Dict[str, SymType] = {}
+        self._cons: Dict[str, SymType] = {}
 
         self._lbx, self._ubx = np.asarray([]), np.asarray([])
-        self._lam_lbx, self._lam_ubx = self._csXX(), self._csXX()
-        self._g, self._lam_g = self._csXX(), self._csXX()
-        self._h, self._lam_h = self._csXX(), self._csXX()
+        self._lam_lbx, self._lam_ubx = self._sym_type(), self._sym_type()
+        self._g, self._lam_g = self._sym_type(), self._sym_type()
+        self._h, self._lam_h = self._sym_type(), self._sym_type()
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
@@ -58,36 +58,36 @@ class HasConstraints(HasVariables[T]):
         return self._ubx
 
     @property
-    def lam_lbx(self) -> T:
+    def lam_lbx(self) -> SymType:
         """Gets the dual variables of the primary variables lower bound constraints of
         the NLP scheme in vector form."""
         return self._lam_lbx
 
     @property
-    def lam_ubx(self) -> T:
+    def lam_ubx(self) -> SymType:
         """Gets the dual variables of the primary variables upper bound constraints of
         the NLP scheme in vector form."""
         return self._lam_ubx
 
     @property
-    def g(self) -> T:
+    def g(self) -> SymType:
         """Gets the equality constraint expressions of the NLP scheme in vector form."""
         return self._g
 
     @property
-    def h(self) -> T:
+    def h(self) -> SymType:
         """Gets the inequality constraint expressions of the NLP scheme in vector
         form."""
         return self._h
 
     @property
-    def lam_g(self) -> T:
+    def lam_g(self) -> SymType:
         """Gets the dual variables of the equality constraints of the NLP scheme in
         vector form."""
         return self._lam_g
 
     @property
-    def lam_h(self) -> T:
+    def lam_h(self) -> SymType:
         """Gets the dual variables of the inequality constraints of the NLP scheme in
         vector form."""
         return self._lam_h
@@ -103,17 +103,17 @@ class HasConstraints(HasVariables[T]):
         return self._h.shape[0]
 
     @property
-    def dual_variables(self) -> Dict[str, T]:
+    def dual_variables(self) -> Dict[str, SymType]:
         """Gets the dual variables of the NLP scheme."""
         return self._dual_vars
 
     @property
-    def constraints(self) -> Dict[str, T]:
+    def constraints(self) -> Dict[str, SymType]:
         """Gets the constraints of the NLP scheme."""
         return self._cons
 
     @cached_property
-    def h_lbx(self) -> Tuple[T, T]:
+    def h_lbx(self) -> Tuple[SymType, SymType]:
         """Gets the inequalities due to `lbx` and their multipliers. If
         `remove_redundant_x_bounds=True`, it removes redundant entries, i.e., where
         `lbx == -inf`; otherwise, returns all lower bound constraints."""
@@ -121,11 +121,11 @@ class HasConstraints(HasVariables[T]):
             return self._lbx[:, None] - self._x, self._lam_lbx
         idx = np.where(self._lbx != -np.inf)[0]
         if idx.size == 0:
-            return self._csXX(), self._csXX()
+            return self._sym_type(), self._sym_type()
         return self._lbx[idx, None] - self._x[idx], self._lam_lbx[idx]
 
     @cached_property
-    def h_ubx(self) -> Tuple[T, T]:
+    def h_ubx(self) -> Tuple[SymType, SymType]:
         """Gets the inequalities due to `ubx` and their multipliers. If
         `remove_redundant_x_bounds=True`, it removes redundant entries, i.e., where
         `ubx == +inf`; otherwise, returns all upper bound constraints."""
@@ -133,11 +133,11 @@ class HasConstraints(HasVariables[T]):
             return self._x - self._ubx[:, None], self._lam_ubx
         idx = np.where(self._ubx != np.inf)[0]
         if idx.size == 0:
-            return self._csXX(), self._csXX()
+            return self._sym_type(), self._sym_type()
         return self._x[idx] - self._ubx[idx, None], self._lam_ubx[idx]
 
     @cached_property
-    def lam(self) -> T:
+    def lam(self) -> SymType:
         """Gets the dual variables of the NLP scheme in vector form.
 
         Note: The order of the dual variables can be adjusted via the class attribute
@@ -153,7 +153,7 @@ class HasConstraints(HasVariables[T]):
         return dual
 
     @cached_property
-    def lam_all(self) -> T:
+    def lam_all(self) -> SymType:
         """Gets all the dual variables of the NLP scheme in vector form, irrespective of
         redundant `lbx` and `ubx` multipliers. If `remove_redundant_x_bounds`, then this
         property is equivalent to the `lam` property.
@@ -170,7 +170,7 @@ class HasConstraints(HasVariables[T]):
         assert not items, "Internal error. `dual_variables_order` modified."
         return dual
 
-    def primal_dual_vars(self, all: bool = False) -> T:
+    def primal_dual_vars(self, all: bool = False) -> SymType:
         """Gets the collection of primal-dual variables (usually, denoted as
         `y`)
         ```
@@ -204,7 +204,7 @@ class HasConstraints(HasVariables[T]):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[T, T, T]:
+    ) -> Tuple[SymType, SymType, SymType]:
         """
         Adds a variable to the NLP problem.
 
@@ -244,11 +244,11 @@ class HasConstraints(HasVariables[T]):
         self._ubx = np.concatenate((self._ubx, ub.flatten("F")))
 
         name_lam = f"lam_lb_{name}"
-        lam_lb = self._csXX.sym(name_lam, *shape)
+        lam_lb = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_lb
         self._lam_lbx = cs.vertcat(self._lam_lbx, cs.vec(lam_lb))
         name_lam = f"lam_ub_{name}"
-        lam_ub = self._csXX.sym(name_lam, *shape)
+        lam_ub = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_ub
         self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
         return var, lam_lb, lam_ub
@@ -257,12 +257,12 @@ class HasConstraints(HasVariables[T]):
     def constraint(
         self,
         name: str,
-        lhs: Union[T, np.ndarray, cs.DM],
+        lhs: Union[SymType, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[T, np.ndarray, cs.DM],
+        rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[T, ...]:
+    ) -> Tuple[SymType, ...]:
         """Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
 
         Parameters
@@ -335,7 +335,7 @@ class HasConstraints(HasVariables[T]):
         self._cons[name] = expr
         group, lam = ("_g", "_lam_g") if is_eq else ("_h", "_lam_h")
         name_lam = f"{lam[1:]}_{name}"
-        lam_c = self._csXX.sym(name_lam, *shape)
+        lam_c = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_c
 
         setattr(self, group, cs.vertcat(getattr(self, group), cs.vec(expr)))

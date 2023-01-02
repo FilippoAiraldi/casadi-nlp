@@ -10,10 +10,10 @@ from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.solutions import Solution
 from csnlp.wrappers.wrapper import Nlp, Wrapper
 
-T = TypeVar("T", cs.SX, cs.MX)
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class NlpSensitivity(Wrapper[T]):
+class NlpSensitivity(Wrapper[SymType]):
     """
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute its
     derivates. See [1] for nonlinear programming sensitivity analysis.
@@ -28,8 +28,8 @@ class NlpSensitivity(Wrapper[T]):
 
     def __init__(
         self,
-        nlp: Nlp[T],
-        target_parameters: Optional[T] = None,
+        nlp: Nlp[SymType],
+        target_parameters: Optional[SymType] = None,
         include_barrier_term: bool = True,
     ) -> None:
         """Instantiates the wrapper for performing NLP sensitivities.
@@ -57,13 +57,13 @@ class NlpSensitivity(Wrapper[T]):
         self._tau = nlp.sym_type.sym("tau") if include_barrier_term else 0
 
     @property
-    def target_parameters(self) -> T:
+    def target_parameters(self) -> SymType:
         """Gets the parameters of the NLP that are the target of the sensitivity
         wrapper, i.e., derivatives and sensitivities are limited to these parameters."""
         return self._p_idx[0]
 
     @cached_property
-    def lagrangian(self) -> T:
+    def lagrangian(self) -> SymType:
         """Gets the Lagrangian of the NLP problem (usually, `L`)."""
         h_lbx, lam_h_lbx = self.nlp.h_lbx
         h_ubx, lam_h_ubx = self.nlp.h_ubx
@@ -76,7 +76,7 @@ class NlpSensitivity(Wrapper[T]):
         )
 
     @cached_property
-    def kkt(self) -> Tuple[T, Optional[T]]:
+    def kkt(self) -> Tuple[SymType, Optional[SymType]]:
         """Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
                             |      dLdx     |
@@ -112,7 +112,7 @@ class NlpSensitivity(Wrapper[T]):
         return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property
-    def jacobians(self) -> Dict[str, T]:
+    def jacobians(self) -> Dict[str, SymType]:
         """Computes various partial derivatives, which are then grouped in a dict with
         the following entries
             - `L-x`: lagrangian w.r.t. primal variables
@@ -137,7 +137,7 @@ class NlpSensitivity(Wrapper[T]):
         }
 
     @cached_property
-    def hessians(self) -> Dict[str, T]:
+    def hessians(self) -> Dict[str, SymType]:
         """Computes various partial hessians, which are then grouped in a dict with the
         following entries
             - `L-pp`: lagrangian w.r.t. parameters (twice)
@@ -176,7 +176,7 @@ class NlpSensitivity(Wrapper[T]):
         }
 
     @property
-    def licq(self) -> T:
+    def licq(self) -> SymType:
         """Gets the symbolic matrix for LICQ, defined as
         ```
                     LICQ = [ dgdx^T, dhdx^T ]^T
@@ -196,11 +196,11 @@ class NlpSensitivity(Wrapper[T]):
 
     def parametric_sensitivity(
         self,
-        expr: T = None,
-        solution: Optional[Solution[T]] = None,
+        expr: SymType = None,
+        solution: Optional[Solution[SymType]] = None,
         second_order: bool = False,
     ) -> Union[
-        Tuple[T, Optional[T]],
+        Tuple[SymType, Optional[SymType]],
         Tuple[cs.DM, Optional[cs.DM]],
         Tuple[npt.NDArray[np.double], Optional[npt.NDArray[np.double]]],
     ]:
@@ -242,7 +242,7 @@ class NlpSensitivity(Wrapper[T]):
             Systems, 3–16. Springer, Berlin, Heidelberg.
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
-        d: Callable[[T], Union[T, cs.DM]] = (
+        d: Callable[[SymType], Union[SymType, cs.DM]] = (
             (lambda o: o)
             if solution is None
             else (lambda o: solution.value(o))  # type: ignore
@@ -302,9 +302,9 @@ class NlpSensitivity(Wrapper[T]):
         self,
         solution: Solution,
         second_order: bool,
-        d: Callable[[T], Union[T, cs.DM]],
+        d: Callable[[SymType], Union[SymType, cs.DM]],
     ) -> Union[
-        Tuple[T, np.ndarray, T],
+        Tuple[SymType, np.ndarray, SymType],
         Tuple[cs.DM, np.ndarray, cs.DM],
         Tuple[npt.NDArray[np.double], np.ndarray, npt.NDArray[np.double]],
     ]:
@@ -338,7 +338,7 @@ class NlpSensitivity(Wrapper[T]):
         return dydp, dydp_, d2ydp2
 
     @invalidate_cache(jacobians, hessians, hojacobians)
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> T:
+    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         """See `Nlp.parameter` method."""
         return self.nlp.parameter(name, shape)
 
@@ -349,7 +349,7 @@ class NlpSensitivity(Wrapper[T]):
         shape: Tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[T, T, T]:
+    ) -> Tuple[SymType, SymType, SymType]:
         """See `Nlp.variable` method."""
         return self.nlp.variable(name, shape, lb, ub)
 
@@ -357,22 +357,22 @@ class NlpSensitivity(Wrapper[T]):
     def constraint(
         self,
         name: str,
-        lhs: Union[T, np.ndarray, cs.DM],
+        lhs: Union[SymType, np.ndarray, cs.DM],
         op: Literal["==", ">=", "<="],
-        rhs: Union[T, np.ndarray, cs.DM],
+        rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[T, ...]:
+    ) -> Tuple[SymType, ...]:
         """See `Nlp.constraint` method."""
         return self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
-    def minimize(self, objective: T) -> None:
+    def minimize(self, objective: SymType) -> None:
         """See `Nlp.minimize` method."""
         return self.nlp.minimize(objective)
 
     @invalidate_cache(jacobians, hessians, hojacobians)
-    def set_target_parameters(self, parameters: Optional[T]) -> None:
+    def set_target_parameters(self, parameters: Optional[SymType]) -> None:
         """Sets the target parameters of the sensitivity wrapper.
 
         Parameters
@@ -385,7 +385,7 @@ class NlpSensitivity(Wrapper[T]):
             self._p_idx_internal = None, slice(None)
             return
 
-        p: T = cs.vec(parameters)
+        p: SymType = cs.vec(parameters)
         if self.nlp.sym_type is cs.SX:
             self._p_idx_internal = p, slice(None)
             return
@@ -399,7 +399,7 @@ class NlpSensitivity(Wrapper[T]):
         self._p_idx_internal = self.nlp.p, idx  # type: ignore
 
     @property
-    def _y_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
+    def _y_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return all the primal-dual variables and indices that are
         associated to non-redundant entries in the kkt conditions."""
         if self.nlp.sym_type is cs.SX:
@@ -418,7 +418,7 @@ class NlpSensitivity(Wrapper[T]):
         return y, idx
 
     @property
-    def _p_idx(self) -> Tuple[T, Union[slice, npt.NDArray[np.int64]]]:
+    def _p_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return the indices of p from all the NLP pars. Like for
         _y_idx, SX is fine with jacobians, but MX jacobians need to be computed for
         all elements and then indexed."""
