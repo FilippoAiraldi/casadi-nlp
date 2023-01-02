@@ -13,6 +13,20 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class HasConstraints(HasVariables[SymType]):
     """Class for creating and storing symbolic constraints for an NLP problem."""
 
+    __slots__ = (
+        "_dual_vars",
+        "_pars",
+        "_cons",
+        "_lbx",
+        "_ubx",
+        "_lam_lbx",
+        "_lam_ubx",
+        "_g",
+        "_lam_g",
+        "_h",
+        "_lam_h",
+        "_remove_redundant_x_bounds",
+    )
     dual_variables_order: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
     """This tuple dictates the order for operations related to dual variables."""
 

@@ -7,14 +7,15 @@ import numpy.typing as npt
 
 from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
-from csnlp.nlps.parameters import HasParameters
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HasObjective(HasParameters[SymType], HasConstraints[SymType]):
+class HasObjective(HasConstraints[SymType]):
     """Class for creating an NLP problem with parameters, variables, constraints and an
     objective."""
+
+    __slots__ = ("name", "_f", "_solver", "_solver_opts", "_solver_type", "_failures")
 
     def __init__(
         self,
@@ -33,8 +34,7 @@ class HasObjective(HasParameters[SymType], HasConstraints[SymType]):
             properties `h_lbx` and `h_ubx` are called. See these two properties for more
             details. By default, `True`.
         """
-        HasParameters.__init__(self, sym_type)
-        HasConstraints.__init__(self, sym_type, remove_redundant_x_bounds)
+        super().__init__(sym_type, remove_redundant_x_bounds)
         self.name = name
         self._f: Optional[SymType] = None
         self._solver: Optional[cs.Function] = None

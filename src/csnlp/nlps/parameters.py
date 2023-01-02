@@ -8,6 +8,8 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class HasParameters(Generic[SymType]):
     """Class for creating and storing symbolic parameters of an NLP problem."""
 
+    __slots__ = ("_sym_type", "_pars", "_p")
+
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
         """Instantiate the class.
 

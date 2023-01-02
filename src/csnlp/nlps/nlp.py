@@ -35,6 +35,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     constraints, objective, solver).
     """
 
+    __slots__ = ("id", "_debug")
     __ids: ClassVar[Iterator[int]] = count(0)
     is_multi: ClassVar[bool] = False
 
@@ -66,9 +67,11 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         AttributeError
             Raises if the specified CasADi's symbolic type is neither "SX" nor "MX".
         """
-        self.id = next(self.__ids)
-        name = f"{self.__class__.__name__}{self.id}" if name is None else name
-        super().__init__(sym_type, remove_redundant_x_bounds, name)
+        id = next(self.__ids)
+        name = f"{self.__class__.__name__}{id}" if name is None else name
+        HasObjective.__init__(self, sym_type, remove_redundant_x_bounds, name)
+        SupportsDeepcopyAndPickle.__init__(self)
+        self.id = id
         self._debug = NlpDebug() if debug else None
 
     @property

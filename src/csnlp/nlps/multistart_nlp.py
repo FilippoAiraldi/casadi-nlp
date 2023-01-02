@@ -45,6 +45,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
     solver's initial conditions play a great role in the optimality of the solution
     (rather, its sub-optimality)."""
 
+    __slots__ = ("_starts", "_multi_nlp")
     is_multi: ClassVar[bool] = True
 
     def __init__(

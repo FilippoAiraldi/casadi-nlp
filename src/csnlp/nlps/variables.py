@@ -1,12 +1,16 @@
-from typing import Dict, Generic, Literal, Tuple, Type, TypeVar
+from typing import Dict, Literal, Tuple, TypeVar
 
 import casadi as cs
+
+from csnlp.nlps.parameters import HasParameters
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HasVariables(Generic[SymType]):
+class HasVariables(HasParameters[SymType]):
     """Class for creating and storing symbolic variables of an NLP problem."""
+
+    __slots__ = ("_vars", "_x")
 
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
         """Instantiate the class.
@@ -16,8 +20,7 @@ class HasVariables(Generic[SymType]):
         sym_type : "SX" or "MX", optional
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
-        super().__init__()
-        self._sym_type: Type[SymType] = getattr(cs, sym_type)
+        super().__init__(sym_type)
         self._vars: Dict[str, SymType] = {}
         self._x = self._sym_type()
 
