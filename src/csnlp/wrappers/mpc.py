@@ -323,18 +323,18 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             n_out = F.n_out()
         elif n_in is None or n_out is None:
             raise ValueError(
-                "Args `n_in` and `n_out` must be manually specified since F is not a "
+                "Args `n_in` and `n_out` must be manually specified when F is not a "
                 "casadi function."
             )
-        if n_in < 2 or n_in > 3 or n_out < 1:  # type: ignore
+        if n_in is None or n_in < 2 or n_in > 3 or n_out is None or n_out < 1:
             raise ValueError(
                 "The dynamics function must accepted 2 or 3 arguments and return at "
                 f"at least 1 output; got {n_in} inputs and {n_out} outputs instead."
             )
         if self._is_multishooting:
-            self._multishooting_dynamics(F, n_in, n_out)  # type: ignore
+            self._multishooting_dynamics(F, n_in, n_out)
         else:
-            self._singleshooting_dynamics(F, n_in, n_out)  # type: ignore
+            self._singleshooting_dynamics(F, n_in, n_out)
         self._dynamics = F
 
     def _multishooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
@@ -342,10 +342,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X = cs.vertcat(*self._states.values())
         U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            args_at = lambda k: (X[:, k], U[:, k])  # type: ignore # noqa: E731
+            args_at = lambda k: (X[:, k], U[:, k])  # noqa: E731
         else:
             D = cs.vertcat(*self._disturbances.values())
-            args_at = lambda k: (X[:, k], U[:, k], D[:, k])  # type: ignore # noqa: E731
+            args_at = lambda k: (  # type: ignore[return-value,assignment] # noqa: E731
+                X[:, k],
+                U[:, k],
+                D[:, k],
+            )
         xs_next = []
         for k in range(self._prediction_horizon):
             x_next = F(*args_at(k))
@@ -360,10 +364,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         Xk = cs.vertcat(*self._initial_states.values())
         U = cs.vertcat(*self._actions_exp.values())
         if n_in < 3:
-            args_at = lambda k: (U[:, k],)  # type: ignore  # noqa: E731
+            args_at = lambda k: (U[:, k],)  # noqa: E731
         else:
             D = cs.vertcat(*self._disturbances.values())
-            args_at = lambda k: (U[:, k], D[:, k])  # type: ignore  # noqa: E731
+            args_at = lambda k: (  # type: ignore[return-value,assignment] # noqa: E731
+                U[:, k],
+                D[:, k],
+            )
         X = [Xk]
         for k in range(self._prediction_horizon):
             Xk = F(Xk, *args_at(k))

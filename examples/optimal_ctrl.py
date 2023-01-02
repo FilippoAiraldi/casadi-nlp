@@ -1,6 +1,8 @@
 # Inspired by https://www.youtube.com/watch?v=JI-AyLv68Xs&t=918s
 
 
+from typing import Literal
+
 import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,11 +27,11 @@ x_next = res["xf"]
 F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
 
 # build the MPC
-shooting = "single"
+shooting: Literal["single", "multi"] = "single"
 mpc = wrappers.Mpc[cs.SX](
     nlp=Nlp[cs.SX](sym_type="SX"),
     prediction_horizon=N,
-    shooting=shooting,  # type: ignore
+    shooting=shooting,
 )
 u, _ = mpc.action("u", lb=-1, ub=+1)
 if shooting == "single":

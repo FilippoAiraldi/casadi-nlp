@@ -81,7 +81,7 @@ for p0, ax in zip(p_values, axs):
     plot_nlp(ax, 0.2, p0, x_[0], x_[1])
 
 # How does the optimal solution vary along p[1]?
-nlp = wrappers.NlpSensitivity[cs.MX](nlp, target_parameters=p[1])  # type: ignore
+nlp_ = wrappers.NlpSensitivity[cs.MX](nlp, target_parameters=p[1])
 
 # a bunch of strange equations we want to compute sensitivity of w.r.t. p[1]
 Z = cs.blockcat(
@@ -103,7 +103,7 @@ for i in np.ndindex(axs.shape):
 
 # Parametric sensitivities of function z(x(p), lam(p))
 t = np.linspace(1, 2, 1000)
-J, H = nlp.parametric_sensitivity(expr=Z, second_order=True)  # type: ignore
+J, H = nlp_.parametric_sensitivity(expr=Z, second_order=True)
 for p0, clr in zip(p_values, ["r", "g", "b"]):
     sol = nlp.solve(pars={"p": [0.2, p0]})
     z0 = sol.value(Z).full()

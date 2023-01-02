@@ -38,8 +38,10 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         indices = range(x.shape[0])
         shape = (x.shape[0], 1)
     elif ndim == 2:
-        indices = product(range(x.shape[0]), range(x.shape[1]))  # type: ignore
-        shape = x.shape  # type: ignore
+        indices = product(  # type: ignore[assignment]
+            range(x.shape[0]), range(x.shape[1])
+        )
+        shape = x.shape  # type: ignore[assignment]
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
     m: Union[cs.SX, cs.MX] = cls(*shape)

@@ -39,7 +39,7 @@ def invalidate_cache(*callables: Callable) -> Callable:
         if isinstance(p, cached_property):
             cached_properties.append(p)
         elif hasattr(p, "cache_clear"):
-            lru_caches.append(p)  # type: ignore
+            lru_caches.append(p)  # type: ignore[arg-type]
         else:
             raise TypeError(
                 "Expected cached properties or lru wrappers; got "

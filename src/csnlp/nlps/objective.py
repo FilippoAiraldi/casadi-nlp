@@ -138,7 +138,7 @@ class HasObjective(HasParameters[SymType], HasConstraints[SymType]):
         self,
         pars: Optional[Dict[str, npt.ArrayLike]] = None,
         vals0: Optional[Dict[str, npt.ArrayLike]] = None,
-    ) -> Solution:
+    ) -> Solution[SymType]:
         """Solves the NLP optimization problem.
 
         Parameters
@@ -200,7 +200,7 @@ class HasObjective(HasParameters[SymType], HasConstraints[SymType]):
         )
         new = cs.vertcat(p, sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        solution = Solution[SymType](
+        solution = Solution(
             f=float(sol["f"]),
             vars=vars,
             vals=vals,

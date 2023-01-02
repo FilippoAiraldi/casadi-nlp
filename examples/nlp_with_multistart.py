@@ -1,4 +1,4 @@
-from typing import List
+from typing import Any, Dict, List
 
 import casadi as cs
 import matplotlib.pyplot as plt
@@ -36,9 +36,11 @@ xfs = [
 ]
 
 # use automatical multistart solver
-kwargs = dict(pars={"p0": 0, "p1": 1}, vals0=[{"x": x0} for x0 in x0s])
-best_sol: Solution[cs.SX] = nlp.solve_multi(**kwargs)  # type: ignore
-all_sols: List[Solution[cs.SX]] = nlp.solve_multi(**kwargs, return_all_sols=True)  # type: ignore
+kwargs: Dict[str, Any] = dict(pars={"p0": 0, "p1": 1}, vals0=[{"x": x0} for x0 in x0s])
+best_sol: Solution[cs.SX] = nlp.solve_multi(**kwargs)  # type: ignore[assignment]
+all_sols: List[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
+    **kwargs, return_all_sols=True
+)
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)

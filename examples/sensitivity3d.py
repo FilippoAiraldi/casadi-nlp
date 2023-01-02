@@ -93,13 +93,13 @@ ax.plot_wireframe(
 
 
 # Parametric sensitivities of function z(x(p), lam(p))
-nlp = wrappers.NlpSensitivity[cs.MX](nlp)  # type: ignore
+nlp_ = wrappers.NlpSensitivity[cs.MX](nlp)
 Z = z(x, lam, p)
-J, H = nlp.parametric_sensitivity(expr=Z, second_order=True)  # type: ignore
+J, H = nlp_.parametric_sensitivity(expr=Z, second_order=True)
 
 P_flat = np.row_stack([o.flatten() for o in P])
 for p_ in p_values:
-    sol = nlp.solve(pars={"p": p_})
+    sol = nlp_.solve(pars={"p": p_})
     Z_ = sol.value(Z).full()
     J_ = sol.value(J).full()
     H_ = sol.value(H).full()

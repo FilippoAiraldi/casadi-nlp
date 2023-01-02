@@ -34,7 +34,7 @@ def save2tikz(*figs: Figure) -> None:
         One or more matplotlib figures to be converted to tikz files. These
         files will be named based on the number of the corresponding figure.
     """
-    import tikzplotlib  # type: ignore
+    import tikzplotlib
 
     for fig in figs:
         tikzplotlib.save(
@@ -64,13 +64,13 @@ def spy(
     AxesImage or Line2D
         Same return types of `matplotlib.pyplot.spy`.
     """
-    H = array2cs(H)
+    H = array2cs(H)  # type: ignore[arg-type]
     try:
         # try convert to numerical; if it fails, use symbolic method from cs
         H = np.asarray(H, dtype=float)
     except Exception:
         from contextlib import redirect_stdout
-        from io import StringIO  # type: ignore
+        from io import StringIO
 
         f = StringIO()
         with redirect_stdout(f):

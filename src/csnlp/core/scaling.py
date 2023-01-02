@@ -92,7 +92,7 @@ class Scaler(Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]):
             Raises if the scaled output's shape does not match input's shape.
         """
         loc, scale = self[name]
-        out = (x - loc) / scale  # type: ignore
+        out = (x - loc) / scale  # type: ignore[operator]
         assert np.shape(out) == np.shape(x), "Scaling altered input shape."
         return out
 
@@ -117,7 +117,7 @@ class Scaler(Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]):
             Raises if the unscaled output's shape does not match input's shape.
         """
         loc, scale = self[name]
-        out = x * scale + loc  # type: ignore
+        out = x * scale + loc  # type: ignore[operator]
         assert np.shape(out) == np.shape(x), "Unscaling altered input shape."
         return out
 
@@ -159,4 +159,6 @@ class MinMaxScaler(Scaler):
             Raises if a duplicate name is detected.
         ValueError
         """
-        return super().register(name=name, loc=min, scale=max - min)  # type: ignore
+        return super().register(
+            name=name, loc=min, scale=max - min  # type: ignore[operator]
+        )

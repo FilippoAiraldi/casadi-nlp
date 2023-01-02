@@ -82,7 +82,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         return self._debug
 
     @property
-    def unwrapped(self) -> "Nlp":
+    def unwrapped(self) -> "Nlp[SymType]":
         """Returns the original NLP of the wrapper."""
         return self
 
@@ -96,7 +96,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             self._debug.register("p", name, shape)
         return out
 
-    def variable(  # type: ignore
+    def variable(  # type: ignore[override]
         self,
         name: str,
         shape: Tuple[int, int] = (1, 1),
@@ -125,8 +125,8 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     def to_function(
         self,
         name: str,
-        ins: Union[Sequence[cs.SX], Sequence[cs.MX]],
-        outs: Union[Sequence[cs.SX], Sequence[cs.MX]],
+        ins: Sequence[SymType],
+        outs: Sequence[SymType],
         name_in: Optional[Sequence[str]] = None,
         name_out: Optional[Sequence[str]] = None,
         opts: Optional[Dict[Any, Any]] = None,

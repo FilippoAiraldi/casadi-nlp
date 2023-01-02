@@ -32,9 +32,11 @@ def _n(sym_name: str, scenario: int) -> str:
     return f"{sym_name}__{scenario}"
 
 
-def _get_value(x, sol: Solution, old, new, eval: bool = True):
+def _get_value(x, sol: Solution[SymType], old, new, eval: bool = True):
     """Internal utility for substituting numerical values in solutions."""
-    return sol._get_value(cs.substitute(x, old, new), eval=eval)  # type: ignore
+    return sol._get_value(
+        cs.substitute(x, old, new), eval=eval  # type: ignore[call-arg]
+    )
 
 
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
@@ -262,15 +264,18 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
         fs = [float(multi_sol.value(f)) for f in self._fs]
         idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
         for i in idx:
-            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}  # type: ignore
+            vals = {
+                n: multi_sol.vals[_n(n, i)]  # type: ignore[arg-type]
+                for n in vars.keys()
+            }
 
             symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
             new = subsevalf(old, symbols, symbols_i, eval=False)
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
 
             sols.append(
-                Solution[SymType](
-                    f=fs[i],  # type: ignore
+                Solution(
+                    f=fs[i],  # type: ignore[call-overload]
                     vars=vars,
                     vals=vals,
                     stats=multi_sol.stats,

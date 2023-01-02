@@ -59,7 +59,7 @@ class Solution(Generic[SymType]):
             Raises if `eval=True` but there are symbolic variables that are
             still free since they are outside the solution's variables.
         """
-        return self._get_value(x, eval=eval)  # type: ignore
+        return self._get_value(x, eval=eval)  # type: ignore[call-arg]
 
 
 def _internal_subsevalf_cs(
@@ -74,7 +74,7 @@ def _internal_subsevalf_cs(
 
     if isinstance(old, dict):
         for name, o in old.items():
-            expr = cs.substitute(expr, o, new[name])  # type: ignore
+            expr = cs.substitute(expr, o, new[name])  # type: ignore[index]
     elif isinstance(old, Iterable) and not isinstance(
         old, (cs.SX, cs.MX, CasadiStructured)
     ):

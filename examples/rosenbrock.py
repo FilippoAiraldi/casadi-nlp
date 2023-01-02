@@ -15,7 +15,7 @@ r = nlp.parameter("r")
 
 f = (1 - x[0]) ** 2 + (x[1] - x[0] ** 2) ** 2
 nlp.minimize(f)
-_, lam = nlp.constraint("con1", cs.sumsqr(x), "<=", r)  # type: ignore
+_, lam = nlp.constraint("con1", cs.sumsqr(x), "<=", r)
 
 nlp.init_solver()  # initializes ipopt under the hood
 

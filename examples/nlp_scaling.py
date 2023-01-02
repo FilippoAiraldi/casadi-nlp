@@ -62,14 +62,14 @@ for i, SCALED in enumerate((False, True)):
         scaler.register("x", scale=x_nom)
         scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
-        nlp = wrappers.NlpScaling[cs.SX](nlp, scaler=scaler)  # type: ignore
+        nlp = wrappers.NlpScaling[cs.SX](nlp, scaler=scaler)  # type: ignore[assignment]
     mpc = wrappers.Mpc[cs.SX](nlp, prediction_horizon=N)
 
     # state and actions
     x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
-    y = x[0, :]  # type: ignore
-    v = x[1, :]  # type: ignore
-    m = x[2, :]  # type: ignore
+    y = x[0, :]  # type: ignore[index]
+    v = x[1, :]  # type: ignore[index]
+    m = x[2, :]  # type: ignore[index]
     u, _ = mpc.action("u", lb=0, ub=5e7)
 
     # dynamics
@@ -84,7 +84,7 @@ for i, SCALED in enumerate((False, True)):
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
     x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
-    sol: Solution = mpc.solve_multi(
+    sol: Solution[cs.SX] = mpc.solve_multi(
         pars=({"x_0": x0} for _ in range(K)),
         vals0=(
             {

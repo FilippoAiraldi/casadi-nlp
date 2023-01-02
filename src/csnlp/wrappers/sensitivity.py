@@ -52,7 +52,7 @@ class NlpSensitivity(Wrapper[SymType]):
             default `True`.
         """
         super().__init__(nlp)
-        self.include_barrier_term = include_barrier_term
+        self.include_barrier_term: bool = include_barrier_term
         self.set_target_parameters(target_parameters)
         self._tau = nlp.sym_type.sym("tau") if include_barrier_term else 0
 
@@ -245,7 +245,7 @@ class NlpSensitivity(Wrapper[SymType]):
         d: Callable[[SymType], Union[SymType, cs.DM]] = (
             (lambda o: o)
             if solution is None
-            else (lambda o: solution.value(o))  # type: ignore
+            else (lambda o: solution.value(o))  # type: ignore[union-attr]
         )
         dydp, dydp_np, d2ydp2 = self._y_parametric_sensitivity(
             solution, second_order, d
@@ -300,7 +300,7 @@ class NlpSensitivity(Wrapper[SymType]):
 
     def _y_parametric_sensitivity(
         self,
-        solution: Solution,
+        solution: Optional[Solution[SymType]],
         second_order: bool,
         d: Callable[[SymType], Union[SymType, cs.DM]],
     ) -> Union[
@@ -318,7 +318,7 @@ class NlpSensitivity(Wrapper[SymType]):
         else:
             dydp = -np.linalg.solve(Ky, Kp)
         if not second_order:
-            return dydp, None, None  # type: ignore
+            return dydp, None, None  # type: ignore[return-value]
 
         # second order sensitivity, a.k.a., d2ydp2
         dydp_ = cs2array(dydp)
@@ -396,7 +396,7 @@ class NlpSensitivity(Wrapper[SymType]):
             "Invalid subset of target parameters (some were not found in the"
             " original NLP parameters)."
         )
-        self._p_idx_internal = self.nlp.p, idx  # type: ignore
+        self._p_idx_internal = self.nlp.p, idx  # type: ignore[assignment]
 
     @property
     def _y_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
