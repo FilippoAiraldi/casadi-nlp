@@ -1,11 +1,7 @@
-from itertools import combinations
 from math import sqrt
 from typing import Optional, Union
 
 import casadi as cs
-import numpy as np
-import numpy.typing as npt
-from scipy.special import comb
 
 SQRT2 = sqrt(2)
 
@@ -140,58 +136,3 @@ def norm_ppf(
         The quantile of the normal distribution.
     """
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
-
-
-def nchoosek(n: Union[int, npt.ArrayLike], k: int) -> Union[int, np.ndarray]:
-    """Emulates the `nchoosek` function from Matlab. Returns the binomial coefficient,
-    i.e.,  the number of combinations of `n` items taken `k` at a time. If `n` is an
-    array, then it is flatten and all possible combinations of its elements are
-    returned.
-
-    Parameters
-    ----------
-    n : int or array_like
-        Number of elements or array of elements to choose from.
-    k : int
-        Number of elements to choose.
-
-    Returns
-    -------
-    int or array
-        Depending on the type of input `n`, the output is either the total number of
-        combinations or the combinations in a matrix.
-    """
-    return (
-        comb(n, k, exact=True)
-        if isinstance(n, int)
-        else np.row_stack(list(combinations(np.asarray(n).flatten(), k)))
-    )
-
-
-def monomial_powers(d: int, k: int) -> npt.NDArray[np.int64]:
-    """Computes the powers of all `d`-dimensional monomials of degree `k`.
-
-    Parameters
-    ----------
-    d : int
-        The number of monomial elements.
-    k : int
-        The degree of each monomial.
-
-    Returns
-    -------
-    array of ints
-        An array containing in each row the power of each index in order to obtain the
-        desired monomial of power `k`.
-    """
-    m = nchoosek(k + d - 1, d - 1)
-    dividers = np.column_stack(
-        (
-            np.zeros((m, 1), dtype=int),
-            np.row_stack(  # type: ignore[call-overload]
-                nchoosek(np.arange(1, k + d), d - 1)
-            ),
-            np.full((m, 1), k + d, dtype=int),
-        )
-    )
-    return np.flipud(np.diff(dividers, axis=1) - 1).astype(int)
