@@ -118,6 +118,16 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return self._initial_states
 
     @property
+    def first_states(self) -> Dict[str, SymType]:
+        """Gets the first (along the prediction horizon) states of the controller."""
+        return {n: s[:, 0] for n, s in self._states.items()}
+
+    @property
+    def first_actions(self) -> Dict[str, SymType]:
+        """Gets the first (along the prediction horizon) actions of the controller."""
+        return {n: a[:, 0] for n, a in self._actions.items()}
+
+    @property
     def ns(self) -> int:
         """Gets the number of states of the MPC controller."""
         return sum(x0.shape[0] for x0 in self._initial_states.values())
