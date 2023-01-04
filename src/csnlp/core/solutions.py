@@ -1,6 +1,7 @@
 from dataclasses import dataclass
+from functools import partial
 from itertools import product
-from typing import Any, Callable, Dict, Generic, Iterable, TypeVar, Union
+from typing import Any, Dict, Generic, Iterable, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -19,7 +20,17 @@ class Solution(Generic[SymType]):
     vars: Dict[str, SymType]
     vals: Dict[str, cs.DM]
     stats: Dict[str, Any]
-    _get_value: Callable[[SymType, bool], cs.DM]
+    _get_value: partial  # Callable[[SymType, bool], cs.DM]
+
+    @property
+    def all_vars(self) -> SymType:
+        """Gets all the variables of the solution in a vector."""
+        return self._get_value.keywords["old"]
+
+    @property
+    def all_vals(self) -> cs.DM:
+        """Gets all the values of the solution in a vector."""
+        return self._get_value.keywords["new"]
 
     @property
     def status(self) -> str:
