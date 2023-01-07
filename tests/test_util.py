@@ -98,11 +98,10 @@ class TestIo(unittest.TestCase):
             dc1 = dc.copy()
             sdc1 = sdc.copy()
         else:
-            with ec.pickleable(), sc.pickleable(), dc.pickleable(), sdc.pickleable():
-                ec1 = pickle.loads(pickle.dumps(ec))
-                sc1 = pickle.loads(pickle.dumps(sc))
-                dc1 = pickle.loads(pickle.dumps(dc))
-                sdc1 = pickle.loads(pickle.dumps(sdc))
+            ec1 = pickle.loads(pickle.dumps(ec))
+            sc1 = pickle.loads(pickle.dumps(sc))
+            dc1 = pickle.loads(pickle.dumps(dc))
+            sdc1 = pickle.loads(pickle.dumps(sdc))
         self.assertIsNot(ec, ec1)
         self.assertIsNot(sc, sc1)
         self.assertTupleEqual((sc.x, sc.y), (sc1.x, sc1.y))

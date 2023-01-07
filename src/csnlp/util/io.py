@@ -1,12 +1,10 @@
 import pickle
-from contextlib import contextmanager
-from copy import deepcopy
+from copy import _reconstruct, deepcopy  # type: ignore[attr-defined]
 from functools import cached_property
 from inspect import getmembers
 from itertools import chain
 from pickletools import optimize
-from typing import Any, Dict, Iterable, Iterator, Optional, Tuple, TypeVar, Union
-from warnings import warn
+from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -54,13 +52,12 @@ def is_pickleable(obj: Any) -> bool:
 def _get_dict_state(
     obj: "SupportsDeepcopyAndPickle",
     attributes: Iterable[str],
+    fullstate: bool,
     remove_None: bool,
 ) -> Dict[str, Any]:
     """Internal utility for SupportsDeepcopyAndPickle."""
     state: Dict[str, Any] = {attr: getattr(obj, attr, None) for attr in attributes}
-    if "_GETFULLSTATE" in state:
-        state["_GETFULLSTATE"] = None
-    if not obj._GETFULLSTATE:
+    if not fullstate:
         for attr in list(state.keys()):
             val = state[attr]
             if (
@@ -72,37 +69,17 @@ def _get_dict_state(
     return state
 
 
-SymType = TypeVar("SymType", bound="SupportsDeepcopyAndPickle")
+T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
 
 
 class SupportsDeepcopyAndPickle:
-    """Class that defines a `__getstate__` that is compatible with both
-    `deepcopy` and `pickle`, as well as any other operation that requires the instance's
-    state.
+    """Class that defines a `__getstate__` that is compatible with both `deepcopy` and
+    `pickle`, as well as any other operation that requires the instance's state.
 
-    When pickled, use the context manager `pickleable` in order to automatically remove
-    states that cannot be pickled (e.g., CasADi objects); otherwise, use `fullstate`
-    for, e.g., `deepcopy`-ing the class instance."""
+    When pickled, states that cannot be pickled (e.g., CasADi objects) are automatically
+    removed."""
 
-    _GETFULLSTATE: Optional[bool] = None
-
-    @contextmanager
-    def pickleable(self) -> Iterator[None]:
-        """Context manager that makes the class pickleable by automatically removing
-        unpickleable states (opposite of `fullstate`)."""
-        self._GETFULLSTATE = False
-        yield
-        self._GETFULLSTATE = None
-
-    @contextmanager
-    def fullstate(self) -> Iterator[None]:
-        """Context manager that makes the class return the full state without removing
-        unpickleable states (opposite of `pickleable`)."""
-        self._GETFULLSTATE = True
-        yield
-        self._GETFULLSTATE = None
-
-    def copy(self: SymType, invalidate_caches: bool = True) -> SymType:
+    def copy(self: T, invalidate_caches: bool = True) -> T:
         """Creates a deepcopy of this instance.
 
         Parameters
@@ -117,8 +94,7 @@ class SupportsDeepcopyAndPickle:
         `SupportsDeepcopyAndPickle` or its subclass
             A deepcopy of this instance.
         """
-        with self.fullstate():
-            new = deepcopy(self)
+        new = deepcopy(self)
         if invalidate_caches:
             # basically do again what csnlp.util.funcs.invalidate_cache does
             for membername, member in getmembers(type(new)):
@@ -129,31 +105,32 @@ class SupportsDeepcopyAndPickle:
                         del new.__dict__[membername]
         return new
 
+    def __deepcopy__(self: T, memo: Optional[Dict[int, List[Any]]] = None) -> T:
+        """Returns a deepcopy of the object."""
+        rv = self.__reduce_ex__(4)
+        if isinstance(rv, str):
+            return self
+        assert len(rv) < 6 or rv[5] is None, "Unexpected reductor callable."
+        # overwrite the filtered state with its full version
+        fullstate = self.__getstate__(fullstate=True)
+        new_rv = (*rv[:2], fullstate, *rv[3:])
+        return _reconstruct(self, memo, *new_rv)
+
     def __getstate__(
-        self,
+        self: T,
+        fullstate: bool = False,
     ) -> Union[None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]]:
-        """Returns the instance's state to be pickled or copied."""
+        """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
-        if self._GETFULLSTATE is None:
-            raise RuntimeError(
-                f"Trying to get the state of {self.__class__.__name__} without using "
-                "context manager `pickleable` or `fullstate`."
-            )
-        elif not self._GETFULLSTATE:
-            warn(
-                f"to deepcopy/pickle {self.__class__.__name__}, all references to "
-                "CasADi and unpickleable objects are removed from the state.",
-                RuntimeWarning,
-            )
         dictstate = (
-            _get_dict_state(self, self.__dict__.keys(), False)
+            _get_dict_state(self, self.__dict__.keys(), fullstate, False)
             if hasattr(self, "__dict__")
             else None
         )
         slots = chain.from_iterable(
             getattr(cls, "__slots__", []) for cls in type(self).__mro__
         )
-        slotstate = _get_dict_state(self, slots, True) if slots else None
+        slotstate = _get_dict_state(self, slots, fullstate, True) if slots else None
         return (dictstate, slotstate) if slotstate is not None else dictstate
 
 

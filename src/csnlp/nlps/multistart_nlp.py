@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from functools import lru_cache, partial
 from itertools import repeat
 from typing import (
@@ -7,7 +6,6 @@ from typing import (
     Dict,
     Generic,
     Iterable,
-    Iterator,
     List,
     Literal,
     Optional,
@@ -77,16 +75,6 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
         super().__init__(*args, **kwargs)
         self._starts = starts
         self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
-
-    @contextmanager
-    def fullstate(self) -> Iterator[None]:
-        with super().fullstate(), self._multi_nlp.fullstate():
-            yield
-
-    @contextmanager
-    def pickleable(self) -> Iterator[None]:
-        with super().pickleable(), self._multi_nlp.pickleable():
-            yield
 
     @property
     def starts(self) -> int:

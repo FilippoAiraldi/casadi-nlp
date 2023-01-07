@@ -75,8 +75,7 @@ class TestWrapper(unittest.TestCase):
         self.assertTrue(wrapped.is_wrapped(Mpc))
         self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
 
-        with wrapped.pickleable():
-            wrapped_pickled = pickle.loads(pickle.dumps(wrapped))
+        wrapped_pickled = pickle.loads(pickle.dumps(wrapped))
         wrapped_copied = wrapped.copy()
 
         self.assertEqual(wrapped.name, wrapped_pickled.name)
@@ -434,8 +433,7 @@ class TestNlpSensitivity(unittest.TestCase):
         nlp.constraint("c2", g, "<=", p[1] ** 2)
         nlp.init_solver(OPTS)
 
-        with nlp.pickleable():
-            nlp2 = pickle.loads(pickle.dumps(nlp))
+        nlp2 = pickle.loads(pickle.dumps(nlp))
 
         self.assertIn(repr(nlp), repr(nlp2))
 
@@ -637,8 +635,7 @@ class TestMpc(unittest.TestCase):
         mpc.action("u1", 3)
         mpc.action("u2", 1)
 
-        with mpc.pickleable():
-            mpc2 = pickle.loads(pickle.dumps(mpc))
+        mpc2 = pickle.loads(pickle.dumps(mpc))
 
         self.assertIn(repr(mpc), repr(mpc2))
 

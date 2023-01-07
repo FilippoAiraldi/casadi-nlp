@@ -628,8 +628,7 @@ class TestNlp(unittest.TestCase):
         nlp.constraint("c2", g, "<=", p**2)
         nlp.init_solver(OPTS)
 
-        with nlp.pickleable():
-            nlp2 = pickle.loads(pickle.dumps(nlp))
+        nlp2 = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
 
@@ -727,8 +726,7 @@ class TestMultistartNlp(unittest.TestCase):
         )
         nlp.init_solver(OPTS)
 
-        with nlp.pickleable():
-            nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
+        nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
         self.assertEqual(nlp._multi_nlp.name, nlp2._multi_nlp.name)

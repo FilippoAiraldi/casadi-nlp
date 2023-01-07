@@ -1,5 +1,4 @@
-from contextlib import contextmanager
-from typing import Any, Generic, Iterator, List, Type, TypeVar, Union
+from typing import Any, Generic, List, Type, TypeVar, Union
 
 import casadi as cs
 
@@ -54,16 +53,6 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
         if isinstance(self, wrapper_type):
             return True
         return self.nlp.is_wrapped(wrapper_type)
-
-    @contextmanager
-    def fullstate(self) -> Iterator[None]:
-        with super().fullstate(), self.nlp.fullstate():
-            yield
-
-    @contextmanager
-    def pickleable(self) -> Iterator[None]:
-        with super().pickleable(), self.nlp.pickleable():
-            yield
 
     def __getattr__(self, name: str) -> Any:
         """Reroutes attributes to the wrapped NLP instance."""
