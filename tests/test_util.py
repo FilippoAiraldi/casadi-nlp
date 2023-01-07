@@ -3,7 +3,8 @@ import os
 import pickle
 import tempfile
 import unittest
-from typing import Any, Optional
+from itertools import product
+from typing import Any, Optional, Tuple
 
 import casadi as cs
 import numpy as np
@@ -130,17 +131,19 @@ class TestMath(unittest.TestCase):
         self.assertEqual(math.log(x), _math.log(x))
         self.assertEqual(math.log(x, base), _math.log(x, base))
 
-    @parameterized.expand([(-2,), (-1,), (0,), (1,), (None,)])
-    def test_prod(self, axis: Optional[int]):
-        shape = (4, 5)
-        x_sx = cs.SX.sym("X", *shape)
-        x_mx = cs.MX.sym("X", *shape)
-        x = np.random.randn(*shape) * 2
-        p_sx = subsevalf(math.prod(x_sx, axis=axis), x_sx, x)
-        p_mx = subsevalf(math.prod(x_mx, axis=axis), x_mx, x)
+    @parameterized.expand(product([(3, 1), (1, 3), (3, 4)], [-2, -1, 0, 1, None]))
+    def test_prod(self, shape: Tuple[int, int], axis: Optional[int]):
+        x = np.random.randn(*shape) * 3
         p = np.prod(x, axis=axis, keepdims=True)
+        x_sx = cs.SX.sym("X", *shape)
+        p_sx = subsevalf(math.prod(x_sx, axis=axis), x_sx, x)
+        x_mx = cs.MX.sym("X", *shape)
+        p_mx = subsevalf(math.prod(x_mx, axis=axis), x_mx, x)
+        x_dm = cs.DM(x)
+        p_dm = math.prod(x_dm, axis=axis)
         np.testing.assert_allclose(p, p_sx)
         np.testing.assert_allclose(p, p_mx)
+        np.testing.assert_allclose(p, p_dm)
 
     @parameterized.expand([(1,), (5,), (10,)])
     def test_quad_form(self, n: int):

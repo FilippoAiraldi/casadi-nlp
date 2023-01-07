@@ -37,7 +37,7 @@ def prod(
     ----------
     x : Union[cs.SX, cs.MX, cs.DM]
         The variable whose entries must be multiplied together.
-    axis : {0, 1, None}
+    axis : {0, 1, None, -1, -2}
         Axis or along which a product is performed. The default, `axis=None`, will
         calculate the product of all the elements in the matrix. If axis is negative it
         counts from the last to the first axis.
@@ -47,12 +47,24 @@ def prod(
     Union[cs.SX, cs.MX, cs.DM]
         Product of the elements.
     """
+    # sourcery skip: merge-comparisons
     if axis is None:
         x = cs.vec(x)
         axis = 0
-    elif axis < 0:
-        axis = 2 + axis
-    sum_ = cs.sum1 if axis == 0 else cs.sum2
+
+    # prod of vector elements
+    if x.is_vector():
+        if x.shape[axis] == 1:
+            return x
+        if not isinstance(x, cs.MX):
+            return cs.det(cs.diag(x))  # does not work with MX
+        p = x[0]
+        for i in range(1, x.shape[axis]):
+            p *= x[i]
+        return p
+
+    # prod of matrix elements
+    sum_ = cs.sum1 if (axis == 0 or axis == -2) else cs.sum2
     n_negatives = sum_(x < 0)
     p = cs.exp(sum_(cs.log(cs.fabs(x))))
     return cs.if_else(cs.mod(n_negatives, 2) == 0.0, 1, -1) * p
