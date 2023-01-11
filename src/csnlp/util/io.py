@@ -124,11 +124,13 @@ class SupportsDeepcopyAndPickle:
         # https://docs.python.org/3/library/pickle.html#pickle-inst
         dictstate = (
             _get_dict_state(self, self.__dict__.keys(), fullstate, False)
-            if hasattr(self, "__dict__")
+            if hasattr(self, "__dict__") and self.__dict__.keys()
             else None
         )
-        slots = chain.from_iterable(
-            getattr(cls, "__slots__", []) for cls in type(self).__mro__
+        slots = list(
+            chain.from_iterable(
+                getattr(cls, "__slots__", []) for cls in type(self).__mro__
+            )
         )
         slotstate = _get_dict_state(self, slots, fullstate, True) if slots else None
         return (dictstate, slotstate) if slotstate is not None else dictstate
