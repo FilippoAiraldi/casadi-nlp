@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Optional, Union
+from typing import Optional, Tuple, Union
 
 import casadi as cs
 
@@ -148,3 +148,23 @@ def norm_ppf(
         The quantile of the normal distribution.
     """
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
+
+
+def repeat(
+    a: Union[cs.SX, cs.MX, cs.DM], repeats: Union[int, Tuple[int, int]]
+) -> Union[cs.SX, cs.MX, cs.DM]:
+    """Repeats elements in array.
+
+    Parameters
+    ----------
+    a : casadi.SX or MX or DM
+        The array/matrix whose elements are to be repeated.
+    repeats : int or tuple[int, int]
+        The number of repeats, in the first and/or second axis.
+
+    Returns
+    -------
+    Union[cs.SX, cs.MX, cs.DM]
+        Output array with repeated elements.
+    """
+    return cs.kron(a, cs.GenDM_ones(repeats))

@@ -212,6 +212,17 @@ class TestMath(unittest.TestCase):
         np.testing.assert_allclose(cdf, cdf_sx, atol=1e-5, rtol=1e-5)
         np.testing.assert_allclose(cdf, cdf_mx, atol=1e-5, rtol=1e-5)
 
+    @parameterized.expand(
+        [
+            ((3, 4), cs.DM([3, 3, 3, 3])),
+            (([1, 2, 3, 4], 3), cs.DM(sum(([i] * 3 for i in range(1, 5)), []))),
+            ((cs.DM([[1, 2], [3, 4]]), (1, 2)), cs.DM([[1, 1, 2, 2], [3, 3, 4, 4]])),
+        ]
+    )
+    def test_repeat(self, inputs, expected):
+        actual = math.repeat(*inputs)
+        np.testing.assert_array_equal(actual, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
