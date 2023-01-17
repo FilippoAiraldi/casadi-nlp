@@ -1,9 +1,11 @@
+from math import ceil
 from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
+from csnlp.util.math import repeat
 from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -28,6 +30,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         "_is_multishooting",
         "_prediction_horizon",
         "_control_horizon",
+        "_input_spacing",
         "_states",
         "_initial_states",
         "_actions",
@@ -42,6 +45,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         nlp: Nlp[SymType],
         prediction_horizon: int,
         control_horizon: Optional[int] = None,
+        input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
         """Initializes the MPC wrapper around the NLP instance.
@@ -55,6 +59,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         control_horizon : int, optional
             A positive integer for the control horizon of the MPC controller. If not
             given, it is set equal to the control horizon.
+        input_spacing : int, optional
+            Spacing between independent input actions. This argument allows to reduce
+            the number of free actions along the control horizon by allowing only the
+            first action every `n` to be free, and the following `n-1` to be fixed equal
+            to that action (where `n` is given by `input_spacing`). By default, no
+            spacing is allowed, i.e., 1.
         shooting : 'single' or 'multi', optional
             Type of approach in the direct shooting for parametrizing the control
             trajectory. See [1, Section 8.5]. By default, direct shooting is used.
@@ -88,6 +98,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             raise ValueError("Control horizon must be positive and > 0.")
         else:
             self._control_horizon = control_horizon
+
+        if not isinstance(input_spacing, int) or input_spacing <= 0:
+            raise ValueError("Input spacing factor must be positive and > 0.")
+        else:
+            self._input_spacing = input_spacing
 
         self._states: Dict[str, SymType] = {}
         self._initial_states: Dict[str, SymType] = {}
@@ -262,9 +277,18 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             The same control  action variable, but expanded to the same length of the
             prediction horizon.
         """
-        u = self.nlp.variable(name, (size, self._control_horizon), lb, ub)[0]
-        gap = self._prediction_horizon - self._control_horizon
-        u_exp = cs.horzcat(u, *(u[:, -1] for _ in range(gap)))
+        nu_free = ceil(self._control_horizon / self._input_spacing)
+        u = self.nlp.variable(name, (size, nu_free), lb, ub)[0]
+
+        u_exp: SymType = (
+            u
+            if self._input_spacing == 1
+            else repeat(u, (1, self._input_spacing))[:, : self._control_horizon]
+        )
+        gap = self._prediction_horizon - u_exp.shape[1]
+        u_last = u_exp[:, -1]
+        u_exp = cs.horzcat(u_exp, *(u_last for _ in range(gap)))
+
         self._actions[name] = u
         self._actions_exp[name] = u_exp
         return u, u_exp
