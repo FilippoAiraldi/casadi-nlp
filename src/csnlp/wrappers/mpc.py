@@ -72,7 +72,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         """
         super().__init__(nlp)
 
-        if prediction_horizon <= 0:
+        if not isinstance(prediction_horizon, int) or prediction_horizon <= 0:
             raise ValueError("Prediction horizon must be positive and > 0.")
         if shooting == "single":
             self._is_multishooting = False
@@ -84,7 +84,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._prediction_horizon = prediction_horizon
         if control_horizon is None:
             self._control_horizon = self._prediction_horizon
-        elif control_horizon <= 0:
+        elif not isinstance(control_horizon, int) or control_horizon <= 0:
             raise ValueError("Control horizon must be positive and > 0.")
         else:
             self._control_horizon = control_horizon
