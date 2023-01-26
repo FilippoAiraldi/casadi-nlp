@@ -63,9 +63,19 @@ class TestIo(unittest.TestCase):
         self.assertTrue(io.is_pickleable("hello"))
         self.assertFalse(io.is_pickleable(cs.SX.sym("x")))
 
-    def test_save_and_load__preserve_data_correctly(self):
+    @parameterized.expand(
+        [
+            ("pkl",),
+            ("xz",),
+            ("pbz2",),
+            ("gz",),
+            ("bt",),
+            ("bl2",),
+        ]
+    )
+    def test_save_and_load__preserve_data_correctly(self, ext: str):
         global TMPFILENAME
-        TMPFILENAME = next(tempfile._get_candidate_names())
+        TMPFILENAME = f"{next(tempfile._get_candidate_names())}.{ext}"
         data = {"x": 5, "y": "ciao", "w": {"ci": "ao"}}
         io.save(TMPFILENAME, **data)
         data2 = io.load(TMPFILENAME)
@@ -73,7 +83,7 @@ class TestIo(unittest.TestCase):
 
     def test_save_and_load__one_key_dict_is_simplified(self):
         global TMPFILENAME
-        TMPFILENAME = next(tempfile._get_candidate_names())
+        TMPFILENAME = f"{next(tempfile._get_candidate_names())}.pkl"
         data = {"x": 5}
         io.save(TMPFILENAME, **data)
         data2 = io.load(TMPFILENAME)
@@ -82,7 +92,7 @@ class TestIo(unittest.TestCase):
 
     def tearDown(self) -> None:
         try:
-            os.remove(f"{TMPFILENAME}.pkl")
+            os.remove(TMPFILENAME)
         finally:
             return super().tearDown()
 

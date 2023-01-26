@@ -3,8 +3,20 @@ from copy import _reconstruct, deepcopy  # type: ignore[attr-defined]
 from functools import cached_property
 from inspect import getmembers
 from itertools import chain
+from os.path import splitext
 from pickletools import optimize
-from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    Iterable,
+    List,
+    Literal,
+    Optional,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -136,29 +148,102 @@ class SupportsDeepcopyAndPickle:
         return (dictstate, slotstate) if slotstate is not None else dictstate
 
 
-def save(filename: str, **data: Any) -> str:
+_COMPRESSION_EXTS: Dict[str, Optional[str]] = {
+    ".pkl": None,
+    ".xz": "lzma",
+    ".pbz2": "bz2",
+    ".gz": "gzip",
+    ".bt": "brotli",
+    ".bl2": "blosc2",
+}
+
+
+def save(
+    filename: str,
+    compression: Optional[Literal["lzma", "bz2", "gzip", "brotli", "blosc2"]] = None,
+    **data: Any,
+) -> str:
     """
-    Saves data to a pickle file.
+    Saves data to a (possibly compressed) pickle file. Inspired by
+    https://stackoverflow.com/a/57983757/19648688.
 
     Parameters
     ----------
     filename : str
-        The name of the file to save to. If the filename does not end in
-        `'.pkl'`, then this extension is automatically added.
+        The name of the file to save to. If the filename does not end in the correct
+        extension, then it is automatically added. The extensions are
+         - "pickle": .pkl
+         - "lzma": .xz
+         - "bz2": .pbz2
+         - "gzip": .gz
+         - "brotli": .bt
+         - "blosc2": .bl2
     **data : dict
         Any data to be saved to the pickle file.
+    compression : {"lzma", "bz2", "gzip", "brotli", "blosc2"]}
+        Type of compression to apply to the file. Note that brotli and blosc2 require
+        the installation of the corresponding pip package. By default, vanilla pickle is
+        used.
 
     Returns
     -------
     filename : str
         The complete name of the file where the data was written to.
     """
-    if not filename.endswith(".pkl"):
-        filename = f"{filename}.pkl"
-    with open(filename, "wb") as f:
-        pickled = pickle.dumps(data)
-        optimized = optimize(pickled)
-        f.write(optimized)
+
+    actual_ext = splitext(filename)[1]
+    if compression is None:
+        compression = _COMPRESSION_EXTS.get(  # type: ignore[assignment]
+            actual_ext, None
+        )
+
+    open_fun: Callable
+    compress_fun: Callable
+    if compression is None:
+        expected_ext = ".pkl"
+        open_fun = open
+        compress_fun = lambda o: o  # noqa E731
+    elif compression == "lzma":
+        import lzma
+
+        expected_ext = ".xz"
+        open_fun = lzma.open
+        compress_fun = lambda o: o  # noqa E731
+    elif compression == "bz2":
+        import bz2
+
+        expected_ext = ".pbz2"
+        open_fun = bz2.BZ2File
+        compress_fun = lambda o: o  # noqa E731
+    elif compression == "gzip":
+        import gzip
+
+        expected_ext = ".gz"
+        open_fun = gzip.open
+        compress_fun = lambda o: o  # noqa E731
+    elif compression == "brotli":
+        import brotli
+
+        expected_ext = ".bt"
+        open_fun = open
+        compress_fun = brotli.compress
+    elif compression == "blosc2":
+        import blosc2
+
+        expected_ext = ".bl2"
+        open_fun = open
+        compress_fun = blosc2.compress
+    else:
+        raise ValueError(f"Unknown compression method {compression}.")
+
+    if expected_ext != actual_ext:
+        filename += expected_ext
+
+    pickled = pickle.dumps(data)
+    optimized = optimize(pickled)
+    compressed = compress_fun(optimized)
+    with open_fun(filename, "wb") as f:
+        f.write(compressed)
     return filename
 
 
@@ -171,16 +256,59 @@ def load(filename: str) -> Dict[str, Any]:
     filename : str, optional
         The name of the file to load. If the filename does not end in `'.pkl'`,
         then this extension is automatically added.
+        The name of the file to load. If the filename does not end in a known extension,
+        then it fails. The known extensions are
+         - "pickle": .pkl
+         - "lzma": .xz
+         - "bz2": .pbz2
+         - "gzip": .gz
+         - "brotli": .bt
+         - "blosc2": .bl2
 
     Returns
     -------
     data : dict
         The saved data in the shape of a dictionary.
     """
-    if not filename.endswith(".pkl"):
-        filename = f"{filename}.pkl"
-    with open(filename, "rb") as f:
-        data = pickle.load(f)
+    ext = splitext(filename)[1]
+    compression = _COMPRESSION_EXTS[ext]
+
+    open_fun: Callable
+    decompress_fun: Callable
+    if compression is None:
+        open_fun = open
+        decompress_fun = pickle.loads
+    elif compression == "lzma":
+        import lzma
+
+        open_fun = lzma.open
+        decompress_fun = pickle.loads
+    elif compression == "bz2":
+        import bz2
+
+        open_fun = bz2.BZ2File
+        decompress_fun = pickle.loads
+    elif compression == "gzip":
+        import gzip
+
+        open_fun = gzip.open
+        decompress_fun = pickle.loads
+    elif compression == "brotli":
+        import brotli
+
+        open_fun = open
+        decompress_fun = lambda o: pickle.loads(brotli.decompress(o))  # noqa E731
+    elif compression == "blosc2":
+        import blosc2
+
+        open_fun = open
+        decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))  # noqa E731
+    else:
+        raise ValueError(f"Unknown file extension {ext}.")
+
+    with open_fun(filename, "rb") as f:
+        data = decompress_fun(f.read())
+
     if isinstance(data, dict) and len(data.keys()) == 1:
         data = data[next(iter(data.keys()))]
     return data

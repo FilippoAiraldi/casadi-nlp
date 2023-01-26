@@ -1,3 +1,5 @@
 scipy>=1.9.3
 coverage
 parameterized
+blosc2
+brotli
