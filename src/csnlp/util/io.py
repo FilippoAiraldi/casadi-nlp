@@ -6,6 +6,7 @@ from itertools import chain
 from os.path import splitext
 from pickletools import optimize
 from typing import (
+    TYPE_CHECKING,
     Any,
     Callable,
     Dict,
@@ -14,9 +15,13 @@ from typing import (
     Literal,
     Optional,
     Tuple,
+    Type,
     TypeVar,
     Union,
 )
+
+if TYPE_CHECKING:
+    from scipy.io.matlab import mat_struct
 
 
 def is_casadi_object(obj: Any) -> bool:
@@ -41,8 +46,7 @@ def is_casadi_object(obj: Any) -> bool:
 
 
 def is_pickleable(obj: Any) -> bool:
-    """
-    Checks whether the object is pickeable.
+    """Checks whether the object is pickeable.
 
     Parameters
     ----------
@@ -155,17 +159,20 @@ _COMPRESSION_EXTS: Dict[str, Optional[str]] = {
     ".gz": "gzip",
     ".bt": "brotli",
     ".bl2": "blosc2",
+    ".mat": "matlab",
 }
 
 
 def save(
     filename: str,
-    compression: Optional[Literal["lzma", "bz2", "gzip", "brotli", "blosc2"]] = None,
+    compression: Optional[
+        Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab"]
+    ] = None,
     **data: Any,
 ) -> str:
-    """
-    Saves data to a (possibly compressed) pickle file. Inspired by
-    https://stackoverflow.com/a/57983757/19648688.
+    """Saves data to a (possibly compressed) file. Inspired by
+     - https://stackoverflow.com/a/57983757/19648688,
+     - https://stackoverflow.com/a/8832212/19648688.
 
     Parameters
     ----------
@@ -178,12 +185,13 @@ def save(
          - "gzip": .gz
          - "brotli": .bt
          - "blosc2": .bl2
+         - "matlab": .mat
     **data : dict
-        Any data to be saved to the pickle file.
-    compression : {"lzma", "bz2", "gzip", "brotli", "blosc2"]}
-        Type of compression to apply to the file. Note that brotli and blosc2 require
-        the installation of the corresponding pip package. By default, vanilla pickle is
-        used.
+        Any data to be saved to a file.
+    compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab"]}
+        Type of compression to apply to the file. Note that `brotli` and `blosc2`
+        require the installation of the corresponding pip package. `matlab` requires the
+        installation of `scipy` to save as .mat file.By default, vanilla pickle is used.
 
     Returns
     -------
@@ -233,29 +241,37 @@ def save(
         expected_ext = ".bl2"
         open_fun = open
         compress_fun = blosc2.compress
+    elif compression == "matlab":
+
+        expected_ext = ".mat"
     else:
         raise ValueError(f"Unknown compression method {compression}.")
 
     if expected_ext != actual_ext:
         filename += expected_ext
 
-    pickled = pickle.dumps(data)
-    optimized = optimize(pickled)
-    compressed = compress_fun(optimized)
-    with open_fun(filename, "wb") as f:
-        f.write(compressed)
+    # address first special cases that do not adhere to the open/compress scheme
+    if compression == "matlab":
+        import scipy.io as spio
+
+        spio.savemat(filename, data, do_compression=True, oned_as="column")
+
+    # address all other cases that do adhere to the open/compress scheme
+    else:
+        pickled = pickle.dumps(data)
+        optimized = optimize(pickled)
+        compressed = compress_fun(optimized)
+        with open_fun(filename, "wb") as f:
+            f.write(compressed)
     return filename
 
 
 def load(filename: str) -> Dict[str, Any]:
-    """
-    Loads data from pickle.
+    """Loads data from a (possibly compressed) file.
 
     Parameters
     ----------
     filename : str, optional
-        The name of the file to load. If the filename does not end in `'.pkl'`,
-        then this extension is automatically added.
         The name of the file to load. If the filename does not end in a known extension,
         then it fails. The known extensions are
          - "pickle": .pkl
@@ -264,6 +280,7 @@ def load(filename: str) -> Dict[str, Any]:
          - "gzip": .gz
          - "brotli": .bt
          - "blosc2": .bl2
+         - "matlab": .mat
 
     Returns
     -------
@@ -303,12 +320,45 @@ def load(filename: str) -> Dict[str, Any]:
 
         open_fun = open
         decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))  # noqa E731
-    else:
+    elif compression != "matlab":
         raise ValueError(f"Unknown file extension {ext}.")
 
-    with open_fun(filename, "rb") as f:
-        data = decompress_fun(f.read())
+    # address first special cases that do not adhere to the open/decompress scheme
+    if compression == "matlab":
+        import scipy.io as spio
 
+        data = _check_mat_keys(
+            spio.loadmat(filename, struct_as_record=False, squeeze_me=True),
+            spio.matlab.mat_struct,
+        )
+
+    # address all other cases that do adhere to the open/decompress scheme
+    else:
+        with open_fun(filename, "rb") as f:
+            data = decompress_fun(f.read())
+
+    # if it is only a dict with one key, return the value of the key directly.
     if isinstance(data, dict) and len(data.keys()) == 1:
         data = data[next(iter(data.keys()))]
     return data
+
+
+def _check_mat_keys(dictionary: Dict, mat_struct_type: Type) -> Dict:
+    """Internal utility to check if entries in dictionary are mat-objects. If yes,
+    todict is called to change them to nested dictionaries."""
+
+    def _todict_recursive(matobj: "mat_struct") -> Dict:
+        dictionary = {}
+        for strg in matobj._fieldnames:
+            elem = matobj.__dict__[strg]
+            dictionary[strg] = (
+                _todict_recursive(elem) if isinstance(elem, mat_struct_type) else elem
+            )
+        return dictionary
+
+    for bad_key in ("__header__", "__version__", "__globals__"):
+        dictionary.pop(bad_key, None)
+    for key in dictionary:
+        if isinstance(dictionary[key], mat_struct_type):
+            dictionary[key] = _todict_recursive(dictionary[key])
+    return dictionary
