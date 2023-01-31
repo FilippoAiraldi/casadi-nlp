@@ -191,7 +191,7 @@ def save(
     compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab"]}
         Type of compression to apply to the file. Note that `brotli` and `blosc2`
         require the installation of the corresponding pip package. `matlab` requires the
-        installation of `scipy` to save as .mat file.By default, vanilla pickle is used.
+        installation of `scipy` to save as .mat file. By default, pickle is used.
 
     Returns
     -------
