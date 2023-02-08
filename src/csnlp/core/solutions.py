@@ -12,7 +12,7 @@ from csnlp.core.data import array2cs, cs2array
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, repr=False)
 class Solution(Generic[SymType]):
     """Class containing information on the solution of an NLP solver's run."""
 
@@ -71,6 +71,12 @@ class Solution(Generic[SymType]):
             still free since they are outside the solution's variables.
         """
         return self._get_value(x, eval=eval)  # type: ignore[call-arg]
+
+    def __repr__(self) -> str:
+        return (
+            f"{self.__class__.__name__}(f={self.f},success={self.success},"
+            f"status={self.status})"
+        )
 
 
 def _internal_subsevalf_cs(
