@@ -5,7 +5,7 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp import MultistartNlp, Nlp, scaling, wrappers
+from csnlp import Nlp, StackedMultistartNlp, scaling, wrappers
 
 OPTS = {
     "expand": True,
@@ -59,7 +59,7 @@ class TestExamples(unittest.TestCase):
         N = 3
         LB, UB = -0.5, 1.4
         x0s = [0.9, 0.5, 1.1]
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=LB, ub=UB)[0]
         nlp.parameter("p0")
         nlp.parameter("p1")
@@ -191,7 +191,7 @@ class TestExamples(unittest.TestCase):
         alpha = 1 / (300 * g)
         seed = 69
         rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
-        nlp = MultistartNlp(sym_type="SX", starts=K)
+        nlp = StackedMultistartNlp(sym_type="SX", starts=K)
 
         y_nom = 1e5
         v_nom = 2e3

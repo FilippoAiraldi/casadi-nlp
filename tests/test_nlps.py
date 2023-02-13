@@ -6,7 +6,7 @@ import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 
-from csnlp import MultistartNlp, Nlp
+from csnlp import Nlp, StackedMultistartNlp
 from csnlp.core.solutions import subsevalf
 from csnlp.nlps.multistart_nlp import _n
 from csnlp.util.math import log
@@ -639,11 +639,11 @@ class TestMultistartNlp(unittest.TestCase):
         with self.assertRaisesRegex(
             ValueError, "Number of scenarios must be positive and > 0."
         ):
-            MultistartNlp(starts=0, sym_type=self.sym_type)
+            StackedMultistartNlp(starts=0, sym_type=self.sym_type)
 
     def test_variable_parameter_and_constraint__builds_correct_copies(self):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x")[0]
         y = nlp.variable("y")[0]
         z = nlp.variable("z")[0]
@@ -658,7 +658,7 @@ class TestMultistartNlp(unittest.TestCase):
 
     def test_minimize__sums_objectives_in_unique_function(self):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x")[0]
         nlp.minimize(cs.exp((x - 1) ** 2))
         x_ = cs.DM(np.random.randn(*x.shape))
@@ -669,7 +669,7 @@ class TestMultistartNlp(unittest.TestCase):
 
     def test_solve__raises__with_both_flags_on(self):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         with self.assertRaisesRegex(
             AssertionError,
             "`return_multi_sol` and `return_all_sols` can't be both true.",
@@ -679,7 +679,7 @@ class TestMultistartNlp(unittest.TestCase):
     @parameterized.expand([(False,), (True,)])
     def test_solve__computes_right_solution(self, copy: bool):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         nlp.parameter("p")
         nlp.minimize(
@@ -715,7 +715,7 @@ class TestMultistartNlp(unittest.TestCase):
 
     def test_is_pickleable(self):
         N = 3
-        nlp = MultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         nlp.parameter("p")
         nlp.minimize(
@@ -726,7 +726,7 @@ class TestMultistartNlp(unittest.TestCase):
         )
         nlp.init_solver(OPTS)
 
-        nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
+        nlp2: StackedMultistartNlp = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
         self.assertEqual(nlp._multi_nlp.name, nlp2._multi_nlp.name)

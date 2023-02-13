@@ -37,11 +37,11 @@ def _get_value(x, sol: Solution[SymType], old, new, eval: bool = True):
     )
 
 
-class MultistartNlp(Nlp[SymType], Generic[SymType]):
-    """A class to easily model and solve an NLP from multiple starting initial guesses
-    in parallel. This is especially useful in case of strong nonlinearities, where the
-    solver's initial conditions play a great role in the optimality of the solution
-    (rather, its sub-optimality)."""
+class StackedMultistartNlp(Nlp[SymType], Generic[SymType]):
+    """A class that models and solves an NLP from multiple starting initial guesses by
+    automatically stacking the problem multiple independent times in the same,
+    larger-scale NLP. This allows to solve the original problem multiple times via a
+    single call to the solver."""
 
     __slots__ = ("_starts", "_multi_nlp")
     is_multi: ClassVar[bool] = True

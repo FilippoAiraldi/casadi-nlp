@@ -4,7 +4,7 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from csnlp import MultistartNlp, Solution
+from csnlp import Solution, StackedMultistartNlp
 
 plt.style.use("bmh")
 
@@ -21,7 +21,7 @@ def func(x):
 # build the NLPquit()
 N = 3
 LB, UB = -0.5, 1.4
-nlp = MultistartNlp[cs.SX](starts=N)
+nlp = StackedMultistartNlp[cs.SX](starts=N)
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 nlp.parameter("p0")
 nlp.parameter("p1")
