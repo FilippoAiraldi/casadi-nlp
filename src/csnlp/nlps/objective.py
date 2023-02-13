@@ -183,10 +183,32 @@ class HasObjective(HasConstraints[SymType]):
             Raises if the solver is un-initialized (see `init_solver`); or if not all
             the parameters are not provided with a numerical value.
         """
-        if pars is None:
-            pars = {}
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
+        kwargs = self._process_pars_and_vals0(
+            {
+                "lbx": self._lbx,
+                "ubx": self._ubx,
+                "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
+                "ubg": 0,
+            },
+            pars,
+            vals0,
+        )
+        sol = self._solver(**kwargs)
+        solution = self._process_solver_sol(sol, kwargs["p"])
+        self._failures += not solution.success
+        return solution
+
+    def _process_pars_and_vals0(
+        self,
+        kwargs: Dict[str, npt.ArrayLike],
+        pars: Optional[Dict[str, npt.ArrayLike]],
+        vals0: Optional[Dict[str, npt.ArrayLike]],
+    ) -> Dict[str, npt.ArrayLike]:
+        """Internal utility to convert pars and initial-val dicts to solver kwargs."""
+        if pars is None:
+            pars = {}
         parsdiff = self._pars.keys() - pars.keys()
         if len(parsdiff) != 0:
             raise RuntimeError(
@@ -194,25 +216,17 @@ class HasObjective(HasConstraints[SymType]):
                 + ", ".join(parsdiff)
                 + "."
             )
-
-        p = subsevalf(self._p, self._pars, pars)
-        kwargs = {
-            "p": p,
-            "lbx": self._lbx,
-            "ubx": self._ubx,
-            "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
-            "ubg": 0,
-        }
+        kwargs["p"] = subsevalf(self._p, self._pars, pars)
         if vals0 is not None:
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
-        sol: Dict[str, cs.DM] = self._solver(**kwargs)
+        return kwargs
 
-        # extract lam_x, lam_g and lam_h
+    def _process_solver_sol(self, sol: Dict[str, cs.DM], p: cs.DM) -> Solution:
+        """Internal utility to convert the solver sol dict to a Solution instance."""
         lam_lbx = -cs.fmin(sol["lam_x"], 0)
         lam_ubx = cs.fmax(sol["lam_x"], 0)
         lam_g = sol["lam_g"][: self.ng, :]
         lam_h = sol["lam_g"][self.ng :, :]
-
         vars = self.variables
         vals = {name: subsevalf(var, self._x, sol["x"]) for name, var in vars.items()}
         old = cs.vertcat(
@@ -220,12 +234,10 @@ class HasObjective(HasConstraints[SymType]):
         )
         new = cs.vertcat(p, sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        solution = Solution(
+        return Solution(
             f=float(sol["f"]),
             vars=vars,
             vals=vals,
-            stats=self._solver.func.stats().copy(),
+            stats=self._solver.func.stats().copy(),  # type: ignore[union-attr]
             _get_value=get_value,
         )
-        self._failures += int(not solution.success)
-        return solution
