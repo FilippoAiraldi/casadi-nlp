@@ -213,9 +213,9 @@ class StackedMultistartNlp(Nlp[SymType], Generic[SymType]):
         -------
         Solution or list of Solutions
             Depending on the flags `return_all_sols` and `return_multi_sol`, returns
-                - the best solution out of all multiple starts
-                - all the solutions (one per start)
-                - the solution to the underlying (hidden) multistart NLP.
+             - the best solution out of all multiple starts
+             - all the solutions (one per start)
+             - the solution to the underlying (hidden) multistart NLP.
 
         Raises
         ------
