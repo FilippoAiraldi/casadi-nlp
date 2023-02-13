@@ -40,7 +40,7 @@ def _get_value(x, sol: Solution[SymType], old, new, eval: bool = True):
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting."""
 
-    __slots__ = ("_starts", "__orig_class__")
+    __slots__ = ("_starts",)
     is_multi: ClassVar[bool] = True
 
     def __init__(self, *args, starts: int, **kwargs) -> None:
