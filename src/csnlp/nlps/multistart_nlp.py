@@ -37,22 +37,14 @@ def _get_value(x, sol: Solution[SymType], old, new, eval: bool = True):
     )
 
 
-class StackedMultistartNlp(Nlp[SymType], Generic[SymType]):
-    """A class that models and solves an NLP from multiple starting initial guesses by
-    automatically stacking the problem multiple independent times in the same,
-    larger-scale NLP. This allows to solve the original problem multiple times via a
-    single call to the solver."""
+class MultistartNlp(Nlp[SymType], Generic[SymType]):
+    """Base class for NLP with multistarting."""
 
-    __slots__ = ("_starts", "_multi_nlp")
+    __slots__ = ("_starts", "__orig_class__")
     is_multi: ClassVar[bool] = True
 
-    def __init__(
-        self,
-        *args,
-        starts: int,
-        **kwargs,
-    ) -> None:
-        """Initializes a multistart NLP instance.
+    def __init__(self, *args, starts: int, **kwargs) -> None:
+        """Initializes the multistart NLP instance.
 
         Parameters
         ----------
@@ -66,20 +58,44 @@ class StackedMultistartNlp(Nlp[SymType], Generic[SymType]):
         ValueError
             Raises if the scenario number is invalid.
         """
-        # this class essentially is a facade that hides an internal nlp in which the
-        # problem (variables, parameters, etc.) are duplicated by the requested number
-        # of multiple starts. For this reason, all methods are overridden to create
-        # multiples of these in the hidden nlp.
         if starts <= 0:
             raise ValueError("Number of scenarios must be positive and > 0.")
         super().__init__(*args, **kwargs)
         self._starts = starts
-        self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
 
     @property
     def starts(self) -> int:
         """Gets the number of starts."""
         return self._starts
+
+    def solve_multi(
+        self,
+        pars: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        return_all_sols: bool = False,
+    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+        raise NotImplementedError
+
+
+class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
+    """A class that models and solves an NLP from multiple starting initial guesses by
+    automatically stacking the problem multiple independent times in the same,
+    larger-scale NLP. This allows to solve the original problem multiple times via a
+    single call to the solver."""
+
+    __slots__ = ("_multi_nlp", "_fs")
+
+    def __init__(self, *args, starts: int, **kwargs) -> None:
+        # this class essentially is a facade that hides an internal nlp in which the
+        # problem (variables, parameters, etc.) are duplicated by the requested number
+        # of multiple starts. For this reason, all methods are overridden to create
+        # multiples of these in the hidden nlp.
+        super().__init__(*args, starts=starts, **kwargs)
+        self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
 
     @lru_cache
     def _symbols(
