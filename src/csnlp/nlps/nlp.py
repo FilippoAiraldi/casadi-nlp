@@ -15,9 +15,9 @@ from typing import (
 )
 
 import casadi as cs
-from joblib import Memory
 import numpy as np
 import numpy.typing as npt
+from joblib import Memory
 
 from csnlp.core.debug import NlpDebug
 from csnlp.nlps.objective import HasObjective
@@ -58,6 +58,9 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             If `True`, then redundant entries in `lbx` and `ubx` are removed when
             properties `h_lbx` and `h_ubx` are called. See these two properties for more
             details. By default, `True`.
+        cache : joblib.Memory, optional
+            Optional cache to avoid computing the same exact NLP more than once. By
+            default, no caching occurs.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
         debug : bool, optional

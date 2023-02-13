@@ -44,6 +44,11 @@ class HasObjective(HasConstraints[SymType]):
             If `True`, then redundant entries in `lbx` and `ubx` are removed when
             properties `h_lbx` and `h_ubx` are called. See these two properties for more
             details. By default, `True`.
+        cache : joblib.Memory, optional
+            Optional cache to avoid computing the same exact NLP more than once. By
+            default, no caching occurs.
+        name : str, optional
+            Name of the NLP scheme. If `None`, it is automatically assigned.
         """
         super().__init__(sym_type, remove_redundant_x_bounds)
         self.name = name
