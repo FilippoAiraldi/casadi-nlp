@@ -314,11 +314,7 @@ class NlpSensitivity(Wrapper[SymType]):
         # first order sensitivity, a.k.a., dydp
         Ky = d(self.jacobians["K-y"])
         Kp = d(self.jacobians["K-p"])
-        if solution is None:
-            Ky_inv = cs.inv(Ky)
-            dydp = -Ky_inv @ Kp
-        else:
-            dydp = -np.linalg.solve(Ky, Kp)
+        dydp = (cs.solve if solution is None else np.linalg.solve)(-Ky, Kp)
         if not second_order:
             return dydp, None, None  # type: ignore[return-value]
 
