@@ -175,7 +175,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
-        return_multi_sol: bool = False,
+        return_stacked_sol: bool = False,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         """See `MultistartNlp.solve` method."""
         assert self.nlp.is_multi and hasattr(
@@ -197,7 +197,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             pars,
             vals0,
             return_all_sols=return_all_sols,
-            return_multi_sol=return_multi_sol,
+            return_stacked_sol=return_stacked_sol,
         )
 
     def _scale_dict(self, d: Dict[str, npt.ArrayLike]) -> Dict[str, npt.ArrayLike]:

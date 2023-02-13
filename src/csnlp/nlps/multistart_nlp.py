@@ -77,6 +77,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
             None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
+        **_,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         """Solves the NLP with multiple initial conditions.
 
@@ -102,11 +103,6 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
             Depending on the flags `return_all_sols`, returns
              - the best solution out of all multiple starts
              - all the solutions (one per start)
-
-        Raises
-        ------
-        AssertionError
-            Raises if `return_multi_sol` and `return_all_sols` are both true.
         """
         raise NotImplementedError
 
@@ -117,7 +113,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     larger-scale NLP. This allows to solve the original problem multiple times via a
     single call to the solver."""
 
-    __slots__ = ("_multi_nlp", "_fs")
+    __slots__ = ("_stacked_nlp", "_fs")
 
     def __init__(self, *args, starts: int, **kwargs) -> None:
         # this class essentially is a facade that hides an internal nlp in which the
@@ -125,7 +121,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         # of multiple starts. For this reason, all methods are overridden to create
         # multiples of these in the hidden nlp.
         super().__init__(*args, starts=starts, **kwargs)
-        self._multi_nlp = Nlp(*args, **kwargs)  # actual nlp
+        self._stacked_nlp = Nlp(*args, **kwargs)  # actual nlp
 
     @lru_cache
     def _symbols(
@@ -136,27 +132,25 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         dual: bool = False,
     ) -> Dict[str, SymType]:
         """Internal utility to retrieve the symbols of the i-th scenario."""
+        nlp = self._stacked_nlp.unwrapped
         S: Dict[str, SymType] = {}
         if vars:
             S.update(
                 self._vars
                 if i is None
-                else {k: self._multi_nlp.unwrapped._vars[_n(k, i)] for k in self._vars}
+                else {k: nlp._vars[_n(k, i)] for k in self._vars}
             )
         if pars:
             S.update(
                 self._pars
                 if i is None
-                else {k: self._multi_nlp.unwrapped._pars[_n(k, i)] for k in self._pars}
+                else {k: nlp._pars[_n(k, i)] for k in self._pars}
             )
         if dual:
             S.update(
                 self._dual_vars
                 if i is None
-                else {
-                    k: self._multi_nlp.unwrapped._dual_vars[_n(k, i)]
-                    for k in self._dual_vars
-                }
+                else {k: nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
             )
         return S
 
@@ -164,7 +158,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         for i in range(self._starts):
-            self._multi_nlp.parameter(_n(name, i), shape)
+            self._stacked_nlp.parameter(_n(name, i), shape)
         return out
 
     @invalidate_cache(_symbols)
@@ -177,7 +171,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     ) -> Tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, lb, ub)
         for i in range(self._starts):
-            self._multi_nlp.variable(_n(name, i), shape, lb, ub)
+            self._stacked_nlp.variable(_n(name, i), shape, lb, ub)
         return out
 
     @invalidate_cache(_symbols)
@@ -193,13 +187,13 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         expr = lhs - rhs
         if simplify:
             expr = cs.simplify(expr)
-        out = super().constraint(name, expr, op, 0, soft, simplify=False)
+        out = super().constraint(name, expr, op, 0, soft, False)
 
         symbols = self._symbols(vars=True, pars=True)
         for i in range(self._starts):
             symbols_i = self._symbols(i, vars=True, pars=True)
             expr_i = subsevalf(expr, symbols, symbols_i, eval=False)
-            self._multi_nlp.constraint(_n(name, i), expr_i, op, 0, soft, simplify=False)
+            self._stacked_nlp.constraint(_n(name, i), expr_i, op, 0, soft, False)
         return out
 
     def minimize(self, objective: SymType) -> None:
@@ -211,7 +205,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             )
             for i in range(self._starts)
         ]
-        self._multi_nlp.minimize(sum(self._fs))
+        self._stacked_nlp.minimize(sum(self._fs))
         return out
 
     def init_solver(
@@ -220,7 +214,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         solver: Literal["opti", "qp"] = "opti",
     ) -> None:
         out = super().init_solver(opts, solver)
-        self._multi_nlp.init_solver(opts, solver)
+        self._stacked_nlp.init_solver(opts, solver)
         return out
 
     def solve_multi(
@@ -232,11 +226,12 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
-        return_multi_sol: bool = False,
+        return_stacked_sol: bool = False,
+        **_,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
         assert not (
-            return_multi_sol and return_all_sols
-        ), "`return_multi_sol` and `return_all_sols` can't be both true."
+            return_stacked_sol and return_all_sols
+        ), "`return_all_sols` and `return_stacked_sol` can't be both true."
         if pars is not None:
             pars_iter = repeat(pars, self.starts) if isinstance(pars, dict) else pars
             pars = {
@@ -251,8 +246,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 for i, vals0_i in enumerate(v0_iter)
                 for n in vals0_i.keys()
             }
-        multi_sol = self._multi_nlp.solve(pars=pars, vals0=vals0)
-        if return_multi_sol:
+        multi_sol = self._stacked_nlp.solve(pars=pars, vals0=vals0)
+        if return_stacked_sol:
             return multi_sol
 
         vars = self.variables
