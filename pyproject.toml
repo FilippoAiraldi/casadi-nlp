@@ -22,7 +22,8 @@ classifiers = [
 ]
 dependencies = [
     "numpy >= 1.21.6",
-    "casadi >= 3.5.5"
+    "casadi >= 3.5.5",
+    "joblib >= 1.2.0",
 ]
 
 [project.optional-dependencies]

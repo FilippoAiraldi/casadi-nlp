@@ -15,6 +15,7 @@ from typing import (
 )
 
 import casadi as cs
+from joblib import Memory
 import numpy as np
 import numpy.typing as npt
 
@@ -43,6 +44,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         self,
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
+        cache: Memory = None,
         name: Optional[str] = None,
         debug: bool = False,
     ) -> None:
@@ -69,7 +71,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         """
         id = next(self.__ids)
         name = f"{self.__class__.__name__}{id}" if name is None else name
-        HasObjective.__init__(self, sym_type, remove_redundant_x_bounds, name)
+        HasObjective.__init__(self, sym_type, remove_redundant_x_bounds, cache, name)
         SupportsDeepcopyAndPickle.__init__(self)
         self.id = id
         self._debug = NlpDebug() if debug else None

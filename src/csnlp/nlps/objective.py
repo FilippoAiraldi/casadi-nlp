@@ -4,6 +4,8 @@ from typing import Any, Dict, Literal, Optional, TypeVar
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
+from joblib import Memory
+from joblib.memory import MemorizedFunc
 
 from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
@@ -15,12 +17,21 @@ class HasObjective(HasConstraints[SymType]):
     """Class for creating an NLP problem with parameters, variables, constraints and an
     objective."""
 
-    __slots__ = ("name", "_f", "_solver", "_solver_opts", "_solver_type", "_failures")
+    __slots__ = (
+        "name",
+        "_f",
+        "_solver",
+        "_solver_opts",
+        "_solver_type",
+        "_cache",
+        "_failures",
+    )
 
     def __init__(
         self,
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
+        cache: Memory = None,
         name: Optional[str] = None,
     ) -> None:
         """Instantiate the class.
@@ -37,8 +48,9 @@ class HasObjective(HasConstraints[SymType]):
         super().__init__(sym_type, remove_redundant_x_bounds)
         self.name = name
         self._f: Optional[SymType] = None
-        self._solver: Optional[cs.Function] = None
+        self._solver: Optional[MemorizedFunc] = None
         self._solver_opts: Dict[str, Any] = {}
+        self._cache = cache if cache is not None else Memory(None)
         self._failures = 0
 
     @property
@@ -51,7 +63,7 @@ class HasObjective(HasConstraints[SymType]):
     def solver(self) -> Optional[cs.Function]:
         """Gets the NLP optimization solver. Can be `None`, if the solver is not set
         with method `init_solver`."""
-        return self._solver
+        return self._solver.func if self._solver is not None else None
 
     @property
     def solver_opts(self) -> Dict[str, Any]:
@@ -86,11 +98,14 @@ class HasObjective(HasConstraints[SymType]):
         """
         if self._f is None:
             raise RuntimeError("NLP objective not set.")
+
         opts = {} if opts is None else opts.copy()
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         func, stype = (cs.qpsol, "qrqp") if solver == "qp" else (cs.nlpsol, "ipopt")
-        self._solver = func(f"solver_{stype}_{self.name}", stype, problem, opts)
+        solver_func = func(f"solver_{stype}_{self.name}", stype, problem, opts)
+
+        self._solver = self._cache.cache(solver_func)
         self._solver_type = solver
         self._solver_opts = opts
 
@@ -204,7 +219,7 @@ class HasObjective(HasConstraints[SymType]):
             f=float(sol["f"]),
             vars=vars,
             vals=vals,
-            stats=self._solver.stats().copy(),
+            stats=self._solver.func.stats().copy(),
             _get_value=get_value,
         )
         self._failures += int(not solution.success)
