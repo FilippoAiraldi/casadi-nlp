@@ -287,6 +287,7 @@ class TestNlp(unittest.TestCase):
 
     @parameterized.expand([(True,), (False,)])
     def test_h_lbx_ubx__returns_correct_indices(self, flag: bool):
+        # sourcery skip: low-code-quality
         nlp = Nlp(sym_type=self.sym_type, remove_redundant_x_bounds=flag)
 
         x1, lam_lbx1, lam_ubx1 = nlp.variable("x1", (2, 1))
@@ -651,10 +652,10 @@ class TestMultistartNlp(unittest.TestCase):
         nlp.constraint("c0", x**2, "<=", p)
         nlp.constraint("c1", y, "==", p)
         nlp.constraint("c2", z, ">=", -p)
-        self.assertEqual(nlp.nx, nlp._multi_nlp.nx // N)
-        self.assertEqual(nlp.np, nlp._multi_nlp.np // N)
-        self.assertEqual(nlp.ng, nlp._multi_nlp.ng // N)
-        self.assertEqual(nlp.nh, nlp._multi_nlp.nh // N)
+        self.assertEqual(nlp.nx, nlp._stacked_nlp.nx // N)
+        self.assertEqual(nlp.np, nlp._stacked_nlp.np // N)
+        self.assertEqual(nlp.ng, nlp._stacked_nlp.ng // N)
+        self.assertEqual(nlp.nh, nlp._stacked_nlp.nh // N)
 
     def test_minimize__sums_objectives_in_unique_function(self):
         N = 3
@@ -664,7 +665,7 @@ class TestMultistartNlp(unittest.TestCase):
         x_ = cs.DM(np.random.randn(*x.shape))
         x_dict = {_n("x", i): x_ for i in range(N)}
         f1 = subsevalf(nlp.f, x, x_)
-        f2 = subsevalf(nlp._multi_nlp.f, nlp._multi_nlp._vars, x_dict)
+        f2 = subsevalf(nlp._stacked_nlp.f, nlp._stacked_nlp._vars, x_dict)
         self.assertAlmostEqual(f1, f2 / N)
 
     def test_solve__raises__with_both_flags_on(self):
@@ -729,7 +730,7 @@ class TestMultistartNlp(unittest.TestCase):
         nlp2: StackedMultistartNlp = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
-        self.assertEqual(nlp._multi_nlp.name, nlp2._multi_nlp.name)
+        self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
 
 
 if __name__ == "__main__":
