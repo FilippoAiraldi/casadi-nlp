@@ -78,6 +78,36 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
         ] = None,
         return_all_sols: bool = False,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+        """Solves the NLP with multiple initial conditions.
+
+        Parameters
+        ----------
+        pars : dict[str, array_like] or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            parameter in the NLP scheme, the corresponding numerical value. In case a
+            single dict is passed, the same is used across all scenarions. Can be `None`
+            if no parameters are present.
+        vals0 : dict[str, array_like] or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            variable in the NLP scheme, the corresponding initial guess. In case a
+            single dict is passed, the same is used across all scenarions. By default
+            `None`, in which case  initial guesses are not passed to the solver.
+        return_all_sols : bool, optional
+            If `True`, returns the solution of each multistart of the NLP; otherwise,
+            only the best solution is returned. By default, `False`.
+
+        Returns
+        -------
+        Solution or list of Solutions
+            Depending on the flags `return_all_sols`, returns
+             - the best solution out of all multiple starts
+             - all the solutions (one per start)
+
+        Raises
+        ------
+        AssertionError
+            Raises if `return_multi_sol` and `return_all_sols` are both true.
+        """
         raise NotImplementedError
 
 
@@ -204,40 +234,6 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         return_all_sols: bool = False,
         return_multi_sol: bool = False,
     ) -> Union[Solution[SymType], List[Solution[SymType]]]:
-        """Solves the NLP with multiple initial conditions.
-
-        Parameters
-        ----------
-        pars : dict[str, array_like] or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            parameter in the NLP scheme, the corresponding numerical value. In case a
-            single dict is passed, the same is used across all scenarions. Can be `None`
-            if no parameters are present.
-        vals0 : dict[str, array_like] or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            variable in the NLP scheme, the corresponding initial guess. In case a
-            single dict is passed, the same is used across all scenarions. By default
-            `None`, in which case  initial guesses are not passed to the solver.
-        return_all_sols : bool, optional
-            If `True`, returns the solution of each multistart of the NLP; otherwise,
-            only the best solution is returned. By default, `False`.
-        return_multi_sol : bool, optional
-            If `True`, returns the solution of the underlying multistart NLP. Generally,
-            only for debugging. By default, `False`.
-
-        Returns
-        -------
-        Solution or list of Solutions
-            Depending on the flags `return_all_sols` and `return_multi_sol`, returns
-             - the best solution out of all multiple starts
-             - all the solutions (one per start)
-             - the solution to the underlying (hidden) multistart NLP.
-
-        Raises
-        ------
-        AssertionError
-            Raises if `return_multi_sol` and `return_all_sols` are both true.
-        """
         assert not (
             return_multi_sol and return_all_sols
         ), "`return_multi_sol` and `return_all_sols` can't be both true."
