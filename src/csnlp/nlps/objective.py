@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Literal, Optional, TypeVar
+from typing import Any, Dict, Literal, Optional, Tuple, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -11,6 +11,15 @@ from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+
+
+def _solve_and_get_stats(
+    solver: MemorizedFunc, kwargs: Dict[str, npt.ArrayLike]
+) -> Tuple[Dict[str, cs.DM], Dict[str, Any]]:
+    """Internal utility to simultaneously run the solver and get its stats."""
+    sol = solver(**kwargs)
+    sol["p"] = kwargs["p"]  # add to solution the parameters for which it was computed
+    return sol, solver.func.stats()
 
 
 class HasObjective(HasConstraints[SymType]):
@@ -183,10 +192,32 @@ class HasObjective(HasConstraints[SymType]):
             Raises if the solver is un-initialized (see `init_solver`); or if not all
             the parameters are not provided with a numerical value.
         """
-        if pars is None:
-            pars = {}
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
+        kwargs = self._process_pars_and_vals0(
+            {
+                "lbx": self._lbx,
+                "ubx": self._ubx,
+                "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
+                "ubg": 0,
+            },
+            pars,
+            vals0,
+        )
+        sol_and_stats = _solve_and_get_stats(self._solver, kwargs)
+        solution = self._process_solver_sol(sol_and_stats)
+        self._failures += not solution.success
+        return solution
+
+    def _process_pars_and_vals0(
+        self,
+        kwargs: Dict[str, npt.ArrayLike],
+        pars: Optional[Dict[str, npt.ArrayLike]],
+        vals0: Optional[Dict[str, npt.ArrayLike]],
+    ) -> Dict[str, npt.ArrayLike]:
+        """Internal utility to convert pars and initial-val dicts to solver kwargs."""
+        if pars is None:
+            pars = {}
         parsdiff = self._pars.keys() - pars.keys()
         if len(parsdiff) != 0:
             raise RuntimeError(
@@ -194,38 +225,31 @@ class HasObjective(HasConstraints[SymType]):
                 + ", ".join(parsdiff)
                 + "."
             )
-
-        p = subsevalf(self._p, self._pars, pars)
-        kwargs = {
-            "p": p,
-            "lbx": self._lbx,
-            "ubx": self._ubx,
-            "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
-            "ubg": 0,
-        }
+        kwargs["p"] = subsevalf(self._p, self._pars, pars)
         if vals0 is not None:
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
-        sol: Dict[str, cs.DM] = self._solver(**kwargs)
+        return kwargs
 
-        # extract lam_x, lam_g and lam_h
+    def _process_solver_sol(
+        self, sol_and_stats: Tuple[Dict[str, cs.DM], Dict[str, Any]]
+    ) -> Solution:
+        """Internal utility to convert the solver sol dict to a Solution instance."""
+        sol, stats = sol_and_stats
         lam_lbx = -cs.fmin(sol["lam_x"], 0)
         lam_ubx = cs.fmax(sol["lam_x"], 0)
         lam_g = sol["lam_g"][: self.ng, :]
         lam_h = sol["lam_g"][self.ng :, :]
-
         vars = self.variables
         vals = {name: subsevalf(var, self._x, sol["x"]) for name, var in vars.items()}
         old = cs.vertcat(
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
-        new = cs.vertcat(p, sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
+        new = cs.vertcat(sol["p"], sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        solution = Solution(
+        return Solution(
             f=float(sol["f"]),
             vars=vars,
             vals=vals,
-            stats=self._solver.func.stats().copy(),
+            stats=stats,
             _get_value=get_value,
         )
-        self._failures += int(not solution.success)
-        return solution
