@@ -6,6 +6,7 @@ from typing import (
     Dict,
     Generic,
     Iterable,
+    Iterator,
     List,
     Literal,
     Optional,
@@ -17,10 +18,12 @@ from typing import (
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
+from joblib import Parallel, delayed
 
 from csnlp.core.cache import invalidate_cache
 from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.nlp import Nlp
+from csnlp.nlps.objective import _solve_and_get_stats
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
@@ -246,7 +249,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 for i, vals0_i in enumerate(v0_iter)
                 for n in vals0_i.keys()
             }
-        multi_sol = self._stacked_nlp.solve(pars=pars, vals0=vals0)
+        multi_sol = self._stacked_nlp.solve(pars, vals0)
         if return_stacked_sol:
             return multi_sol
 
@@ -266,7 +269,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             }
 
             symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
-            new = subsevalf(old, symbols, symbols_i, eval=False)
+            new = subsevalf(old, symbols, symbols_i, False)
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
 
             sols.append(
@@ -282,3 +285,91 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def __call__(self, *args, **kwargs):
         return self.solve_multi(*args, **kwargs)
+
+
+class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
+    """A class that solves an NLP via parallelization of the computations."""
+
+    __slots__ = ("_parallel",)
+
+    def __init__(
+        self, *args, starts: int, n_jobs: Optional[int] = None, **kwargs
+    ) -> None:
+        """Initializes the multistart NLP instance.
+
+        Parameters
+        ----------
+        args, kwargs
+            See inherited `csnlp.Nlp`.
+        starts : int
+            A positive integer for the number of multiple starting guesses to optimize.
+        n_jobs : int, optional
+            Number of concurrently running jobs; see `n_job` in `joblib.Parallel`.
+
+        Raises
+        ------
+        ValueError
+            Raises if the scenario number is invalid.
+        """
+        super().__init__(*args, starts=starts, **kwargs)
+        self._parallel = Parallel(n_jobs=n_jobs)
+        self.initialize_parallel()
+
+    def initialize_parallel(self) -> None:
+        """Initializes the parallel backend."""
+        self._parallel.__enter__()
+
+    def terminate_parallel(self) -> None:
+        """Terminates the parallel backend."""
+        self._parallel.__exit__(None, None, None)
+
+    def solve_multi(
+        self,
+        pars: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+        ] = None,
+        return_all_sols: bool = False,
+        **_,
+    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+        if self._solver is None:
+            raise RuntimeError("Solver uninitialized.")
+        shared_kwargs = {
+            "lbx": self._lbx,
+            "ubx": self._ubx,
+            "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
+            "ubg": 0,
+        }
+        pars_iter = (
+            repeat(pars, self.starts)
+            if pars is None or isinstance(pars, dict)
+            else pars
+        )
+        vals0_iter = (
+            repeat(vals0, self.starts)
+            if vals0 is None or isinstance(vals0, dict)
+            else vals0
+        )
+        kwargs = (
+            self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
+            for p, v0 in zip(pars_iter, vals0_iter)
+        )
+        sols: Iterator[Solution] = map(
+            self._process_solver_sol,
+            self._parallel(
+                delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
+            ),
+        )
+        if return_all_sols:
+            return list(sols)
+
+        # pick the best solution, with priority to successful solutions
+        best_sol = next(sols)
+        for sol in sols:
+            if (not best_sol.success and sol.success) or (
+                best_sol.success == sol.success and sol.f < best_sol.f
+            ):
+                best_sol = sol
+        return best_sol
