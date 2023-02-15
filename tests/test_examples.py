@@ -1,11 +1,12 @@
 import unittest
+from typing import Type
 
 import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp import Nlp, StackedMultistartNlp, scaling, wrappers
+from csnlp import Nlp, ParallelMultistartNlp, StackedMultistartNlp, scaling, wrappers
 
 OPTS = {
     "expand": True,
@@ -175,7 +176,8 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_j"], j0, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
-    def test__scaling(self):
+    @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
+    def test__scaling(self, multinlp_cls: Type):
         def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
             x, u = cs.SX.sym("x", 3), cs.SX.sym("u")
             x_next = x + cs.vertcat(x[1], u / x[2] - g, -alpha * u) * dt
@@ -191,7 +193,8 @@ class TestExamples(unittest.TestCase):
         alpha = 1 / (300 * g)
         seed = 69
         rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
-        nlp = StackedMultistartNlp(sym_type="SX", starts=K)
+        kwargs = {"n_jobs": -1} if multinlp_cls is ParallelMultistartNlp else {}
+        nlp = multinlp_cls(sym_type="SX", starts=K, **kwargs)
 
         y_nom = 1e5
         v_nom = 2e3
@@ -214,7 +217,10 @@ class TestExamples(unittest.TestCase):
         mpc.constraint("yT", y[-1], "==", yT)
         mpc.minimize(m[0] - m[-1])
         mpc.init_solver(OPTS)
-        mpc = mpc.copy()
+
+        if multinlp_cls is StackedMultistartNlp:
+            mpc = mpc.copy()
+
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 
         pars = [{"x_0": x0}] * K

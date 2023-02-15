@@ -1,12 +1,12 @@
 import pickle
 import unittest
-from typing import List, Union
+from typing import List, Type, Union
 
 import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 
-from csnlp import Nlp, StackedMultistartNlp
+from csnlp import Nlp, ParallelMultistartNlp, StackedMultistartNlp
 from csnlp.core.solutions import subsevalf
 from csnlp.nlps.multistart_nlp import _n
 from csnlp.util.math import log
@@ -677,10 +677,16 @@ class TestMultistartNlp(unittest.TestCase):
         ):
             nlp(None, None, return_all_sols=True, return_stacked_sol=True)
 
-    @parameterized.expand([(False,), (True,)])
-    def test_solve__computes_right_solution(self, copy: bool):
+    @parameterized.expand(
+        [
+            (False, StackedMultistartNlp),
+            (True, StackedMultistartNlp),
+            (False, ParallelMultistartNlp),
+        ]
+    )
+    def test_solve__computes_right_solution(self, copy: bool, multinlp_cls: Type):
         N = 3
-        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         nlp.parameter("p")
         nlp.minimize(
@@ -714,9 +720,10 @@ class TestMultistartNlp(unittest.TestCase):
         np.testing.assert_allclose(best_sol.f, min(fs))
         np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
 
-    def test_is_pickleable(self):
+    @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
+    def test_is_pickleable(self, multinlp_cls: Type):
         N = 3
-        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
+        nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         nlp.parameter("p")
         nlp.minimize(
@@ -727,10 +734,11 @@ class TestMultistartNlp(unittest.TestCase):
         )
         nlp.init_solver(OPTS)
 
-        nlp2: StackedMultistartNlp = pickle.loads(pickle.dumps(nlp))
+        nlp2 = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
-        self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
+        if multinlp_cls is StackedMultistartNlp:
+            self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
 
 
 if __name__ == "__main__":
