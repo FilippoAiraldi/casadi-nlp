@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Literal, Optional, Tuple, TypeVar
+from typing import Any, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -15,11 +15,12 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 def _solve_and_get_stats(
     solver: MemorizedFunc, kwargs: Dict[str, npt.ArrayLike]
-) -> Tuple[Dict[str, cs.DM], Dict[str, Any]]:
+) -> Dict[str, Any]:
     """Internal utility to simultaneously run the solver and get its stats."""
     sol = solver(**kwargs)
     sol["p"] = kwargs["p"]  # add to solution the parameters for which it was computed
-    return sol, solver.func.stats()
+    sol["stats"] = solver.func.stats()  # add to solution the solver stats
+    return sol
 
 
 class HasObjective(HasConstraints[SymType]):
@@ -204,8 +205,8 @@ class HasObjective(HasConstraints[SymType]):
             pars,
             vals0,
         )
-        sol_and_stats = _solve_and_get_stats(self._solver, kwargs)
-        solution = self._process_solver_sol(sol_and_stats)
+        sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
+        solution = self._process_solver_sol(sol_with_stats)
         self._failures += not solution.success
         return solution
 
@@ -230,11 +231,8 @@ class HasObjective(HasConstraints[SymType]):
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
         return kwargs
 
-    def _process_solver_sol(
-        self, sol_and_stats: Tuple[Dict[str, cs.DM], Dict[str, Any]]
-    ) -> Solution:
+    def _process_solver_sol(self, sol: Dict[str, Any]) -> Solution:
         """Internal utility to convert the solver sol dict to a Solution instance."""
-        sol, stats = sol_and_stats
         lam_lbx = -cs.fmin(sol["lam_x"], 0)
         lam_ubx = cs.fmax(sol["lam_x"], 0)
         lam_g = sol["lam_g"][: self.ng, :]
@@ -250,6 +248,6 @@ class HasObjective(HasConstraints[SymType]):
             f=float(sol["f"]),
             vars=vars,
             vals=vals,
-            stats=stats,
+            stats=sol["stats"],
             _get_value=get_value,
         )
