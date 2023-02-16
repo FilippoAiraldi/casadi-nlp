@@ -389,7 +389,7 @@ class NlpSensitivity(Wrapper[SymType]):
             return
 
         sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
-        idx = np.asarray(sp_J.get_crs()[1], dtype=int)
+        idx = np.asarray(sp_J.get_crs()[1], int)
         assert idx.size == p.shape[0], (
             "Invalid subset of target parameters (some were not found in the"
             " original NLP parameters)."
@@ -406,7 +406,7 @@ class NlpSensitivity(Wrapper[SymType]):
         # in case of MX, jacobians throw if the MX are indexed (no more
         # symbolical according to the exception). So we take the jacobian
         # with all primal-dual vars, and then index the relevant rows/cols.
-        y = self.nlp.primal_dual_vars(all=True)
+        y = self.nlp.primal_dual_vars(True)
         h_lbx_idx = np.where(self.nlp.lbx != -np.inf)[0]
         h_ubx_idx = np.where(self.nlp.ubx != +np.inf)[0]
         n = self.nlp.nx + self.nlp.ng + self.nlp.nh

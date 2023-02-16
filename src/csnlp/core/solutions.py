@@ -127,7 +127,7 @@ def _internal_subsevalf_np(
     if transposed:
         shape = shape[::-1]
         expr = expr.transpose()
-    out = np.empty(shape, dtype=object)
+    out = np.empty(shape, object)
     shape_iter, shape_cs = shape[:-2], shape[-2:]
     for i in product(*map(range, shape_iter)):
         out[i] = cs2array(

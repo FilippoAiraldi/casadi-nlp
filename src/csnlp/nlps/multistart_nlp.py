@@ -267,18 +267,16 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 n: multi_sol.vals[_n(n, i)]  # type: ignore[arg-type]
                 for n in vars.keys()
             }
-
             symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
             new = subsevalf(old, symbols, symbols_i, False)
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
-
             sols.append(
                 Solution(
-                    f=fs[i],  # type: ignore[call-overload]
-                    vars=vars,
-                    vals=vals,
-                    stats=multi_sol.stats,
-                    _get_value=get_value,
+                    fs[i],  # type: ignore[call-overload]
+                    vars,
+                    vals,
+                    multi_sol.stats,
+                    get_value,
                 )
             )
         return sols if return_all_sols else sols[0]

@@ -159,6 +159,4 @@ class MinMaxScaler(Scaler):
             Raises if a duplicate name is detected.
         ValueError
         """
-        return super().register(
-            name=name, loc=min, scale=max - min  # type: ignore[operator]
-        )
+        return super().register(name, min, max - min)  # type: ignore[operator]

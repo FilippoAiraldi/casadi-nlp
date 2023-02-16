@@ -73,7 +73,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
         return x.full()
 
     shape = x.shape
-    y = np.empty(shape, dtype=object)
+    y = np.empty(shape, object)
     indices = product(range(shape[0]), range(shape[1]))
     for idx in indices:
         y[idx] = x[idx]

@@ -128,7 +128,7 @@ class SupportsDeepcopyAndPickle:
             return self
         assert len(rv) < 6 or rv[5] is None, "Unexpected reductor callable."
         # overwrite the filtered state with its full version
-        fullstate = self.__getstate__(fullstate=True)
+        fullstate = self.__getstate__(True)
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 

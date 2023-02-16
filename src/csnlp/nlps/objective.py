@@ -244,10 +244,4 @@ class HasObjective(HasConstraints[SymType]):
         )
         new = cs.vertcat(sol["p"], sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
         get_value = partial(subsevalf, old=old, new=new)
-        return Solution(
-            f=float(sol["f"]),
-            vars=vars,
-            vals=vals,
-            stats=sol["stats"],
-            _get_value=get_value,
-        )
+        return Solution(float(sol["f"]), vars, vals, sol["stats"], get_value)

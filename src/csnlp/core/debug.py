@@ -170,13 +170,13 @@ class NlpDebug:
             (
                 range(last, last + prod(shape)),
                 NlpDebugEntry(
-                    name=name,
-                    type=self.types[group],
-                    shape=shape,
-                    filename=traceback.filename,
-                    function=traceback.function,
-                    lineno=lineno,
-                    context=(
+                    name,
+                    self.types[group],
+                    shape,
+                    traceback.filename,
+                    traceback.function,
+                    lineno,
+                    (
                         "; ".join(traceback.code_context)
                         if traceback.code_context is not None
                         else ""

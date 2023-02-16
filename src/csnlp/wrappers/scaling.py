@@ -146,9 +146,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         simplify: bool = True,
     ) -> Tuple[SymType, ...]:
         """See `Nlp.constraint` method."""
-        return self.nlp.constraint(
-            name, self.unscale(lhs - rhs), op, 0, soft=soft, simplify=simplify
-        )
+        return self.nlp.constraint(name, self.unscale(lhs - rhs), op, 0, soft, simplify)
 
     def minimize(self, objective: SymType) -> None:
         """See `Nlp.minimize` method."""

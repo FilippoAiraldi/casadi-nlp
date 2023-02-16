@@ -249,7 +249,7 @@ class HasConstraints(HasVariables[SymType]):
             if any element of the lower bound is larger than the corresponding
             lower bound element.
         """
-        var = super().variable(name=name, shape=shape)
+        var = super().variable(name, shape)
 
         lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
         if np.all(lb > ub):

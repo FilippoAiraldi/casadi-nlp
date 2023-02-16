@@ -55,7 +55,7 @@ def hohessian(
     if y is None:
         y = x
     J = hojacobian(ex, x)
-    H = np.empty(ex.shape + x.shape + y.shape, dtype=object)
+    H = np.empty(ex.shape + x.shape + y.shape, object)
     for i in product(*map(range, ex.shape)):
         H[i] = hojacobian(array2cs(J[i]), y)
     return H, J
