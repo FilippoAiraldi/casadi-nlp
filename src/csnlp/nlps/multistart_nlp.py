@@ -367,9 +367,11 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         # pick the best solution, with priority to successful solutions
         best_sol = next(sols)
+        self._failures += not best_sol.success
         for sol in sols:
             if (not best_sol.success and sol.success) or (
                 best_sol.success == sol.success and sol.f < best_sol.f
             ):
                 best_sol = sol
+            self._failures += not sol.success
         return best_sol
