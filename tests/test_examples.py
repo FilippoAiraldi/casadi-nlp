@@ -217,9 +217,7 @@ class TestExamples(unittest.TestCase):
         mpc.constraint("yT", y[-1], "==", yT)
         mpc.minimize(m[0] - m[-1])
         mpc.init_solver(OPTS)
-
-        if multinlp_cls is StackedMultistartNlp:
-            mpc = mpc.copy()
+        mpc = mpc.copy()
 
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 

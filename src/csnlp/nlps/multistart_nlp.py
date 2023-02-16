@@ -290,7 +290,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP via parallelization of the computations."""
 
-    __slots__ = ("_parallel",)
+    __slots__ = ("_parallel", "_n_jobs")
 
     def __init__(
         self, *args, starts: int, n_jobs: Optional[int] = None, **kwargs
@@ -312,6 +312,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             Raises if the scenario number is invalid.
         """
         super().__init__(*args, starts=starts, **kwargs)
+        self._n_jobs = n_jobs
         self._parallel = Parallel(n_jobs=n_jobs)
         self.initialize_parallel()
 
@@ -375,3 +376,34 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 best_sol = sol
             self._failures += not sol.success
         return best_sol
+
+    def __getstate__(
+        self,
+        fullstate: bool = False,
+    ) -> Union[None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]]:
+        # joblib.Parallel cannot be pickled or deepcopied
+        state = super().__getstate__(fullstate)
+        state[1].pop("_parallel", None)  # type: ignore[index]
+        return state
+
+    def __setstate__(
+        self,
+        state: Union[
+            None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]
+        ],
+    ) -> None:
+        if isinstance(state, tuple) and len(state) == 2:
+            state, slotstate = state
+        else:
+            slotstate = None
+        if state is not None:
+            self.__dict__.update(state)  # type: ignore[arg-type]
+        if slotstate is not None:
+            for key, value in slotstate.items():
+                setattr(self, key, value)
+
+        # re-initialized joblib.Parallel
+        if not hasattr(self, "_n_jobs"):
+            self._n_jobs = None
+        self._parallel = Parallel(n_jobs=self._n_jobs)
+        self.initialize_parallel()

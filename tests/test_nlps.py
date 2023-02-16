@@ -1,5 +1,6 @@
 import pickle
 import unittest
+from itertools import product
 from typing import List, Type, Union
 
 import casadi as cs
@@ -678,11 +679,7 @@ class TestMultistartNlp(unittest.TestCase):
             nlp(None, None, return_all_sols=True, return_stacked_sol=True)
 
     @parameterized.expand(
-        [
-            (False, StackedMultistartNlp),
-            (True, StackedMultistartNlp),
-            (False, ParallelMultistartNlp),
-        ]
+        product([False, True], [StackedMultistartNlp, ParallelMultistartNlp])
     )
     def test_solve__computes_right_solution(self, copy: bool, multinlp_cls: Type):
         N = 3
@@ -733,9 +730,9 @@ class TestMultistartNlp(unittest.TestCase):
             + cs.exp(-100 * (x - 1.5) ** 2)
         )
         nlp.init_solver(OPTS)
-
-        nlp2 = pickle.loads(pickle.dumps(nlp))
-
+        nlp2: Union[StackedMultistartNlp, ParallelMultistartNlp] = pickle.loads(
+            pickle.dumps(nlp)
+        )
         self.assertEqual(nlp.name, nlp2.name)
         if multinlp_cls is StackedMultistartNlp:
             self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
