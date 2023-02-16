@@ -1,12 +1,20 @@
 import unittest
-from typing import Type
+from typing import List, Type
 
 import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp import Nlp, ParallelMultistartNlp, StackedMultistartNlp, scaling, wrappers
+from csnlp import (
+    Nlp,
+    ParallelMultistartNlp,
+    Solution,
+    StackedMultistartNlp,
+    scaling,
+    wrappers,
+)
+from csnlp.nlps.multistart_nlp import MultistartNlp
 
 OPTS = {
     "expand": True,
@@ -60,19 +68,40 @@ class TestExamples(unittest.TestCase):
         N = 3
         LB, UB = -0.5, 1.4
         x0s = [0.9, 0.5, 1.1]
-        nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
-        x = nlp.variable("x", lb=LB, ub=UB)[0]
-        nlp.parameter("p0")
-        nlp.parameter("p1")
-        nlp.minimize(func(x))
-        nlp.init_solver(OPTS)
-        nlp = nlp.copy()
         args = ([{"p0": 0, "p1": 1} for _ in x0s], [{"x": x0} for x0 in x0s])
-        best_sol = nlp.solve_multi(*args)
-        all_sols = nlp.solve_multi(*args, return_all_sols=True)
-        fs = [all_sol.f for all_sol in all_sols]
-        self.assertEqual(best_sol.f, min(fs))
-        np.testing.assert_allclose(fs, RESULTS["multistart_nlp_fs"])
+
+        nlps: List[MultistartNlp] = [
+            StackedMultistartNlp(starts=N, sym_type=self.sym_type),
+            ParallelMultistartNlp(starts=N, n_jobs=N, sym_type=self.sym_type),
+        ]
+        sols = []
+        for nlp in nlps:
+            x = nlp.variable("x", lb=LB, ub=UB)[0]
+            nlp.parameter("p0")
+            nlp.parameter("p1")
+            nlp.minimize(func(x))
+            nlp.init_solver(OPTS)
+            nlp = nlp.copy()
+
+            best_sol: Solution = nlp.solve_multi(*args)
+            all_sols: List[Solution] = nlp.solve_multi(*args, return_all_sols=True)
+            fs = [all_sol.f for all_sol in all_sols]
+            self.assertEqual(best_sol.f, min(fs))
+            np.testing.assert_allclose(fs, RESULTS["multistart_nlp_fs"])
+
+            all_sols.sort()
+            sols.append(all_sols)
+
+        for sol1, sol2 in zip(*sols):
+            self.assertEqual(sol1.success, sol2.success)
+            np.testing.assert_allclose(sol1.f, sol2.f)
+            np.testing.assert_allclose(sol1.vals["x"], sol2.vals["x"])
+            np.testing.assert_allclose(
+                sol1.value(nlps[0].lam_lbx), sol2.value(nlps[1].lam_lbx), atol=1e-6
+            )
+            np.testing.assert_allclose(
+                sol1.value(nlps[0].lam_ubx), sol2.value(nlps[1].lam_ubx), atol=1e-6
+            )
 
     @parameterized.expand([("single",), ("multi",)])
     def test__optimal_ctrl(self, shooting: str):

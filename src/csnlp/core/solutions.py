@@ -12,7 +12,7 @@ from csnlp.core.data import array2cs, cs2array
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-@dataclass(frozen=True, repr=False)
+@dataclass(frozen=True, repr=False, order=True)
 class Solution(Generic[SymType]):
     """Class containing information on the solution of an NLP solver's run."""
 
