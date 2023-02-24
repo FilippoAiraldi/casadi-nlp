@@ -29,6 +29,7 @@ pip install csnlp
 - Python 3.8 or higher
 - [NumPy](https://pypi.org/project/numpy/)
 - [CasADi](https://pypi.org/project/casadi/)
+- [Joblib](https://joblib.readthedocs.io/en/latest/)
 
 For playing around with the source code instead, run
 
@@ -99,6 +100,10 @@ The repository is provided under the MIT License. See the LICENSE file included 
 [Filippo Airaldi](https://www.tudelft.nl/staff/f.airaldi/), PhD Candidate [f.airaldi@tudelft.nl | filippoairaldi@gmail.com]
 
 > [Delft Center for Systems and Control](https://www.tudelft.nl/en/3me/about/departments/delft-center-for-systems-and-control/) in [Delft University of Technology](https://www.tudelft.nl/en/)
+
+Copyright (c) 2023 Filippo Airaldi.
+
+Copyright notice: Technische Universiteit Delft hereby disclaims all copyright interest in the program “csnlp” (Nonlinear Progamming with CasADi) written by the Author(s). Prof. Dr. Ir. Fred van Keulen, Dean of 3mE.
 
 ---
 
