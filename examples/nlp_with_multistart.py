@@ -18,7 +18,7 @@ def func(x):
     )
 
 
-# build the NLPquit()
+# build the NLP
 N = 3
 LB, UB = -0.5, 1.4
 nlp = multistart.StackedMultistartNlp[cs.SX](starts=N)
