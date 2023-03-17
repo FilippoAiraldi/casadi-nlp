@@ -7,6 +7,7 @@ import numpy as np
 import numpy.typing as npt
 
 from csnlp import Solution, multistart, scaling, wrappers
+from csnlp.util.random import np_random
 
 plt.style.use("bmh")
 
@@ -46,7 +47,7 @@ axs[4, 1].set_xlabel("Iteration number")
 
 for i, SCALED in enumerate((False, True)):
     # create rng
-    rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
+    rng = np_random(seed)
 
     # create mpc
     nlp = multistart.StackedMultistartNlp[cs.SX](sym_type="SX", starts=K)

@@ -9,6 +9,7 @@ from scipy import io
 from csnlp import Nlp, Solution, scaling, wrappers
 from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
 from csnlp.multistart.multistart_nlp import MultistartNlp
+from csnlp.util.random import np_random
 
 OPTS = {
     "expand": True,
@@ -215,7 +216,7 @@ class TestExamples(unittest.TestCase):
         g = 9.81
         alpha = 1 / (300 * g)
         seed = 69
-        rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
+        rng = np_random(seed)
         kwargs = {"n_jobs": -1} if multinlp_cls is ParallelMultistartNlp else {}
         nlp = multinlp_cls(sym_type="SX", starts=K, **kwargs)
 

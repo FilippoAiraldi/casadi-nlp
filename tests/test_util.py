@@ -12,7 +12,7 @@ from parameterized import parameterized
 from scipy.stats import norm
 
 from csnlp.core.solutions import subsevalf
-from csnlp.util import io, math
+from csnlp.util import io, math, random
 
 TMPFILENAME: str = ""
 
@@ -233,6 +233,19 @@ class TestMath(unittest.TestCase):
     def test_repeat(self, inputs, expected):
         actual = math.repeat(*inputs)
         np.testing.assert_array_equal(actual, expected)
+
+
+class TestRandom(unittest.TestCase):
+    def test_np_random__raises__with_invalid_seed(self):
+        with self.assertRaisesRegex(
+            ValueError, "Seed must be a non-negative integer or omitted, not -1."
+        ):
+            random.np_random(-1)
+
+    @parameterized.expand([(69,), (None,)])
+    def test_np_random__initializes_rng_with_correct_seed(self, seed: Optional[int]):
+        rng = random.np_random(seed)
+        self.assertIsInstance(rng, np.random.Generator)
 
 
 if __name__ == "__main__":
