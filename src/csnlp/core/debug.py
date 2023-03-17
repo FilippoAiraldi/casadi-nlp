@@ -1,15 +1,13 @@
-from dataclasses import dataclass
 from inspect import getframeinfo
 from itertools import islice
 from traceback import walk_stack
 from types import MappingProxyType
-from typing import List, Tuple
+from typing import List, NamedTuple, Tuple
 
 from numpy import prod
 
 
-@dataclass(frozen=True)
-class NlpDebugEntry:
+class NlpDebugEntry(NamedTuple):
     """Class representing a single entry of debug information for the NLP."""
 
     name: str
