@@ -7,9 +7,10 @@ import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 
-from csnlp import Nlp, ParallelMultistartNlp, StackedMultistartNlp
+from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.nlps.multistart_nlp import _n
+from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
+from csnlp.multistart.multistart_nlp import _n
 from csnlp.util.math import log
 
 OPTS = {

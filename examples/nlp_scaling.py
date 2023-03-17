@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-from csnlp import Solution, StackedMultistartNlp, scaling, wrappers
+from csnlp import Solution, multistart, scaling, wrappers
 
 plt.style.use("bmh")
 
@@ -49,7 +49,7 @@ for i, SCALED in enumerate((False, True)):
     rng = np.random.Generator(np.random.PCG64(np.random.SeedSequence(seed)))
 
     # create mpc
-    nlp = StackedMultistartNlp[cs.SX](sym_type="SX", starts=K)
+    nlp = multistart.StackedMultistartNlp[cs.SX](sym_type="SX", starts=K)
     if SCALED:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
         # wrapped in it, and only then in the MPC.

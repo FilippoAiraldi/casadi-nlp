@@ -6,15 +6,9 @@ import numpy as np
 from parameterized import parameterized, parameterized_class
 from scipy import io
 
-from csnlp import (
-    Nlp,
-    ParallelMultistartNlp,
-    Solution,
-    StackedMultistartNlp,
-    scaling,
-    wrappers,
-)
-from csnlp.nlps.multistart_nlp import MultistartNlp
+from csnlp import Nlp, Solution, scaling, wrappers
+from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
+from csnlp.multistart.multistart_nlp import MultistartNlp
 
 OPTS = {
     "expand": True,
