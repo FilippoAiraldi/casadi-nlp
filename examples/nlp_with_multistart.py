@@ -30,15 +30,17 @@ opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 0}}
 nlp.init_solver(opts)
 
 # manually solve the problem from multiple initial conditions
-x0s = [0.9, 0.5, 1.1]
+x0s = list(multistart.RandomStartPoints(
+    points={"x": multistart.RandomStartPoint("uniform", LB, UB)}, multistarts=3, seed=42
+))
 xfs = [
-    float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0={"x": x0}).vals["x"]) for x0 in x0s
+    float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s
 ]
 
 # use automatical multistart solver
 all_sols: List[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
     pars={"p0": 0, "p1": 1},  # type: ignore[arg-type]
-    vals0=map(lambda x0: {"x": x0}, x0s),
+    vals0=x0s,
     return_all_sols=True,
 )
 best_sol = all_sols[np.argmin([s.f for s in all_sols])]
@@ -49,9 +51,10 @@ xs = np.linspace(LB, UB, 500)
 ax.plot(xs, func(xs), "k--")
 
 # plot manual solutions
-for x0, xf in zip(x0s, xfs):
+for x0_, xf in zip(x0s, xfs):
+    x0: float = x0_["x"]  # type: ignore[assignment]
     xs = np.linspace(x0, xf, 100)
-    lbl = rf"$x_0={{{x0:.1f}}} \rightarrow f^{{\star}}={{{func(xf):.2f}}}$"
+    lbl = rf"$x_0={{{x0:.3f}}} \rightarrow f^{{\star}}={{{func(xf):.3f}}}$"
     c = ax.plot(xs, func(xs), "-", lw=2, label=lbl)[0]
     ax.plot(x0, func(x0), "o", markersize=6, color=c.get_color())
     ax.plot(xf, func(xf), "*", markersize=8, color=c.get_color())
