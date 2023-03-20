@@ -185,8 +185,7 @@ class HasConstraints(HasVariables[SymType]):
         return dual
 
     def primal_dual_vars(self, all: bool = False) -> SymType:
-        """Gets the collection of primal-dual variables (usually, denoted as
-        `y`)
+        """Gets the collection of primal-dual variables (usually, denoted as `y`)
         ```
                     y = [x^T, lam^T]^T
         ```
@@ -195,9 +194,9 @@ class HasConstraints(HasVariables[SymType]):
         Parameters
         ----------
         all : bool, optional
-            If `True`, all dual variables are included, even the multipliers
-            connected to redundant `lbx` or `ubx`. Otherwise, the redundant
-            ones are removed. By default, `False`.
+            If `True`, all dual variables are included, even the multipliers connected
+            to redundant `lbx` or `ubx`. Otherwise, the redundant ones are removed. By
+            default, `False`.
 
         Returns
         ------
@@ -229,25 +228,25 @@ class HasConstraints(HasVariables[SymType]):
         shape : tuple[int, int], optional
             Shape of the new variable. By default, a scalar.
         lb, ub: array_like, optional
-            Lower and upper bounds of the new variable. By default, unbounded.
-            If provided, their dimension must be broadcastable.
+            Lower and upper bounds of the new variable. By default, unbounded. If
+            provided, their dimension must be broadcastable.
 
         Returns
         -------
         var : casadi.SX or MX
             The symbol of the new variable.
         lam_lb : casadi.SX or MX
-            The symbol corresponding to the new variable lower bound
-            constraint's multipliers.
+            The symbol corresponding to the new variable lower bound constraint's
+            multipliers.
         lam_ub : casadi.SX or MX
             Same as above, for upper bound.
 
         Raises
         ------
         ValueError
-            Raises if there is already another variable with the same name; or
-            if any element of the lower bound is larger than the corresponding
-            lower bound element.
+            Raises if there is already another variable with the same name; or if any
+            element of the lower bound is larger than the corresponding lower bound
+            element.
         """
         var = super().variable(name, shape)
 
@@ -290,11 +289,11 @@ class HasConstraints(HasVariables[SymType]):
         rhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the right-hand term of the constraint.
         soft : bool, optional
-            If `True`, then a slack variable with appropriate size is added to
-            the NLP to make the inequality constraint soft, and returned.
-            This slack is automatically lower-bounded by 0, but remember to
-            penalize its magnitude in the objective. Slacks are not supported
-            for equality constraints. Defaults to `False`.
+            If `True`, then a slack variable with appropriate size is added to the NLP
+            to make the inequality constraint soft, and returned. This slack is
+            automatically lower-bounded by 0, but remember to manually penalize its
+            magnitude in the objective. Slacks are not supported for equality
+            constraints. Defaults to `False`.
         simplify : bool, optional
             Optionally simplies the constraint expression, but can be disabled.
 
@@ -306,14 +305,14 @@ class HasConstraints(HasVariables[SymType]):
         lam : casadi.SX or MX
             The symbol corresponding to the constraint's multipliers.
         slack : casadi.SX or MX, optional
-            The slack variable in case of `soft=True`; otherwise, only a
-            2-tuple is returned.
+            The slack variable in case of `soft=True`; otherwise, only a 2-tuple is
+            returned.
 
         Raises
         ------
         ValueError
-            Raises if there is already another constraint with the same name;
-            or if the operator is not recognized.
+            Raises if there is already another constraint with the same name; or if the
+            operator is not recognized.
         NotImplementedError
             Raises if a soft equality constraint is requested.
         TypeError
