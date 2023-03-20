@@ -192,11 +192,14 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             expr = cs.simplify(expr)
         out = super().constraint(name, expr, op, 0, soft, False)
 
+        # NOTE: the line above already created the slack variables in each scenario, so
+        # below we have to pass both soft=False and the expression with slack included.
         symbols = self._symbols(vars=True, pars=True)
+        expr_with_slack = out[0]
         for i in range(self._starts):
             symbols_i = self._symbols(i, vars=True, pars=True)
-            expr_i = subsevalf(expr, symbols, symbols_i, eval=False)
-            self._stacked_nlp.constraint(_n(name, i), expr_i, op, 0, soft, False)
+            expr_i = subsevalf(expr_with_slack, symbols, symbols_i, eval=False)
+            self._stacked_nlp.constraint(_n(name, i), expr_i, op, 0, False, False)
         return out
 
     def minimize(self, objective: SymType) -> None:
