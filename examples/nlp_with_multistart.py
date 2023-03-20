@@ -30,12 +30,14 @@ opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 0}}
 nlp.init_solver(opts)
 
 # manually solve the problem from multiple initial conditions
-x0s = list(multistart.RandomStartPoints(
-    points={"x": multistart.RandomStartPoint("uniform", LB, UB)}, multistarts=3, seed=42
-))
-xfs = [
-    float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s
-]
+x0s = list(
+    multistart.RandomStartPoints(
+        points={"x": multistart.RandomStartPoint("uniform", LB, UB)},
+        multistarts=3,
+        seed=42,
+    )
+)
+xfs = [float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s]
 
 # use automatical multistart solver
 all_sols: List[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
