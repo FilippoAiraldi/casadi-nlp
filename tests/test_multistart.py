@@ -2,13 +2,21 @@ import pickle
 import unittest
 from itertools import product
 from typing import Type, TypeVar, Union
+from unittest.mock import Mock
 
 import casadi as cs
 import numpy as np
 from parameterized import parameterized, parameterized_class
 
 from csnlp.core.solutions import subsevalf
-from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
+from csnlp.multistart import (
+    ParallelMultistartNlp,
+    RandomStartPoint,
+    RandomStartPoints,
+    StackedMultistartNlp,
+    StructuredStartPoint,
+    StructuredStartPoints,
+)
 from csnlp.multistart.multistart_nlp import _n
 
 OPTS = {
@@ -24,6 +32,63 @@ OPTS = {
     },
 }
 TMultiNlp = TypeVar("TMultiNlp", ParallelMultistartNlp, StackedMultistartNlp)
+
+
+class TestStartPoints(unittest.TestCase):
+    def test_random_start_points__raises__with_invalid_generator_method(self):
+        method = "an_invalid_method"
+        S = RandomStartPoints({"x": RandomStartPoint(method)}, 10)
+        with self.assertRaisesRegex(
+            AttributeError,
+            f"'numpy.random._generator.Generator' object has no attribute '{method}'",
+        ):
+            list(S)
+
+    def test_random_start_points__calls_random_method_with_args_and_kwargs(self):
+        method = "uniform"
+        multistarts = 10
+        args, kwargs = object(), object()
+        S = RandomStartPoints(
+            {"x": RandomStartPoint(method, args, optional=kwargs)}, multistarts
+        )
+        S.np_random = Mock()
+        points = list(S)
+        self.assertEqual(len(points), multistarts)
+        self.assertEqual(len(S.np_random.mock_calls), multistarts)
+        getattr(S.np_random, method).assert_called_with(args, optional=kwargs)
+
+    def test_random_start_points__returns_correct_values__when_seeded(self):
+        multistarts = 5
+        seed = 69
+        S = RandomStartPoints(
+            {"x": RandomStartPoint("uniform"), "y": RandomStartPoint("normal")},
+            multistarts,
+            seed,
+        )
+        expecteds = [
+            (0.5803723752156749, 0.33860174484688865),
+            (0.8649616587869663, -0.9947886944731732),
+            (0.47658484007382285, 1.0424725873226823),
+            (0.5446347761155709, -0.5473146662455354),
+            (0.008451104579143554, -0.34391256021075023),
+        ]
+        for actual, expected in zip(S, expecteds):
+            self.assertAlmostEqual(actual["x"], expected[0])
+            self.assertAlmostEqual(actual["y"], expected[1])
+
+    def test_structured_start_points__returns_correct_values(self):
+        multistarts = np.random.randint(10, 100)
+        x_bnds = (np.random.rand() * 10, np.random.rand() * 100 + 20)
+        y_bnds = (np.random.rand() * 10, np.random.rand() * 100 + 20)
+        S = StructuredStartPoints(
+            {"x": StructuredStartPoint(*x_bnds), "y": StructuredStartPoint(*y_bnds)},
+            multistarts,
+        )
+        x_space = np.linspace(*x_bnds, multistarts)
+        y_space = np.linspace(*y_bnds, multistarts)
+        for actual, expected_x, expected_y in zip(S, x_space, y_space):
+            self.assertEqual(actual["x"], expected_x)
+            self.assertEqual(actual["y"], expected_y)
 
 
 @parameterized_class("sym_type", [("SX",), ("MX",)])
