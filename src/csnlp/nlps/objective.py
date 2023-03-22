@@ -227,6 +227,8 @@ class HasObjective(HasConstraints[SymType]):
             )
         kwargs["p"] = subsevalf(self._p, self._pars, pars)
         if vals0 is not None:
+            if vals0diff := self._vars.keys() - vals0.keys():
+                vals0.update({v: 0 for v in vals0diff})  # type: ignore[has-type]
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
         return kwargs
 
