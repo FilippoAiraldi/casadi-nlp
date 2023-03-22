@@ -202,7 +202,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         vars = self.variables
         pars = self.parameters
         expr_ = out[0]  # slack-relaxed expression in the form h(x)<=0 or ==0
-        op_: Literal['==', '<='] = "==" if op == "==" else "<="
+        op_: Literal["==", "<="] = "==" if op == "==" else "<="
         for i in range(self._starts):
             expr_i = _chained_subevalf(
                 expr_, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
