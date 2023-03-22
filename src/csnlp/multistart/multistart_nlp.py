@@ -206,7 +206,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             expr_i = _chained_subevalf(
                 expr_, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
             )
-            self._stacked_nlp.constraint(_n(name, i), expr_i, op, 0, False, False)
+            self._stacked_nlp.constraint(_n(name, i), expr_i, "<=", 0, False, False)
         return out
 
     def minimize(self, objective: SymType) -> None:
