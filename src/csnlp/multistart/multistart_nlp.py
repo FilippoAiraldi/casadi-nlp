@@ -40,6 +40,24 @@ def _get_value(x, sol: Solution[SymType], old, new, eval: bool = True):
     )
 
 
+def _chained_subevalf(
+    expr: Union[SymType, np.ndarray],
+    old_vars: Dict[str, SymType],
+    new_vars: Dict[str, SymType],
+    old_pars: Dict[str, SymType],
+    new_pars: Dict[str, SymType],
+    old_dual_vars: Optional[Dict[str, SymType]] = None,
+    new_dual_vars: Optional[Dict[str, SymType]] = None,
+    eval: bool = True,
+) -> Union[SymType, cs.DM, np.ndarray]:
+    """Internal utility to perform `subevalf` on vars, pars and duals in chain."""
+    expr = subsevalf(expr, old_vars, new_vars, eval=False)
+    if old_dual_vars is None:
+        return subsevalf(expr, old_pars, new_pars, eval=eval)
+    expr = subsevalf(expr, old_pars, new_pars, eval=False)
+    return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
+
+
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting."""
 
@@ -126,45 +144,32 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         super().__init__(*args, starts=starts, **kwargs)
         self._stacked_nlp = Nlp(*args, **kwargs)  # actual nlp
 
-    @lru_cache
-    def _symbols(
-        self,
-        i: Optional[int] = None,
-        vars: bool = False,
-        pars: bool = False,
-        dual: bool = False,
-    ) -> Dict[str, SymType]:
-        """Internal utility to retrieve the symbols of the i-th scenario."""
+    @lru_cache(maxsize=32)
+    def _vars_i(self, i: int) -> Dict[str, SymType]:
+        """Internal utility to retrieve the variables of the i-th scenario."""
         nlp = self._stacked_nlp.unwrapped
-        S: Dict[str, SymType] = {}
-        if vars:
-            S.update(
-                self._vars
-                if i is None
-                else {k: nlp._vars[_n(k, i)] for k in self._vars}
-            )
-        if pars:
-            S.update(
-                self._pars
-                if i is None
-                else {k: nlp._pars[_n(k, i)] for k in self._pars}
-            )
-        if dual:
-            S.update(
-                self._dual_vars
-                if i is None
-                else {k: nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
-            )
-        return S
+        return {k: nlp._vars[_n(k, i)] for k in self._vars}
 
-    @invalidate_cache(_symbols)
+    @lru_cache(maxsize=32)
+    def _pars_i(self, i: int) -> Dict[str, SymType]:
+        """Internal utility to retrieve the parameters of the i-th scenario."""
+        nlp = self._stacked_nlp.unwrapped
+        return {k: nlp._pars[_n(k, i)] for k in self._pars}
+
+    @lru_cache(maxsize=32)
+    def _dual_vars_i(self, i: int) -> Dict[str, SymType]:
+        """Internal utility to retrieve the dual variables of the i-th scenario."""
+        nlp = self._stacked_nlp.unwrapped
+        return {k: nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
+
+    @invalidate_cache(_pars_i)
     def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         for i in range(self._starts):
             self._stacked_nlp.parameter(_n(name, i), shape)
         return out
 
-    @invalidate_cache(_symbols)
+    @invalidate_cache(_vars_i, _dual_vars_i)
     def variable(
         self,
         name: str,
@@ -177,7 +182,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._stacked_nlp.variable(_n(name, i), shape, lb, ub)
         return out
 
-    @invalidate_cache(_symbols)
+    @invalidate_cache(_vars_i, _dual_vars_i)
     def constraint(
         self,
         name: str,
@@ -194,20 +199,24 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         # NOTE: the line above already created the slack variables in each scenario, so
         # below we have to pass both soft=False and the expression with slack included.
-        symbols = self._symbols(vars=True, pars=True)
-        expr_with_slack = out[0]
+        vars = self.variables
+        pars = self.parameters
+        expr_ = out[0]  # relaxed expression with slacks (if soft=True)
         for i in range(self._starts):
-            symbols_i = self._symbols(i, vars=True, pars=True)
-            expr_i = subsevalf(expr_with_slack, symbols, symbols_i, eval=False)
+            expr_i = _chained_subevalf(
+                expr_, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
+            )
             self._stacked_nlp.constraint(_n(name, i), expr_i, op, 0, False, False)
         return out
 
     def minimize(self, objective: SymType) -> None:
         out = super().minimize(objective)
-        symbols = self._symbols(vars=True, pars=True)
+
+        vars = self.variables
+        pars = self.parameters
         self._fs: List[SymType] = [
-            subsevalf(
-                objective, symbols, self._symbols(i, vars=True, pars=True), eval=False
+            _chained_subevalf(
+                objective, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
             )
             for i in range(self._starts)
         ]
@@ -257,7 +266,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             return multi_sol
 
         vars = self.variables
-        symbols = self._symbols(vars=True, pars=True, dual=True)
+        pars = self.parameters
+        duals = self.dual_variables
         old = cs.vertcat(
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
@@ -270,8 +280,16 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 n: multi_sol.vals[_n(n, i)]  # type: ignore[arg-type]
                 for n in vars.keys()
             }
-            symbols_i = self._symbols(i, vars=True, pars=True, dual=True)
-            new = subsevalf(old, symbols, symbols_i, False)
+            new = _chained_subevalf(
+                old,
+                vars,
+                self._vars_i(i),
+                pars,
+                self._pars_i(i),
+                duals,
+                self._dual_vars_i(i),
+                False,
+            )
             get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
             sols.append(
                 Solution(
