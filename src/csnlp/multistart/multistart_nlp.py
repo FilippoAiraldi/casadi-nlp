@@ -201,12 +201,13 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         # below we have to pass both soft=False and the expression with slack included.
         vars = self.variables
         pars = self.parameters
-        expr_ = out[0]  # relaxed expression with slacks (if soft=True)
+        expr_ = out[0]  # slack-relaxed expression in the form h(x)<=0 or ==0
+        op_: Literal['==', '<='] = "==" if op == "==" else "<="
         for i in range(self._starts):
             expr_i = _chained_subevalf(
                 expr_, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
             )
-            self._stacked_nlp.constraint(_n(name, i), expr_i, "<=", 0, False, False)
+            self._stacked_nlp.constraint(_n(name, i), expr_i, op_, 0, False, False)
         return out
 
     def minimize(self, objective: SymType) -> None:

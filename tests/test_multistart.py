@@ -103,7 +103,7 @@ class TestMultistartNlp(unittest.TestCase):
         N = 3
         nlp = StackedMultistartNlp(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x")[0]
-        y = nlp.variable("y")[0]
+        y = nlp.variable("y", (3, 1))[0]
         z = nlp.variable("z")[0]
         p = nlp.parameter("p")
         nlp.constraint("c0", x**2, "<=", p)
