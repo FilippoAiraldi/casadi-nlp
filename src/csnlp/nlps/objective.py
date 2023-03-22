@@ -219,8 +219,7 @@ class HasObjective(HasConstraints[SymType]):
         """Internal utility to convert pars and initial-val dicts to solver kwargs."""
         if pars is None:
             pars = {}
-        parsdiff = self._pars.keys() - pars.keys()
-        if len(parsdiff) != 0:
+        if parsdiff := self._pars.keys() - pars.keys():
             raise RuntimeError(
                 "Trying to solve the NLP with unspecified parameters: "
                 + ", ".join(parsdiff)
