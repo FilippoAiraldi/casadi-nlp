@@ -16,7 +16,10 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class NlpSensitivity(Wrapper[SymType]):
     """
     Wraps an NLP to allow to perform numerical sensitivity analysis and compute its
-    derivates. See [1] for nonlinear programming sensitivity analysis.
+    derivates. See [1] for nonlinear programming sensitivity analysis. The computations
+    are tailored to IPOPT as solver, so no guarantees are provided for other solvers.
+    This is due to the fact that IPOPT, as an interior-point solver, guarantees that the
+    KKT conditions at the solution are satisfied. This may not the case for others.
 
     References
     ----------
