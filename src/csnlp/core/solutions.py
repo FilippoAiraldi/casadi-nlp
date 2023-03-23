@@ -20,7 +20,7 @@ class Solution(Generic[SymType]):
     vars: Dict[str, SymType]
     vals: Dict[str, cs.DM]
     stats: Dict[str, Any]
-    _get_value: partial  # Callable[[SymType, bool], cs.DM]
+    _get_value: partial  # Callable[[SymType, bool], Union[SymType, cs.DM]]
 
     @property
     def all_vars(self) -> SymType:
