@@ -4,7 +4,8 @@ import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
 
-from csnlp import Solution, multistart
+from csnlp import Solution
+from csnlp import multistart as ms
 
 plt.style.use("bmh")
 
@@ -21,7 +22,7 @@ def func(x):
 # build the NLP
 N = 3
 LB, UB = -0.5, 1.4
-nlp = multistart.StackedMultistartNlp[cs.SX](starts=N)
+nlp = ms.StackedMultistartNlp[cs.SX](starts=N)
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 nlp.parameter("p0")
 nlp.parameter("p1")
@@ -31,15 +32,13 @@ nlp.init_solver(opts)
 
 # manually solve the problem from multiple initial conditions
 x0s = list(
-    multistart.RandomStartPoints(
-        points={"x": multistart.RandomStartPoint("uniform", LB, UB)},
-        multistarts=3,
-        seed=42,
+    ms.RandomStartPoints(
+        points={"x": ms.RandomStartPoint("uniform", LB, UB)}, multistarts=3, seed=42
     )
 )
 xfs = [float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s]
 
-# use automatical multistart solver
+# use automatic multistart solver
 all_sols: List[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
     pars={"p0": 0, "p1": 1},  # type: ignore[arg-type]
     vals0=x0s,

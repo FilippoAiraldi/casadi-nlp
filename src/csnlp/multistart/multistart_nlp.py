@@ -275,32 +275,25 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         sols: List[Solution[SymType]] = []
         fs = [float(multi_sol.value(f)) for f in self._fs]
-        idx = range(self._starts) if return_all_sols else (np.argmin(fs),)
+        idx: Iterable[int] = (
+            range(self._starts) if return_all_sols else (np.argmin(fs).item(),)
+        )
         for i in idx:
-            vals = {
-                n: multi_sol.vals[_n(n, i)]  # type: ignore[arg-type]
-                for n in vars.keys()
-            }
-            new = _chained_subevalf(
-                old,
-                vars,
-                self._vars_i(i),
-                pars,
-                self._pars_i(i),
-                duals,
-                self._dual_vars_i(i),
-                False,
-            )
-            get_value = partial(subsevalf, old=old, new=multi_sol._get_value(new))
-            sols.append(
-                Solution(
-                    fs[i],  # type: ignore[call-overload]
+            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}
+            new = multi_sol._get_value(
+                _chained_subevalf(
+                    old,
                     vars,
-                    vals,
-                    multi_sol.stats,
-                    get_value,
+                    self._vars_i(i),
+                    pars,
+                    self._pars_i(i),
+                    duals,
+                    self._dual_vars_i(i),
+                    False,
                 )
             )
+            get_value = partial(subsevalf, old=old, new=new)
+            sols.append(Solution(fs[i], vars, vals, multi_sol.stats, get_value))
         return sols if return_all_sols else sols[0]
 
     def __call__(self, *args, **kwargs):
