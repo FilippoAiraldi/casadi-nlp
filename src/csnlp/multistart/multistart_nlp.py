@@ -291,7 +291,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 self._dual_vars_i(i),
                 False,
             )
-            get_value = partial(_get_value, sol=multi_sol, old=old, new=new)
+            get_value = partial(subsevalf, old=old, new=multi_sol._get_value(new))
             sols.append(
                 Solution(
                     fs[i],  # type: ignore[call-overload]
