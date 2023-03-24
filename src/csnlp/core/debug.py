@@ -1,5 +1,5 @@
 from inspect import getframeinfo
-from itertools import islice
+from itertools import dropwhile
 from traceback import walk_stack
 from types import MappingProxyType
 from typing import List, NamedTuple, Tuple
@@ -24,7 +24,7 @@ class NlpDebugEntry(NamedTuple):
             f"{self.type} '{self.name}' of shape {shape} defined at\n"
             f"  filename: {self.filename}\n"
             f"  function: {self.function}:{self.lineno}\n"
-            f"  context:  {self.context}\n"
+            f"  context:  {self.context}"
         )
 
     def __repr__(self) -> str:
@@ -160,7 +160,10 @@ class NlpDebug:
         AttributeError
             Raises in case the given group is invalid.
         """
-        frame, lineno = next(islice(walk_stack(None), 1, 2))
+        stack = dropwhile(
+            lambda f: f[0].f_globals["__name__"].startswith("csnlp."), walk_stack(None)
+        )
+        frame, lineno = next(stack)
         traceback = getframeinfo(frame, context=3)
         info: List[Tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
@@ -175,7 +178,7 @@ class NlpDebug:
                     traceback.function,
                     lineno,
                     (
-                        "; ".join(traceback.code_context)
+                        "".join(traceback.code_context)
                         if traceback.code_context is not None
                         else ""
                     ),
