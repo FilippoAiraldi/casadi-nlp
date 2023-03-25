@@ -556,7 +556,7 @@ class TestNlp(unittest.TestCase):
         nlp.constraint("c3", z.T @ [15, 22, 4] + 3 * cs.sqrt(cs.sumsqr(z)), "<=", 38)
         nlp.init_solver(OPTS)
         sol = nlp.solve()
-        for (name, v) in [("x", x), ("y", y), ("z", z)]:
+        for name, v in [("x", x), ("y", y), ("z", z)]:
             val1 = sol.vals[name]
             val2 = sol.value(v)
             val3 = sol.value(nlp.variables[name])

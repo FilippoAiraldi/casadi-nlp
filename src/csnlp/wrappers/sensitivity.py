@@ -111,7 +111,7 @@ class NlpSensitivity(Wrapper[SymType]):
         }
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp.x).T,
-            *(items.pop(v) for v in self.nlp.dual_variables_order)
+            *(items.pop(v) for v in self.nlp.dual_variables_order),
         )
         assert not items, "Internal error. `dual_variables_order` modified."
         return kkt, (self._tau if self.include_barrier_term else None)

@@ -242,7 +242,6 @@ def save(
         open_fun = open
         compress_fun = blosc2.compress
     elif compression == "matlab":
-
         expected_ext = ".mat"
     else:
         raise ValueError(f"Unknown compression method {compression}.")
