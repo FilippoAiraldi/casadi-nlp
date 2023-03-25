@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Union
 
 import casadi as cs
 import matplotlib as mpl
@@ -45,7 +45,7 @@ def save2tikz(*figs: Figure) -> None:
 
 
 def spy(
-    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: Axes = None, **spy_kwargs
+    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: Axes = None, **spy_kwargs: Any
 ) -> Union[AxesImage, Line2D]:
     """Equivalent of `matplotlib.pyplot.spy` that works also with casadi
     matrices.
@@ -83,9 +83,6 @@ def spy(
             ],
             dtype=int,
         )
-
-    if "markersize" not in spy_kwargs:
-        spy_kwargs["markersize"] = 4
     if ax is None:
         _, ax = plt.subplots(1, 1)
     o = ax.spy(H, **spy_kwargs)
