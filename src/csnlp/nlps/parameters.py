@@ -62,5 +62,5 @@ class HasParameters(Generic[SymType]):
             raise ValueError(f"Parameter name '{name}' already exists.")
         par = self._sym_type.sym(name, *shape)
         self._pars[name] = par
-        self._p = cs.vertcat(self._p, cs.vec(par))
+        self._p = cs.veccat(self._p, par)
         return par

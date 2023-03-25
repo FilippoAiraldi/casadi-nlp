@@ -259,11 +259,11 @@ class HasConstraints(HasVariables[SymType]):
         name_lam = f"lam_lb_{name}"
         lam_lb = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_lb
-        self._lam_lbx = cs.vertcat(self._lam_lbx, cs.vec(lam_lb))
+        self._lam_lbx = cs.veccat(self._lam_lbx, lam_lb)
         name_lam = f"lam_ub_{name}"
         lam_ub = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_ub
-        self._lam_ubx = cs.vertcat(self._lam_ubx, cs.vec(lam_ub))
+        self._lam_ubx = cs.veccat(self._lam_ubx, lam_ub)
         return var, lam_lb, lam_ub
 
     @invalidate_cache(lam, lam_all)
@@ -351,6 +351,6 @@ class HasConstraints(HasVariables[SymType]):
         lam_c = self._sym_type.sym(name_lam, *shape)
         self._dual_vars[name_lam] = lam_c
 
-        setattr(self, group, cs.vertcat(getattr(self, group), cs.vec(expr)))
-        setattr(self, lam, cs.vertcat(getattr(self, lam), cs.vec(lam_c)))
+        setattr(self, group, cs.veccat(getattr(self, group), expr))
+        setattr(self, lam, cs.veccat(getattr(self, lam), lam_c))
         return (expr, lam_c, slack) if soft else (expr, lam_c)

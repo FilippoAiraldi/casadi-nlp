@@ -386,12 +386,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
     def _multishooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
         """Internal utility to create dynamics constraints in multiple shooting."""
-        X = cs.vertcat(*self._states.values())
-        U = cs.vertcat(*self._actions_exp.values())
+        X = cs.vcat(self._states.values())
+        U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
             args_at = lambda k: (X[:, k], U[:, k])  # noqa: E731
         else:
-            D = cs.vertcat(*self._disturbances.values())
+            D = cs.vcat(self._disturbances.values())
             args_at = lambda k: (  # type: ignore[return-value,assignment] # noqa: E731
                 X[:, k],
                 U[:, k],
@@ -403,17 +403,17 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             if n_out != 1:
                 x_next = x_next[0]
             xs_next.append(x_next)
-        self.constraint("dyn", cs.horzcat(*xs_next), "==", X[:, 1:])
+        self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
 
     def _singleshooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
         """Internal utility to create dynamics constraints and states in single
         shooting."""
-        Xk = cs.vertcat(*self._initial_states.values())
-        U = cs.vertcat(*self._actions_exp.values())
+        Xk = cs.vcat(self._initial_states.values())
+        U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
             args_at = lambda k: (U[:, k],)  # noqa: E731
         else:
-            D = cs.vertcat(*self._disturbances.values())
+            D = cs.vcat(self._disturbances.values())
             args_at = lambda k: (  # type: ignore[return-value,assignment] # noqa: E731
                 U[:, k],
                 D[:, k],
@@ -424,6 +424,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             if n_out != 1:
                 Xk = Xk[0]
             X.append(Xk)
-        X = cs.horzcat(*X)
+        X = cs.hcat(X)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))

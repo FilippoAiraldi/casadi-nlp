@@ -63,5 +63,5 @@ class HasVariables(HasParameters[SymType]):
             raise ValueError(f"Variable name '{name}' already exists.")
         var = self._sym_type.sym(name, *shape)
         self._vars[name] = var
-        self._x = cs.vertcat(self._x, cs.vec(var))
+        self._x = cs.veccat(self._x, var)
         return var
