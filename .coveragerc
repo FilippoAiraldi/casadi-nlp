@@ -2,3 +2,4 @@
 omit =
     tests/*
     examples/*
+    src/csnlp/util/docs.py
