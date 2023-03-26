@@ -6,7 +6,6 @@ from typing import (
     Dict,
     Generic,
     Iterable,
-    Iterator,
     List,
     Literal,
     Optional,
@@ -266,35 +265,34 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         if return_stacked_sol:
             return multi_sol
 
-        vars = self.variables
-        pars = self.parameters
+        vars_ = self.variables
+        pars_ = self.parameters
         duals = self.dual_variables
         old = cs.vertcat(
             self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
         )
+        fs = [float(multi_sol._get_value(f)) for f in self._fs]
 
-        sols: List[Solution[SymType]] = []
-        fs = [float(multi_sol.value(f)) for f in self._fs]
-        idx: Iterable[int] = (
-            range(self._starts) if return_all_sols else (np.argmin(fs).item(),)
-        )
-        for i in idx:
-            vals = {n: multi_sol.vals[_n(n, i)] for n in vars.keys()}
+        def get_ith_sol(idx: int) -> Solution[SymType]:
+            vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_.keys()}
             new = multi_sol._get_value(
                 _chained_subevalf(
                     old,
-                    vars,
-                    self._vars_i(i),
-                    pars,
-                    self._pars_i(i),
+                    vars_,
+                    self._vars_i(idx),
+                    pars_,
+                    self._pars_i(idx),
                     duals,
-                    self._dual_vars_i(i),
+                    self._dual_vars_i(idx),
                     False,
                 )
             )
             get_value = partial(subsevalf, old=old, new=new)
-            sols.append(Solution(fs[i], vars, vals, multi_sol.stats, get_value))
-        return sols if return_all_sols else sols[0]
+            return Solution(fs[idx], vars_, vals, multi_sol.stats, get_value)
+
+        if return_all_sols:
+            return [get_ith_sol(i) for i in range(self._starts)]
+        return get_ith_sol(np.argmin(fs).item())
 
     def __call__(self, *args, **kwargs):
         return self.solve_multi(*args, **kwargs)
@@ -370,25 +368,28 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
             for p, v0 in zip(pars_iter, vals0_iter)
         )
-        sols: Iterator[Solution] = map(
-            self._process_solver_sol,
-            self._parallel(
-                delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
-            ),
+        sols: List[Dict[str, Any]] = self._parallel(
+            delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
         )
         if return_all_sols:
-            return list(sols)
+            return list(map(self._process_solver_sol, sols))
 
-        # pick the best solution, with priority to successful solutions
-        best_sol = next(sols)
-        self._failures += not best_sol.success
-        for sol in sols:
-            if (not best_sol.success and sol.success) or (
-                best_sol.success == sol.success and sol.f < best_sol.f
+        # pick the best solution, with priority to successful ones
+        best_sol = sols[0]
+        best_f = float(best_sol["f"])
+        best_success = best_sol["stats"]["success"]
+        self._failures += not best_success
+        for sol in sols[1:]:
+            this_f = float(sol["f"])
+            this_success = sol["stats"]["success"]
+            if (not best_success and this_success) or (
+                best_success == this_success and this_f < best_f
             ):
                 best_sol = sol
-            self._failures += not sol.success
-        return best_sol
+                best_f = this_f
+                best_success = this_success
+            self._failures += not this_success
+        return self._process_solver_sol(best_sol)
 
     def __getstate__(
         self,
