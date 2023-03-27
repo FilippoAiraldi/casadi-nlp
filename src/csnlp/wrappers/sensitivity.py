@@ -204,11 +204,7 @@ class NlpSensitivity(Wrapper[SymType]):
         expr: SymType = None,
         solution: Optional[Solution[SymType]] = None,
         second_order: bool = False,
-    ) -> Union[
-        Tuple[SymType, Optional[SymType]],
-        Tuple[cs.DM, Optional[cs.DM]],
-        Tuple[npt.NDArray[np.double], Optional[npt.NDArray[np.double]]],
-    ]:
+    ) -> Union[Tuple[SymType, Optional[SymType]], Tuple[cs.DM, Optional[cs.DM]]]:
         """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
         parametrization, according to [1].
 
@@ -229,7 +225,7 @@ class NlpSensitivity(Wrapper[SymType]):
 
         Returns
         -------
-        2-element tuple of casadi.SX, or MX, or DM, or arrays
+        2-element tuple of casadi.SX, or MX, or DM
             The 1st and 2nd-order NLP parametric sensitivity in the form of an array/DM,
             if a solution is passed, or a symbolic vector SX/MX. When
             `second_order=False` the second element in the tuple is `None`.
@@ -308,11 +304,7 @@ class NlpSensitivity(Wrapper[SymType]):
         solution: Optional[Solution[SymType]],
         second_order: bool,
         d: Callable[[SymType], Union[SymType, cs.DM]],
-    ) -> Union[
-        Tuple[SymType, np.ndarray, SymType],
-        Tuple[cs.DM, np.ndarray, cs.DM],
-        Tuple[npt.NDArray[np.double], np.ndarray, npt.NDArray[np.double]],
-    ]:
+    ) -> Union[Tuple[SymType, np.ndarray, SymType], Tuple[cs.DM, np.ndarray, cs.DM]]:
         """Internal utility to compute the sensitivity of y w.r.t. p."""
         # first order sensitivity, a.k.a., dydp
         Ky = d(self.jacobians["K-y"])
