@@ -42,8 +42,8 @@ plot_chain(axs[0], sol.value(x), sol.value(y))
 # Problem 2: adding ground constraints
 nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
 sol = nlp.solve(vals0={"p": sol.vals["p"]})  # warm-starts the new solver run
-plot_chain(axs[1], sol.value(x), sol.value(y))
 plot_ground(axs[1])
+plot_chain(axs[1], sol.value(x), sol.value(y))
 
 
 # Problem 3: Rest Length
@@ -52,7 +52,7 @@ V = D * cs.sum2(
 ) + g * m * cs.sum2(y)
 nlp.minimize(V)
 sol = nlp.solve(vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))})
-plot_chain(axs[2], sol.value(x), sol.value(y))
 plot_ground(axs[2])
+plot_chain(axs[2], sol.value(x), sol.value(y))
 
 plt.show()
