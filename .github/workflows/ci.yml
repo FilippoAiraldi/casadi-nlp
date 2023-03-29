@@ -1,6 +1,9 @@
 name: Tests
 
-on: [push]
+on:
+  push:
+    branches:
+      - "*"
 
 jobs:
   # https://github.com/philschmid/github-actions/blob/master/python/run-unittest-on-pr-open.yaml
