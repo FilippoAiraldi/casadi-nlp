@@ -102,8 +102,7 @@ class TestNonRetroactiveWrapper(unittest.TestCase):
 @parameterized_class("sym_type", [("SX",), ("MX",)])
 class TestNlpSensitivity(unittest.TestCase):
     def test_lagrangian__is_correct__example_1a_b(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         x = nlp.variable("x")[0]
         y = nlp.variable("y")[0]
@@ -120,7 +119,7 @@ class TestNlpSensitivity(unittest.TestCase):
             )
 
     def test_lagrangian__is_correct__example_3(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3
         n = 50
         lbx = 1 / n * 1e-6
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
@@ -173,7 +172,7 @@ class TestNlpSensitivity(unittest.TestCase):
             self.assertIsNone(tau)
 
     def test_kkt__computes_kkt_conditions_correctly__example_1a(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1a
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         x = nlp.variable("x")[0]
         y = nlp.variable("y")[0]
@@ -185,7 +184,7 @@ class TestNlpSensitivity(unittest.TestCase):
         np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-9)
 
     def test_kkt__computes_kkt_conditions_correctly__example_1b(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1b
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_1
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         x = nlp.variable("x")[0]
         y = nlp.variable("y")[0]
@@ -209,7 +208,7 @@ class TestNlpSensitivity(unittest.TestCase):
         np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_3(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3:_Entropy
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_3
         n = 50
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         p = nlp.variable("p", (n, 1), lb=1 / n * 1e-6)[0]
@@ -222,7 +221,7 @@ class TestNlpSensitivity(unittest.TestCase):
         np.testing.assert_allclose(sol.value(kkt), 0, atol=1e-6)
 
     def test_kkt__computes_kkt_conditions_correctly__example_4(self):
-        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4:_Numerical_optimization
+        # https://en.wikipedia.org/wiki/Lagrange_multiplier#Example_4
         nlp = NlpSensitivity(Nlp(sym_type=self.sym_type))
         x = nlp.variable("x")[0]
         nlp.constraint("c1", x**2, "==", 1)

@@ -59,7 +59,7 @@ class NlpSensitivity(Wrapper[SymType]):
         super().__init__(nlp)
         self.include_barrier_term: bool = include_barrier_term
         self.set_target_parameters(target_parameters)
-        self._tau = nlp.sym_type.sym("tau") if include_barrier_term else 0
+        self._tau = nlp.sym_type.sym("tau") if include_barrier_term else None
 
     @property
     def target_parameters(self) -> SymType:
@@ -70,14 +70,12 @@ class NlpSensitivity(Wrapper[SymType]):
     @cached_property
     def lagrangian(self) -> SymType:
         """Gets the Lagrangian of the NLP problem (usually, `L`)."""
-        h_lbx, lam_h_lbx = self.nlp.h_lbx
-        h_ubx, lam_h_ubx = self.nlp.h_ubx
         return (
             self.nlp.f
             + cs.dot(self.nlp.lam_g, self.nlp.g)
             + cs.dot(self.nlp.lam_h, self.nlp.h)
-            + cs.dot(lam_h_lbx, h_lbx)
-            + cs.dot(lam_h_ubx, h_ubx)
+            + cs.dot(self.nlp.lam_lbx, self.nlp.h_lbx)
+            + cs.dot(self.nlp.lam_ubx, self.nlp.h_ubx)
         )
 
     @cached_property
@@ -99,14 +97,15 @@ class NlpSensitivity(Wrapper[SymType]):
         ```
         which is also returned as the second element of the tuple. Otherwise, `tau` is
         `None`."""
+        tau = self._tau if self._tau is not None else 0
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp.x).T,
             self.nlp.g,
-            (self.nlp.lam_h * self.nlp.h) + self._tau,
-            (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
-            (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau,
+            (self.nlp.lam_h * self.nlp.h) + tau,
+            (self.nlp.h_lbx * self.nlp.lam_lbx) + tau,
+            (self.nlp.h_ubx * self.nlp.lam_ubx) + tau,
         )
-        return kkt, (self._tau if self.include_barrier_term else None)
+        return kkt, self._tau
 
     @cached_property
     def jacobians(self) -> Dict[str, SymType]:
@@ -122,7 +121,7 @@ class NlpSensitivity(Wrapper[SymType]):
         L = self.lagrangian
         K = self.kkt[0]
         x = self.nlp.x
-        y, y_idx = self._y_idx
+        y = self.nlp.primal_dual
         p, p_idx = self._p_idx
         return {
             "L-x": cs.jacobian(L, x).T,
@@ -130,7 +129,7 @@ class NlpSensitivity(Wrapper[SymType]):
             "g-x": cs.jacobian(self.nlp.g, x),
             "h-x": cs.jacobian(self.nlp.h, x),
             "K-p": cs.jacobian(K, p)[:, p_idx],
-            "K-y": cs.jacobian(K, y)[:, y_idx],
+            "K-y": cs.jacobian(K, y),
         }
 
     @cached_property
@@ -163,13 +162,13 @@ class NlpSensitivity(Wrapper[SymType]):
         jacobians = self.jacobians
         Kp = jacobians["K-p"]
         Ky = jacobians["K-y"]
-        y, y_idx = self._y_idx
+        y = self.nlp.primal_dual
         p, p_idx = self._p_idx
         return {
             "K-pp": hojacobian(Kp, p)[..., p_idx, 0],
             "K-yp": hojacobian(Ky, p)[..., p_idx, 0],
-            "K-yy": hojacobian(Ky, y)[..., y_idx, 0],
-            "K-py": hojacobian(Kp, y)[..., y_idx, 0],
+            "K-yy": hojacobian(Ky, y)[..., 0],
+            "K-py": hojacobian(Kp, y)[..., 0],
         }
 
     @property
@@ -249,7 +248,7 @@ class NlpSensitivity(Wrapper[SymType]):
         if Z is not None:
             Zshape = Z.shape
             Z = cs.vec(Z)
-            y, y_idx = self._y_idx
+            y = self.nlp.primal_dual
             p, p_idx = self._p_idx
             np_ = p.shape[0] if isinstance(p_idx, slice) else p_idx.size
 
@@ -260,7 +259,7 @@ class NlpSensitivity(Wrapper[SymType]):
                 Zp = hojacobian(Z, p)
                 Zy = hojacobian(Z, y)
             Zp = d(array2cs(Zp[:, 0, p_idx, 0]))
-            Zy = d(array2cs(Zy[:, 0, y_idx, 0]))
+            Zy = d(array2cs(Zy[:, 0, :, 0]))
 
             dZdp = Zy @ dydp + Zp
             dZdp = cs2array(dZdp).reshape(Zshape + (np_,), order="F").squeeze()
@@ -279,10 +278,10 @@ class NlpSensitivity(Wrapper[SymType]):
             return dydp, d2ydp2
 
         # second order sensitivity of Z, a.k.a., d2Zdp2
-        Zyp = d(hohessian(Z, y, p)[0][:, 0, y_idx, 0][:, :, p_idx, 0])
-        Zpy = d(hohessian(Z, p, y)[0][:, 0, p_idx, 0][:, :, y_idx, 0])
+        Zyp = d(hohessian(Z, y, p)[0][:, 0, :, 0][:, :, p_idx, 0])
+        Zpy = d(hohessian(Z, p, y)[0][:, 0, p_idx, 0][:, :, :, 0])
         Zpp = d(Zpp[:, 0, p_idx, 0][:, :, p_idx, 0])
-        Zyy = d(Zyy[:, 0, y_idx, 0][:, :, y_idx, 0])
+        Zyy = d(Zyy[:, 0, :, 0][:, :, :, 0])
         T1 = (d2ydp2.transpose((1, 2, 0)) @ cs2array(Zy).T).transpose((2, 0, 1))
         T2 = Zyy.transpose((0, 2, 1)) @ dydp_np + Zpy.transpose((0, 2, 1)) + Zyp
         d2Zdp2 = Zpp + T1 + dydp_np.T @ T2
@@ -363,8 +362,8 @@ class NlpSensitivity(Wrapper[SymType]):
         Parameters
         ----------
         parameters : casadi.MX or SX or None
-            New parameters to target during the sensitivity analyses. If `None`, all
-            NLP parameters are included.
+            New parameters to target during the sensitivity analyses. If `None`, all NLP
+            parameters are included.
         """
         if parameters is None:
             self._p_idx_internal = None, slice(None)
@@ -378,36 +377,16 @@ class NlpSensitivity(Wrapper[SymType]):
         sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
         idx = np.asarray(sp_J.get_crs()[1], int)
         assert idx.size == p.shape[0], (
-            "Invalid subset of target parameters (some were not found in the"
-            " original NLP parameters)."
+            "Invalid subset of target parameters (some were not found among the "
+            "original NLP parameters)."
         )
         self._p_idx_internal = self.nlp.p, idx  # type: ignore[assignment]
 
     @property
-    def _y_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
-        """Internal utility to return all the primal-dual variables and indices that are
-        associated to non-redundant entries in the kkt conditions."""
-        if self.nlp.sym_type is cs.SX:
-            return self.nlp.primal_dual_vars(), slice(None)
-
-        # in case of MX, jacobians throw if the MX are indexed (no more
-        # symbolical according to the exception). So we take the jacobian
-        # with all primal-dual vars, and then index the relevant rows/cols.
-        y = self.nlp.primal_dual_vars(True)
-        if not self.nlp._remove_redundant_x_bounds:
-            return y, slice(None)
-        h_lbx_idx = np.where(self.nlp.lbx != -np.inf)[0]
-        h_ubx_idx = np.where(self.nlp.ubx != +np.inf)[0]
-        n = self.nlp.nx + self.nlp.ng + self.nlp.nh
-        idx = np.concatenate(
-            (np.arange(n), h_lbx_idx + n, h_ubx_idx + n + h_lbx_idx.size)
-        )
-        return y, idx
-
-    @property
     def _p_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
-        """Internal utility to return the indices of p from all the NLP pars. Like for
-        _y_idx, SX is fine with jacobians, but MX jacobians need to be computed for
-        all elements and then indexed."""
+        """Internal utility to return the indices of p from all the NLP pars. While SX
+        is fine with computing jacobians with indexed variables, MX requires purely
+        symbolic variables. So, for MX, jacobians need to be computed for all elements
+        and then indexed."""
         p = self._p_idx_internal[0]
         return (self.nlp.p if p is None else p), self._p_idx_internal[1]
