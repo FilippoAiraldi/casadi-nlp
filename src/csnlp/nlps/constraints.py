@@ -327,7 +327,7 @@ class HasConstraints(HasVariables[SymType]):
         self._cons[name] = expr
         group, lam = ("_g", "_lam_g") if is_eq else ("_h", "_lam_h")
         name_lam = f"{lam[1:]}_{name}"
-        lam_c = self._sym_type.sym(name_lam, *shape)
+        lam_c = self._sym_type.sym(name_lam, shape[0] * shape[1])
         self._dual_vars[name_lam] = lam_c
 
         setattr(self, group, cs.veccat(getattr(self, group), expr))
