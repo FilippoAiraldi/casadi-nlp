@@ -197,8 +197,8 @@ class HasObjective(HasConstraints[SymType]):
             raise RuntimeError("Solver uninitialized.")
         kwargs = self._process_pars_and_vals0(
             {
-                "lbx": self._lbx,
-                "ubx": self._ubx,
+                "lbx": self._lbx.data,
+                "ubx": self._ubx.data,
                 "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
                 "ubg": 0,
             },
@@ -234,8 +234,8 @@ class HasObjective(HasConstraints[SymType]):
 
     def _process_solver_sol(self, sol: Dict[str, Any]) -> Solution:
         """Internal utility to convert the solver sol dict to a Solution instance."""
-        lam_lbx = -cs.fmin(sol["lam_x"], 0)
-        lam_ubx = cs.fmax(sol["lam_x"], 0)
+        lam_lbx = -cs.fmin(sol["lam_x"], 0)[self.nonmasked_lbx_idx, :]
+        lam_ubx = cs.fmax(sol["lam_x"], 0)[self.nonmasked_ubx_idx, :]
         lam_g = sol["lam_g"][: self.ng, :]
         lam_h = sol["lam_g"][self.ng :, :]
         vars = self.variables

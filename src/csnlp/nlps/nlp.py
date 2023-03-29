@@ -214,8 +214,8 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         sol = S(
             x0=x0,
             p=p,
-            lbx=self._lbx,
-            ubx=self._ubx,
+            lbx=self._lbx.data,
+            ubx=self._ubx.data,
             lbg=np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
             ubg=0,
             lam_x0=0,
@@ -224,8 +224,8 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         x = sol["x"]
         lam_g = sol["lam_g"][: self.ng, :]
         lam_h = sol["lam_g"][self.ng :, :]
-        lam_lbx = -cs.fmin(sol["lam_x"], 0)
-        lam_ubx = cs.fmax(sol["lam_x"], 0)
+        lam_lbx = -cs.fmin(sol["lam_x"], 0)[self.nonmasked_lbx_idx, :]
+        lam_ubx = cs.fmax(sol["lam_x"], 0)[self.nonmasked_ubx_idx, :]
         Fsol = cs.Function("Fsol", ins, [x, lam_g, lam_h, lam_lbx, lam_ubx])
 
         # build final function
