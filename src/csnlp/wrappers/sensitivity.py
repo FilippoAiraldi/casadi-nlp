@@ -98,11 +98,7 @@ class NlpSensitivity(Wrapper[SymType]):
                             diag(lam_h)*H + tau
         ```
         which is also returned as the second element of the tuple. Otherwise, `tau` is
-        `None`.
-
-        Note: The order of the KKT conditions can be adjusted via the class attribute
-        `_PRIMAL_DUAL_ORDER`.
-        """
+        `None`."""
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp.x).T,
             self.nlp.g,
