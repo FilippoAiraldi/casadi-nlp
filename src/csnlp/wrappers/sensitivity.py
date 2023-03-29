@@ -402,6 +402,8 @@ class NlpSensitivity(Wrapper[SymType]):
         # symbolical according to the exception). So we take the jacobian
         # with all primal-dual vars, and then index the relevant rows/cols.
         y = self.nlp.primal_dual_vars(True)
+        if not self.nlp._remove_redundant_x_bounds:
+            return y, slice(None)
         h_lbx_idx = np.where(self.nlp.lbx != -np.inf)[0]
         h_ubx_idx = np.where(self.nlp.ubx != +np.inf)[0]
         n = self.nlp.nx + self.nlp.ng + self.nlp.nh
