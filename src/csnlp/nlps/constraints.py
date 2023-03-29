@@ -53,9 +53,9 @@ class HasConstraints(HasVariables[SymType]):
         self._cons: Dict[str, SymType] = {}
 
         self._lbx, self._ubx = np.asarray([]), np.asarray([])
-        self._lam_lbx, self._lam_ubx = self._sym_type(), self._sym_type()
-        self._g, self._lam_g = self._sym_type(), self._sym_type()
-        self._h, self._lam_h = self._sym_type(), self._sym_type()
+        self._lam_lbx, self._lam_ubx = self._sym_type(0, 1), self._sym_type(0, 1)
+        self._g, self._lam_g = self._sym_type(0, 1), self._sym_type(0, 1)
+        self._h, self._lam_h = self._sym_type(0, 1), self._sym_type(0, 1)
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
@@ -135,7 +135,7 @@ class HasConstraints(HasVariables[SymType]):
             return self._lbx[:, None] - self._x, self._lam_lbx
         idx = np.where(self._lbx != -np.inf)[0]
         if idx.size == 0:
-            return self._sym_type(), self._sym_type()
+            return self._sym_type(0, 1), self._sym_type(0, 1)
         return self._lbx[idx, None] - self._x[idx], self._lam_lbx[idx]
 
     @cached_property
@@ -147,7 +147,7 @@ class HasConstraints(HasVariables[SymType]):
             return self._x - self._ubx[:, None], self._lam_ubx
         idx = np.where(self._ubx != np.inf)[0]
         if idx.size == 0:
-            return self._sym_type(), self._sym_type()
+            return self._sym_type(0, 1), self._sym_type(0, 1)
         return self._x[idx] - self._ubx[idx, None], self._lam_ubx[idx]
 
     @cached_property
