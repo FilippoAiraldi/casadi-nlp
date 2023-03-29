@@ -269,7 +269,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         pars_ = self.parameters
         duals = self.dual_variables
         old = cs.vertcat(
-            self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
+            self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx, self._p
         )
         fs = [float(multi_sol._get_value(f)) for f in self._fs]
 

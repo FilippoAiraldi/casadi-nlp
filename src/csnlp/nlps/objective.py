@@ -241,8 +241,8 @@ class HasObjective(HasConstraints[SymType]):
         vars = self.variables
         vals = {name: subsevalf(var, self._x, sol["x"]) for name, var in vars.items()}
         old = cs.vertcat(
-            self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx
+            self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx, self._p
         )
-        new = cs.vertcat(sol["p"], sol["x"], lam_g, lam_h, lam_lbx, lam_ubx)
+        new = cs.vertcat(sol["x"], lam_g, lam_h, lam_lbx, lam_ubx, sol["p"])
         get_value = partial(subsevalf, old=old, new=new)
         return Solution(float(sol["f"]), vars, vals, sol["stats"], get_value)
