@@ -233,11 +233,12 @@ class HasConstraints(HasVariables[SymType]):
         """
         var = super().variable(name, shape)
 
-        lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
+        lb = np.broadcast_to(lb, shape).reshape(-1, order="F")
+        ub = np.broadcast_to(ub, shape).reshape(-1, order="F")
         if np.any(lb > ub):
             raise ValueError("Improper variable bounds.")
-        self._lbx = np.concatenate((self._lbx, lb.flatten("F")))
-        self._ubx = np.concatenate((self._ubx, ub.flatten("F")))
+        self._lbx = np.concatenate((self._lbx, lb))
+        self._ubx = np.concatenate((self._ubx, ub))
 
         name_lam = f"lam_lb_{name}"
         lam_lb = self._sym_type.sym(name_lam, *shape)
