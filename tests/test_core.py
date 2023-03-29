@@ -10,7 +10,7 @@ from casadi.tools import entry, struct_MX, struct_SX
 from parameterized import parameterized
 
 from csnlp.core.cache import invalidate_cache
-from csnlp.core.data import array2cs, cs2array
+from csnlp.core.data import array2cs, cs2array, find_index_in_vector
 from csnlp.core.debug import NlpDebug, NlpDebugEntry
 from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.scaling import MinMaxScaler, Scaler
@@ -269,6 +269,14 @@ class TestData(unittest.TestCase):
                 np.testing.assert_allclose(o, 0, atol=1e-9)
                 o = cs.evalf(cs.substitute(y[i] - a[i], x, x_))
                 np.testing.assert_allclose(o, 0, atol=1e-9)
+
+    @parameterized.expand([(cs.SX,), (cs.MX,)])
+    def test_find_index_in_vector__works_properly(
+        self, sym_type: Union[Type[cs.SX], Type[cs.MX]]
+    ):
+        X = sym_type.sym("X", 5)
+        x = cs.horzcat(X[3], X[2])
+        np.testing.assert_array_equal([3, 2], find_index_in_vector(X, x))
 
 
 class TestDerivatives(unittest.TestCase):

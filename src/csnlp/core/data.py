@@ -78,3 +78,30 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     for idx in indices:
         y[idx] = x[idx]
     return y
+
+
+def find_index_in_vector(V: Union[cs.SX, cs.MX], a: Union[cs.SX, cs.MX]):
+    """Finds the indices of `a` in `V`.
+
+    Parameters
+    ----------
+    V : casadi.SX or MX
+        The vector in which to search.
+    a : casadi.SX or MX
+        The vector to search for.
+
+    Returns
+    -------
+    array of int
+        The indices of `a` in `V`.
+
+    Raises
+    ------
+    ValueError
+        Raises if `V` or `a` are not vectors.
+    """
+    if not (V.is_vector() and a.is_vector()):
+        raise ValueError("`V` and `a` must be vectors.")
+
+    sp: cs.Sparsity = cs.jacobian(a, V).sparsity()
+    return np.asarray(sp.get_crs()[1], int)
