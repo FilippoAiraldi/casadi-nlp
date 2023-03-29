@@ -50,21 +50,21 @@ class HasConstraints(HasVariables[SymType]):
         self._pars: Dict[str, SymType] = {}
         self._cons: Dict[str, SymType] = {}
 
-        self._lbx, self._ubx = np.asarray([]), np.asarray([])
-        self._lam_lbx, self._lam_ubx = self._sym_type(0, 1), self._sym_type(0, 1)
         self._g, self._lam_g = self._sym_type(0, 1), self._sym_type(0, 1)
         self._h, self._lam_h = self._sym_type(0, 1), self._sym_type(0, 1)
+        self._lbx, self._ubx = np.empty((0,)) , np.empty((0,))
+        self._lam_lbx, self._lam_ubx = self._sym_type(0, 1), self._sym_type(0, 1)
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
-    def lbx(self) -> npt.NDArray[np.double]:
+    def lbx(self) -> npt.NDArray[np.floating]:
         """Gets the lower bound constraints of primary variables of the NLP scheme in
         vector form."""
         return self._lbx
 
     @property
-    def ubx(self) -> npt.NDArray[np.double]:
+    def ubx(self) -> npt.NDArray[np.floating]:
         """Gets the upper bound constraints of primary variables of the NLP scheme in
         vector form."""
         return self._ubx

@@ -97,16 +97,16 @@ for i, SCALED in enumerate((False, True)):
     )
 
     # plotting
-    u_: npt.NDArray[np.double] = sol.value(u).full()
-    x_: npt.NDArray[np.double] = sol.value(x).full()
+    u_: npt.NDArray[np.floating] = sol.value(u).full()
+    x_: npt.NDArray[np.floating] = sol.value(x).full()
     axs[0, i].step(time[:-1], u_.flat, where="post")
     axs[1, i].plot(time, x_[0, :].flat)
     axs[2, i].plot(time, x_[1, :].flat)
     axs[3, i].plot(time, x_[2, :].flat)
     if SCALED:
         axs2 = [axs[j, i].twinx() for j in range(4)]
-        u_us: npt.NDArray[np.double] = sol.value(mpc.unscale(mpc.actions["u"])).full()
-        x_us: npt.NDArray[np.double] = sol.value(mpc.unscale(mpc.states["x"])).full()
+        u_us: npt.NDArray[np.floating] = sol.value(mpc.unscale(mpc.actions["u"])).full()
+        x_us: npt.NDArray[np.floating] = sol.value(mpc.unscale(mpc.states["x"])).full()
         axs2[0].step(time[:-1], u_us.flat, "r--", where="post")
         axs2[1].plot(time, x_us[0, :].flat, "r--")
         axs2[2].plot(time, x_us[1, :].flat, "r--")
