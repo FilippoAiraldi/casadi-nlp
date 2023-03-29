@@ -349,8 +349,8 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
         shared_kwargs = {
-            "lbx": self._lbx,
-            "ubx": self._ubx,
+            "lbx": self._lbx.data,
+            "ubx": self._ubx.data,
             "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
             "ubg": 0,
         }

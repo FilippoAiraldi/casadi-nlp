@@ -40,9 +40,8 @@ class HasConstraints(HasVariables[SymType]):
         sym_type : "SX" or "MX", optional
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         remove_redundant_x_bounds : bool, optional
-            If `True`, then redundant entries in `lbx` and `ubx` are removed when
-            properties `h_lbx` and `h_ubx` are called. See these two properties for more
-            details. By default, `True`.
+            If `True`, then redundant entries in `lbx` and `ubx` are masked out, e.g.,
+            when computing `h_lbx` and `h_ubx`. By default, `True`.
         """
         super().__init__(sym_type)
 
@@ -52,21 +51,23 @@ class HasConstraints(HasVariables[SymType]):
 
         self._g, self._lam_g = self._sym_type(0, 1), self._sym_type(0, 1)
         self._h, self._lam_h = self._sym_type(0, 1), self._sym_type(0, 1)
-        self._lbx, self._ubx = np.empty((0,)) , np.empty((0,))
-        self._lam_lbx, self._lam_ubx = self._sym_type(0, 1), self._sym_type(0, 1)
+        self._lbx: np.ma.MaskedArray = np.ma.empty(0, fill_value=-np.inf)
+        self._ubx: np.ma.MaskedArray = np.ma.empty(0, fill_value=+np.inf)
+        self._lam_lbx = self._sym_type(0, 1)
+        self._lam_ubx = self._sym_type(0, 1)
 
         self._remove_redundant_x_bounds = remove_redundant_x_bounds
 
     @property
-    def lbx(self) -> npt.NDArray[np.floating]:
+    def lbx(self) -> np.ma.MaskedArray:
         """Gets the lower bound constraints of primary variables of the NLP scheme in
-        vector form."""
+        masked vector form."""
         return self._lbx
 
     @property
-    def ubx(self) -> npt.NDArray[np.floating]:
+    def ubx(self) -> np.ma.MaskedArray:
         """Gets the upper bound constraints of primary variables of the NLP scheme in
-        vector form."""
+        masked vector form."""
         return self._ubx
 
     @property
@@ -125,28 +126,34 @@ class HasConstraints(HasVariables[SymType]):
         return self._cons
 
     @cached_property
-    def h_lbx(self) -> Tuple[SymType, SymType]:
-        """Gets the inequalities due to `lbx` and their multipliers. If
-        `remove_redundant_x_bounds=True`, it removes redundant entries, i.e., where
-        `lbx == -inf`; otherwise, returns all lower bound constraints."""
-        if not self._remove_redundant_x_bounds:
-            return self._lbx[:, None] - self._x, self._lam_lbx
-        idx = np.where(self._lbx != -np.inf)[0]
-        if idx.size == 0:
-            return self._sym_type(0, 1), self._sym_type(0, 1)
-        return self._lbx[idx, None] - self._x[idx], self._lam_lbx[idx]
+    def nonmasked_lbx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
+        """Gets the indices of non-masked entries in `lbx` (or the full slice)."""
+        return (
+            slice(None)
+            if np.ma.getmask(self._lbx) is np.ma.nomask
+            else np.where(~np.ma.getmaskarray(self._lbx))[0]
+        )
 
     @cached_property
-    def h_ubx(self) -> Tuple[SymType, SymType]:
-        """Gets the inequalities due to `ubx` and their multipliers. If
-        `remove_redundant_x_bounds=True`, it removes redundant entries, i.e., where
-        `ubx == +inf`; otherwise, returns all upper bound constraints."""
-        if not self._remove_redundant_x_bounds:
-            return self._x - self._ubx[:, None], self._lam_ubx
-        idx = np.where(self._ubx != np.inf)[0]
-        if idx.size == 0:
-            return self._sym_type(0, 1), self._sym_type(0, 1)
-        return self._x[idx] - self._ubx[idx, None], self._lam_ubx[idx]
+    def nonmasked_ubx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
+        """Gets the indices of non-masked entries in `ubx` (or the full slice)."""
+        return (
+            slice(None)
+            if np.ma.getmask(self._ubx) is np.ma.nomask
+            else np.where(~np.ma.getmaskarray(self._ubx))[0]
+        )
+
+    @cached_property
+    def h_lbx(self) -> SymType:
+        """Gets the inequalities due to `lbx`."""
+        idx = self.nonmasked_lbx_idx
+        return self._lbx.data[idx, None] - self._x[idx, :]
+
+    @cached_property
+    def h_ubx(self) -> SymType:
+        """Gets the inequalities due to `ubx`."""
+        idx = self.nonmasked_ubx_idx
+        return self._x[idx, :] - self._ubx.data[idx, None]
 
     @cached_property
     def lam(self) -> SymType:
@@ -157,43 +164,20 @@ class HasConstraints(HasVariables[SymType]):
         The dual variables are vertically concatenated in the following order:
         `lam_g, lam_h, lam_lbx, lam_ubx`.
         """
-        return cs.vertcat(self._lam_g, self._lam_h, self.h_lbx[1], self.h_ubx[1])
-
-    @cached_property
-    def lam_all(self) -> SymType:
-        """Gets all the dual variables of the NLP scheme in vector form, irrespective of
-        redundant `lbx` and `ubx` multipliers. If `remove_redundant_x_bounds=True`, then
-        this property is equivalent to the `lam` property.
-
-        Note
-        ----
-        The dual variables are vertically concatenated in the following order:
-        `lam_g, lam_h, lam_lbx, lam_ubx`.
-        """
         return cs.vertcat(self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx)
 
-    def primal_dual_vars(self, all: bool = False) -> SymType:
+    @cached_property
+    def primal_dual(self) -> SymType:
         """Gets the collection of primal-dual variables (usually, denoted as `y`)
         ```
                     y = [x^T, lam^T]^T
         ```
-        where `x` are the primal variables, and `lam` the dual variables.
+        where `x` are the primal variables, and `lam` the dual variables."""
+        return cs.vertcat(self._x, self.lam)
 
-        Parameters
-        ----------
-        all : bool, optional
-            If `True`, all dual variables are included, even the multipliers connected
-            to redundant `lbx` or `ubx`. Otherwise, the redundant ones are removed. By
-            default, `False`.
-
-        Returns
-        ------
-        casadi SX or MX
-            The collection of primal-dual variables `y`.
-        """
-        return cs.vertcat(self._x, self.lam_all if all else self.lam)
-
-    @invalidate_cache(h_lbx, h_ubx, lam, lam_all)
+    @invalidate_cache(
+        nonmasked_lbx_idx, nonmasked_ubx_idx, h_lbx, h_ubx, lam, primal_dual
+    )
     def variable(
         self,
         name: str,
@@ -220,7 +204,10 @@ class HasConstraints(HasVariables[SymType]):
             The symbol of the new variable.
         lam_lb : casadi.SX or MX
             The symbol corresponding to the new variable lower bound constraint's
-            multipliers.
+            multipliers. The shape of the multiplier is equal to the number of relevant
+            lower bounds (i.e., `!=-np.inf`), so it may differ from the shape of the
+            variable itself. This behaviour can be disabled by setting
+            `remove_redundant_x_bounds=False`.
         lam_ub : casadi.SX or MX
             Same as above, for upper bound.
 
@@ -237,20 +224,28 @@ class HasConstraints(HasVariables[SymType]):
         ub = np.broadcast_to(ub, shape).reshape(-1, order="F")
         if np.any(lb > ub):
             raise ValueError("Improper variable bounds.")
-        self._lbx = np.concatenate((self._lbx, lb))
-        self._ubx = np.concatenate((self._ubx, ub))
+        mlb: np.ma.MaskedArray = np.ma.masked_array(lb, np.ma.nomask)
+        mub: np.ma.MaskedArray = np.ma.masked_array(ub, np.ma.nomask)
+        if self._remove_redundant_x_bounds:
+            mlb.mask = lb == -np.inf
+            mub.mask = ub == +np.inf
 
-        name_lam = f"lam_lb_{name}"
-        lam_lb = self._sym_type.sym(name_lam, *shape)
-        self._dual_vars[name_lam] = lam_lb
+        self._lbx = np.ma.concatenate((self._lbx, mlb))
+        self._ubx = np.ma.concatenate((self._ubx, mub))
+        self._lbx.fill_value = -np.inf
+        self._ubx.fill_value = +np.inf
+
+        name_lam_lb = f"lam_lb_{name}"
+        name_lam_ub = f"lam_ub_{name}"
+        lam_lb = self._sym_type.sym(name_lam_lb, (~np.ma.getmaskarray(mlb)).sum())
+        lam_ub = self._sym_type.sym(name_lam_ub, (~np.ma.getmaskarray(mub)).sum())
+        self._dual_vars[name_lam_lb] = lam_lb
+        self._dual_vars[name_lam_ub] = lam_ub
         self._lam_lbx = cs.veccat(self._lam_lbx, lam_lb)
-        name_lam = f"lam_ub_{name}"
-        lam_ub = self._sym_type.sym(name_lam, *shape)
-        self._dual_vars[name_lam] = lam_ub
         self._lam_ubx = cs.veccat(self._lam_ubx, lam_ub)
         return var, lam_lb, lam_ub
 
-    @invalidate_cache(lam, lam_all)
+    @invalidate_cache(lam, primal_dual)
     def constraint(
         self,
         name: str,
