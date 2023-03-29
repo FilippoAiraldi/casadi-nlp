@@ -103,17 +103,13 @@ class NlpSensitivity(Wrapper[SymType]):
         Note: The order of the KKT conditions can be adjusted via the class attribute
         `_PRIMAL_DUAL_ORDER`.
         """
-        items = {
-            "g": self.nlp.g,
-            "h": (self.nlp.lam_h * self.nlp.h) + self._tau,
-            "h_lbx": (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
-            "h_ubx": (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau,
-        }
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp.x).T,
-            *(items.pop(v) for v in self.nlp.dual_variables_order),
+            self.nlp.g,
+            (self.nlp.lam_h * self.nlp.h) + self._tau,
+            (self.nlp.h_lbx[0] * self.nlp.h_lbx[1]) + self._tau,
+            (self.nlp.h_ubx[0] * self.nlp.h_ubx[1]) + self._tau,
         )
-        assert not items, "Internal error. `dual_variables_order` modified."
         return kkt, (self._tau if self.include_barrier_term else None)
 
     @cached_property

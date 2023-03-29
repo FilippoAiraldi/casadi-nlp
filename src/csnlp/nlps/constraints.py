@@ -1,4 +1,4 @@
-from typing import ClassVar, Dict, Literal, Tuple, TypeVar, Union
+from typing import Dict, Literal, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -27,8 +27,6 @@ class HasConstraints(HasVariables[SymType]):
         "_lam_h",
         "_remove_redundant_x_bounds",
     )
-    dual_variables_order: ClassVar[Tuple[str, ...]] = ("g", "h", "h_lbx", "h_ubx")
-    """This tuple dictates the order for operations related to dual variables."""
 
     def __init__(
         self,
@@ -154,35 +152,25 @@ class HasConstraints(HasVariables[SymType]):
     def lam(self) -> SymType:
         """Gets the dual variables of the NLP scheme in vector form.
 
-        Note: The order of the dual variables can be adjusted via the class attribute
-        `dual_variables_order`."""
-        items = {
-            "g": self._lam_g,
-            "h": self._lam_h,
-            "h_lbx": self.h_lbx[1],
-            "h_ubx": self.h_ubx[1],
-        }
-        dual = cs.vertcat(*(items.pop(v) for v in self.dual_variables_order))
-        assert not items, "Internal error. `dual_variables_order` modified."
-        return dual
+        Note
+        ----
+        The dual variables are vertically concatenated in the following order:
+        `lam_g, lam_h, lam_lbx, lam_ubx`.
+        """
+        return cs.vertcat(self._lam_g, self._lam_h, self.h_lbx[1], self.h_ubx[1])
 
     @cached_property
     def lam_all(self) -> SymType:
         """Gets all the dual variables of the NLP scheme in vector form, irrespective of
-        redundant `lbx` and `ubx` multipliers. If `remove_redundant_x_bounds`, then this
-        property is equivalent to the `lam` property.
+        redundant `lbx` and `ubx` multipliers. If `remove_redundant_x_bounds=True`, then
+        this property is equivalent to the `lam` property.
 
-        Note: The order of the dual variables can be adjusted via the class attribute
-        `dual_variables_order`."""
-        items = {
-            "g": self._lam_g,
-            "h": self._lam_h,
-            "h_lbx": self._lam_lbx,
-            "h_ubx": self._lam_ubx,
-        }
-        dual = cs.vertcat(*(items.pop(v) for v in self.dual_variables_order))
-        assert not items, "Internal error. `dual_variables_order` modified."
-        return dual
+        Note
+        ----
+        The dual variables are vertically concatenated in the following order:
+        `lam_g, lam_h, lam_lbx, lam_ubx`.
+        """
+        return cs.vertcat(self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx)
 
     def primal_dual_vars(self, all: bool = False) -> SymType:
         """Gets the collection of primal-dual variables (usually, denoted as `y`)
@@ -202,11 +190,6 @@ class HasConstraints(HasVariables[SymType]):
         ------
         casadi SX or MX
             The collection of primal-dual variables `y`.
-
-        Note
-        ----
-        The order of the dual variables can be adjusted via the class attribute
-        `dual_variables_order`.
         """
         return cs.vertcat(self._x, self.lam_all if all else self.lam)
 
