@@ -234,7 +234,7 @@ class HasConstraints(HasVariables[SymType]):
         var = super().variable(name, shape)
 
         lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
-        if np.all(lb > ub):
+        if np.any(lb > ub):
             raise ValueError("Improper variable bounds.")
         self._lbx = np.concatenate((self._lbx, lb.flatten("F")))
         self._ubx = np.concatenate((self._ubx, ub.flatten("F")))
