@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from csnlp.core.cache import cached_property, invalidate_cache
-from csnlp.core.data import array2cs, cs2array
+from csnlp.core.data import array2cs, cs2array, find_index_in_vector
 from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.solutions import Solution
 from csnlp.wrappers.wrapper import Nlp, Wrapper
@@ -368,19 +368,11 @@ class NlpSensitivity(Wrapper[SymType]):
         if parameters is None:
             self._p_idx_internal = None, slice(None)
             return
-
         p: SymType = cs.vec(parameters)
         if self.nlp.sym_type is cs.SX:
             self._p_idx_internal = p, slice(None)
             return
-
-        sp_J: cs.Sparsity = cs.jacobian(p, self.nlp.p).sparsity()
-        idx = np.asarray(sp_J.get_crs()[1], int)
-        assert idx.size == p.shape[0], (
-            "Invalid subset of target parameters (some were not found among the "
-            "original NLP parameters)."
-        )
-        self._p_idx_internal = self.nlp.p, idx  # type: ignore[assignment]
+        self._p_idx_internal = self.nlp.p, find_index_in_vector(self.nlp.p, p)
 
     @property
     def _p_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
