@@ -1,5 +1,6 @@
 [run]
 omit =
+    */__init__.py
     tests/*
     examples/*
     src/csnlp/util/docs.py
