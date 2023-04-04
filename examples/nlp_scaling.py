@@ -39,25 +39,25 @@ axs[0, 0].set_ylabel("Thrust [N]")
 axs[1, 0].set_ylabel("Height [m]")
 axs[2, 0].set_ylabel("Speed [m/s]")
 axs[3, 0].set_ylabel("Mass [kg]")
+axs[4, 0].set_ylabel("Primal/dual feasibility")
 axs[3, 0].set_xlabel("Time [s]")
 axs[3, 1].set_xlabel("Time [s]")
-axs[4, 1].set_ylabel("Primal/dual feasibility")
+axs[4, 0].set_xlabel("Iteration number")
 axs[4, 1].set_xlabel("Iteration number")
 
 
-for i, SCALED in enumerate((False, True)):
+for i in range(2):
+    is_scaled = bool(i)
+
     # create rng
     rng = np_random(seed)
 
     # create mpc
     nlp = multistart.StackedMultistartNlp[cs.SX](sym_type="SX", starts=K)
-    if SCALED:
+    if is_scaled:
         # NOTE: since the scaling affects constraint definition, the NLP must be first
-        # wrapped in it, and only then in the MPC.
-        y_nom = 1e5
-        v_nom = 2e3
-        m_nom = 3e5
-        x_nom = cs.vertcat(y_nom, v_nom, m_nom)
+        # wrapped in the scaling wrapper, and only then in the MPC wrapper.
+        x_nom = cs.DM([1e5, 2e3, 3e5])
         u_nom = 1e8
         scaler = scaling.Scaler()
         scaler.register("x", scale=x_nom)
@@ -103,7 +103,7 @@ for i, SCALED in enumerate((False, True)):
     axs[1, i].plot(time, x_[0, :].flat)
     axs[2, i].plot(time, x_[1, :].flat)
     axs[3, i].plot(time, x_[2, :].flat)
-    if SCALED:
+    if is_scaled:
         axs2 = [axs[j, i].twinx() for j in range(4)]
         u_us: npt.NDArray[np.floating] = sol.value(mpc.unscale(mpc.actions["u"])).full()
         x_us: npt.NDArray[np.floating] = sol.value(mpc.unscale(mpc.states["x"])).full()
