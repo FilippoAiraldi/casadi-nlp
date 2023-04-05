@@ -30,7 +30,16 @@ alpha = 1 / (300 * g)  # kg/(N*s)
 seed = 69
 
 # solver options
-opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
+opts = {
+    "print_time": False,
+    "ipopt": {
+        # "linear_solver": "ma97",
+        # "linear_system_scaling": "mc19",
+        # "nlp_scaling_method": "equilibration-based",
+        "sb": "yes",
+        "print_level": 5,
+    },
+}
 
 # plotting
 time = np.linspace(0, T, N + 1)
