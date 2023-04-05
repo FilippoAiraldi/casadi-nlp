@@ -303,7 +303,7 @@ class HasConstraints(HasVariables[SymType]):
         if not isinstance(expr, (cs.SX, cs.MX)):
             raise TypeError("Constraint must be symbolic.")
         if simplify:
-            expr = cs.simplify(expr)
+            expr = cs.cse(cs.simplify(expr))
 
         shape = expr.shape
         if op == "==":

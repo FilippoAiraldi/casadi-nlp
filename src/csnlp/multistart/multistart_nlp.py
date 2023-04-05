@@ -193,7 +193,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     ) -> Tuple[SymType, ...]:
         expr = lhs - rhs
         if simplify:
-            expr = cs.simplify(expr)
+            expr = cs.cse(cs.simplify(expr))
         out = super().constraint(name, expr, op, 0, soft, False)
 
         # NOTE: the line above already created the slack variables in each scenario, so
