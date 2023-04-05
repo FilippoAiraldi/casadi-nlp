@@ -67,7 +67,7 @@ def prod(
     sum_ = cs.sum1 if (axis == 0 or axis == -2) else cs.sum2
     n_negatives = sum_(x < 0)
     p = cs.exp(sum_(cs.log(cs.fabs(x))))
-    return cs.if_else(cs.mod(n_negatives, 2) == 0.0, 1, -1) * p
+    return cs.if_else(cs.remainder(n_negatives, 2) == 0.0, 1, -1) * p
 
 
 def quad_form(

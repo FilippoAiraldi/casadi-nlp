@@ -538,9 +538,9 @@ class TestNlp(unittest.TestCase):
         p = nlp.parameter("p")
         nlp.minimize((1 - x) ** 2 + a * (y - x**2) ** 2)
         nlp.init_solver(OPTS)
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             nlp.to_function("M", [p], [xy], ["xy"], ["xy"])
-        with self.assertRaises(ValueError):
+        with self.assertRaises(RuntimeError):
             nlp.to_function("M", [p, xy], [xy, c], ["xy"], ["xy"])
 
     @parameterized.expand([(False,), (True,)])
@@ -561,7 +561,7 @@ class TestNlp(unittest.TestCase):
         nlp.constraint("c2", g, "<=", p**2)
         nlp.init_solver(OPTS)
 
-        M = nlp.to_function("M", [p, xy], [xy], ["p", "xy"], ["xy"])
+        M = nlp.to_function("M", [p, xy], [xy], ["p", "xy"], ["xy_opt"])
 
         sol = nlp.solve(pars={"p": 1.25})
         xy1 = sol.value(xy).full().flatten()

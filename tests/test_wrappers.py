@@ -561,7 +561,7 @@ class TestMpc(unittest.TestCase):
         d = cs.SX.sym("d")
         p = cs.SX.sym("p")
         x_next = x + cs.vertcat(u, u2)
-        F1 = cs.Function("F", [x], [x_next])
+        F1 = cs.Function("F", [x], [x_next], {"allow_free": True})
         F2 = cs.Function("F", [x, u, d, p], [x_next + d + p])
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10, control_horizon=5)
