@@ -170,10 +170,9 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         Raises
         ------
         RuntimeError
-            Raises if the solver is uninitialized.
-        ValueError
-            Raises if the input or output expressions have free variables that
-            are not provided or cannot be computed by the solver.
+            Raises if the solver is uninitialized; or if the input or output expressions
+            have free variables that are not provided or cannot be computed by the
+            solver.
         """
         if self._sym_type is cs.SX:
             warnings.warn(
@@ -193,16 +192,6 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             [self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx],
             outs,
         )
-        if Fin.has_free():
-            raise ValueError(
-                "Input expressions do not provide values for: "
-                f'{", ".join(Fin.get_free())}.'
-            )
-        if Fout.has_free():
-            raise ValueError(
-                "Output solver cannot provide values for: "
-                f'{", ".join(Fout.get_free())}.'
-            )
 
         # call the solver
         if self._sym_type is cs.SX:

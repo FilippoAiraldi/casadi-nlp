@@ -106,9 +106,9 @@ class TestExamples(unittest.TestCase):
         f = cs.Function("f", [x, u], [ode], ["x", "u"], ["ode"])
         T = 10
         N = 20
-        intg_options = {"tf": T / N, "simplify": True, "number_of_finite_elements": 4}
+        intg_options = {"simplify": True, "number_of_finite_elements": 4}
         dae = {"x": x, "p": u, "ode": f(x, u)}
-        intg = cs.integrator("intg", "rk", dae, intg_options)
+        intg = cs.integrator("intg", "rk", dae, 0.0, T / N, intg_options)
         res = intg(x0=x, p=u)
         x_next = res["xf"]
         F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
