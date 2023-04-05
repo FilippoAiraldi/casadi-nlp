@@ -33,7 +33,7 @@ seed = 69
 opts = {
     "print_time": False,
     "ipopt": {
-        # "linear_solver": "ma97",
+        "linear_solver": "spral",
         # "linear_system_scaling": "mc19",
         # "nlp_scaling_method": "equilibration-based",
         "sb": "yes",
