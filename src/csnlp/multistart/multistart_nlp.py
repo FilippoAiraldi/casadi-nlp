@@ -226,7 +226,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def init_solver(
         self,
         opts: Optional[Dict[str, Any]] = None,
-        solver: Literal["opti", "qp"] = "opti",
+        solver: Literal["ipopt", "qp"] = "ipopt",
     ) -> None:
         out = super().init_solver(opts, solver)
         self._stacked_nlp.init_solver(opts, solver)

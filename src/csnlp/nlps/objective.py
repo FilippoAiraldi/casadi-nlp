@@ -94,7 +94,7 @@ class HasObjective(HasConstraints[SymType]):
     def init_solver(
         self,
         opts: Optional[Dict[str, Any]] = None,
-        solver: Literal["opti", "qp"] = "opti",
+        solver: Literal["ipopt", "qp"] = "ipopt",
     ) -> None:
         """Initializes the solver for this NLP with the given options.
 
@@ -104,7 +104,8 @@ class HasObjective(HasConstraints[SymType]):
             Options to be passed to the CasADi interface to the solver.
         solver : 'ipopt' or 'qp', optional
             Type of solver to instantiate. By default, IPOPT is chosen to deal with
-            NLPs. However, if the optimization problem is linear, `qp` can be specified.
+            NLPs. However, if the optimization problem is quadratic, `qp` can be
+            specified.
 
         Raises
         ------
