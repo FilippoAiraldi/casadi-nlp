@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Literal, Optional, TypeVar
+from typing import Any, Callable, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -11,6 +11,13 @@ from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+
+_XXSOL: Dict[str, Callable] = {
+    "ipopt": cs.nlpsol,
+    "sqpmethod": cs.nlpsol,
+    "qrqp": cs.qpsol,
+    "osqp": cs.qpsol,
+}
 
 
 def _solve_and_get_stats(
@@ -94,7 +101,7 @@ class HasObjective(HasConstraints[SymType]):
     def init_solver(
         self,
         opts: Optional[Dict[str, Any]] = None,
-        solver: Literal["ipopt", "qp"] = "ipopt",
+        solver: Literal["ipopt", "sqpmethod", "qrqp", "osqp"] = "ipopt",
     ) -> None:
         """Initializes the solver for this NLP with the given options.
 
@@ -102,10 +109,10 @@ class HasObjective(HasConstraints[SymType]):
         ----------
         opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
-        solver : 'ipopt' or 'qp', optional
-            Type of solver to instantiate. By default, IPOPT is chosen to deal with
-            NLPs. However, if the optimization problem is quadratic, `qp` can be
-            specified.
+        solver : {'ipopt', 'sqpmethod', 'qrqp', 'osqp'}, optional
+            Type of solver to instantiate. "ipopt" and "sqpmethod" trigger the
+            instantiation of an NLP problem, while "qrqp" and "osqp" a conic one. By
+            default, 'ipopt' is selected.
 
         Raises
         ------
@@ -118,8 +125,9 @@ class HasObjective(HasConstraints[SymType]):
         opts = {} if opts is None else opts.copy()
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
-        func, stype = (cs.qpsol, "qrqp") if solver == "qp" else (cs.nlpsol, "ipopt")
-        solver_func = func(f"solver_{stype}_{self.name}", stype, problem, opts)
+
+        func = _XXSOL.get(solver, cs.nlpsol)
+        solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
 
         self._solver = self._cache.cache(solver_func)
         self._solver_type = solver
