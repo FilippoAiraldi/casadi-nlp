@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csnlp"
-version = "1.5.4"
+version = "1.5.5"
 authors = [
   { name="Filippo Airaldi", email="filippoairaldi@gmail.com" },
 ]
@@ -25,6 +25,7 @@ dependencies = [
     "casadi >= 3.6.0",
     "joblib >= 1.2.0",
 ]
+keywords = ["nonlinear-optimization", "casadi", "sensitivity-analysis"]
 
 [project.optional-dependencies]
 all = [
