@@ -3,8 +3,6 @@ from typing import Any, Dict, Generator, NamedTuple, Optional
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.util.random import np_random
-
 
 class RandomStartPoint:
     """Class containing all the information to guide the random generation of this
@@ -54,7 +52,7 @@ class RandomStartPoints:
         """
         self.points = points
         self.multistarts = multistarts
-        self.np_random = np_random(seed)
+        self.np_random = np.random.default_rng(seed)
 
     def __iter__(self) -> Generator[Dict[str, npt.ArrayLike], None, None]:
         """Iterates over the random start points, yielding each time a different set."""

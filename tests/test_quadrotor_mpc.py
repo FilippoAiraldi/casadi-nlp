@@ -9,7 +9,6 @@ from parameterized import parameterized
 
 from csnlp import Nlp, Solution
 from csnlp.util.math import quad_form
-from csnlp.util.random import np_random
 from csnlp.wrappers import Mpc
 
 
@@ -133,7 +132,7 @@ class QuadRotorEnv:
     def reset(
         self, seed: int = None, x0: np.ndarray = None, xf: np.ndarray = None
     ) -> np.ndarray:
-        self.np_random = np_random(seed)
+        self.np_random = np.random.default_rng(seed)
         if x0 is None:
             x0 = self.config.x0
         if xf is None:

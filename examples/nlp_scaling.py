@@ -7,7 +7,6 @@ import numpy as np
 import numpy.typing as npt
 
 from csnlp import Solution, multistart, scaling, wrappers
-from csnlp.util.random import np_random
 
 plt.style.use("bmh")
 
@@ -59,7 +58,7 @@ for i in range(2):
     is_scaled = bool(i)
 
     # create rng
-    rng = np_random(seed)
+    rng = np.random.default_rng(seed)
 
     # create mpc
     nlp = multistart.StackedMultistartNlp[cs.SX](sym_type="SX", starts=K)
