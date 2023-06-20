@@ -218,12 +218,13 @@ class HasConstraints(HasVariables[SymType]):
             element of the lower bound is larger than the corresponding lower bound
             element.
         """
-        var = super().variable(name, shape)
-
         lb = np.broadcast_to(lb, shape).reshape(-1, order="F")
         ub = np.broadcast_to(ub, shape).reshape(-1, order="F")
         if np.any(lb > ub):
             raise ValueError("Improper variable bounds.")
+
+        var = super().variable(name, shape)
+
         mlb: np.ma.MaskedArray = np.ma.masked_array(lb, np.ma.nomask)
         mub: np.ma.MaskedArray = np.ma.masked_array(ub, np.ma.nomask)
         if self._remove_redundant_x_bounds:
