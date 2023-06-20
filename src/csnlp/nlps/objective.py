@@ -27,6 +27,12 @@ def _solve_and_get_stats(
     sol = solver(**kwargs)
     sol["p"] = kwargs["p"]  # add to solution the parameters for which it was computed
     sol["stats"] = solver.func.stats()  # add to solution the solver stats
+    # NOTE: in case of failure in retrieving the stats
+    # try:
+    #     stats = solver.func.stats()
+    # except RuntimeError:
+    #     stats = {"success": False}
+    # sol["stats"] = stats  # add to solution the solver stats
     return sol
 
 

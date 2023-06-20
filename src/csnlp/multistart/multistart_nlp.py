@@ -421,3 +421,8 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._n_jobs = None
         self._parallel = Parallel(n_jobs=self._n_jobs)
         self.initialize_parallel()
+
+
+# TODO: check if an implementation of a multistart NLP with `casadi.Function.map` can be
+# achieved. Issues are
+#   - how to retrieve stats from mapped evaluations
