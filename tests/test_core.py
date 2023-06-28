@@ -226,14 +226,33 @@ class TestSolutions(unittest.TestCase):
             "y": (XX.sym("y", *shape), np.random.rand(*shape) * 5),
             "z": (XX.sym("z"), np.random.rand() + 1),
         }
+        D = {
+            "dx": (XX.sym("dx", *shape), np.random.rand(*shape) * 10),
+            "dy": (XX.sym("dy", *shape), np.random.rand(*shape) * 5),
+            "dz": (XX.sym("dz"), np.random.rand() + 1),
+        }
         V_vec = cs.vertcat(*(cs.vec(v) for _, v in V.values()))
+        D_vec = cs.vertcat(*(cs.vec(d) for _, d in D.values()))
         V_struct = struct_X([entry(n, expr=s) for n, (s, _) in V.items()])
-        expr, expected_val = ((V["x"][i] / V["y"][i]) ** V["z"][i] for i in range(2))
+        D_struct = struct_X([entry(n, expr=s) for n, (s, _) in D.items()])
 
-        vals = V_struct(V_vec)
-        get_value = partial(subsevalf, old=V_struct, new=vals)
+        expr, expected_val = (
+            ((V["x"][i] + D["dx"][i]) / V["y"][i] / D["dy"][i])
+            ** (V["z"][i] - D["dz"][i])
+            for i in range(2)
+        )
+
+        all_vars = cs.vertcat(V_struct, D_struct)
+        all_vals = cs.vertcat(V_struct(V_vec), D_struct(D_vec))
+        get_value = partial(subsevalf, old=all_vars, new=all_vals)
         S = Solution(
-            f=f, vars=V_struct, vals=V_struct(V_vec), stats={}, _get_value=get_value
+            f=f,
+            vars=V_struct,
+            vals=V_struct(V_vec),
+            dual_vars=D_struct,
+            dual_vals=D_struct(V_vec),
+            stats={},
+            _get_value=get_value,
         )
         np.testing.assert_allclose(expected_val, S.value(expr))
 
@@ -244,6 +263,8 @@ class TestSolutions(unittest.TestCase):
             f=None,
             vars=None,
             vals=None,
+            dual_vars=None,
+            dual_vals=None,
             stats={"success": flag, "iterations": {"mu": mu}},
             _get_value=lambda x: x,
         )

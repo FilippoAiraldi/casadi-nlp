@@ -140,7 +140,7 @@ class TestExamples(unittest.TestCase):
         r = nlp.parameter("r")
         f = (1 - x[0]) ** 2 + (x[1] - x[0] ** 2) ** 2
         nlp.minimize(f)
-        _, lam = nlp.constraint("con1", cs.sumsqr(x), "<=", r)
+        nlp.constraint("con1", cs.sumsqr(x), "<=", r)
         nlp.init_solver(OPTS)
         nlp = nlp.copy()
         r_values = np.linspace(1, 3, 25)
@@ -149,7 +149,7 @@ class TestExamples(unittest.TestCase):
         for r_value in r_values:
             sol = nlp.solve(pars={"r": r_value})
             f_values.append(sol.f)
-            lam_values.append(sol.value(lam))
+            lam_values.append(sol.dual_vals["lam_h_con1"])
         f_values = np.asarray(f_values).squeeze()
         lam_values = np.asarray(lam_values).squeeze()
         np.testing.assert_allclose(f_values, RESULTS["rosenbrock_f"])

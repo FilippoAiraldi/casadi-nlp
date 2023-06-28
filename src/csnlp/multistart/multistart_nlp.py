@@ -260,7 +260,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         vars_ = self.variables
         pars_ = self.parameters
-        duals = self.dual_variables
+        duals_ = self.dual_variables
         old = cs.vertcat(
             self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx, self._p
         )
@@ -268,6 +268,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         def get_ith_sol(idx: int) -> Solution[SymType]:
             vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_.keys()}
+            dual_vals = {n: multi_sol.dual_vals[_n(n, idx)] for n in duals_.keys()}
             new = multi_sol._get_value(
                 _chained_subevalf(
                     old,
@@ -275,13 +276,15 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                     self._vars_i(idx),
                     pars_,
                     self._pars_i(idx),
-                    duals,
+                    duals_,
                     self._dual_vars_i(idx),
                     False,
                 )
             )
             get_value = partial(subsevalf, old=old, new=new)
-            return Solution(fs[idx], vars_, vals, multi_sol.stats, get_value)
+            return Solution(
+                fs[idx], vars_, vals, duals_, dual_vals, multi_sol.stats, get_value
+            )
 
         if return_all_sols:
             return [get_ith_sol(i) for i in range(self._starts)]
