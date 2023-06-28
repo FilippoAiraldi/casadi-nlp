@@ -19,6 +19,8 @@ class Solution(Generic[SymType]):
     f: float
     vars: Dict[str, SymType]
     vals: Dict[str, cs.DM]
+    dual_vars: Dict[str, SymType]
+    dual_vals: Dict[str, cs.DM]
     stats: Dict[str, Any]
     _get_value: partial  # Callable[[SymType, bool], Union[SymType, cs.DM]]
 
