@@ -21,23 +21,7 @@ class EmptyClass(io.SupportsDeepcopyAndPickle):
     ...
 
 
-class SlotsClass(EmptyClass):
-    __slots__ = ("x", "y", "sym1")
-
-    def __init__(self) -> None:
-        super().__init__()
-        self.x, self.y = 1, 2
-        self.sym1 = cs.SX.sym("x", 2, 1)
-
-
 class DictClass(EmptyClass):
-    def __init__(self) -> None:
-        super().__init__()
-        self.z, self.w = 3, 4
-        self.sym2 = cs.SX.sym("y", 3, 1)
-
-
-class SlotsAndDictClass(SlotsClass):
     def __init__(self) -> None:
         super().__init__()
         self.z, self.w = 3, 4
@@ -100,38 +84,20 @@ class TestIo(unittest.TestCase):
     @parameterized.expand([(False,), (True,)])
     def test_is_pickleable_and_deepcopy_able(self, copy: bool):
         ec = EmptyClass()
-        sc = SlotsClass()
         dc = DictClass()
-        sdc = SlotsAndDictClass()
         if copy:
             ec1 = ec.copy()
-            sc1 = sc.copy()
             dc1 = dc.copy()
-            sdc1 = sdc.copy()
         else:
             ec1 = pickle.loads(pickle.dumps(ec))
-            sc1 = pickle.loads(pickle.dumps(sc))
             dc1 = pickle.loads(pickle.dumps(dc))
-            sdc1 = pickle.loads(pickle.dumps(sdc))
         self.assertIsNot(ec, ec1)
-        self.assertIsNot(sc, sc1)
-        self.assertTupleEqual((sc.x, sc.y), (sc1.x, sc1.y))
         self.assertIsNot(dc, dc1)
         self.assertTupleEqual((dc.z, dc.w), (dc1.z, dc1.w))
-        self.assertIsNot(sdc, sdc1)
-        self.assertTupleEqual(
-            (sdc.x, sdc.y, sdc.z, sdc.w), (sdc1.x, sdc1.y, sdc1.z, sdc1.w)
-        )
         if copy:
-            self.assertTupleEqual(sc.sym1.shape, sc1.sym1.shape)
             self.assertTupleEqual(dc.sym2.shape, dc1.sym2.shape)
-            self.assertTupleEqual(
-                (sdc.sym1.shape, sdc.sym2.shape), (sdc1.sym1.shape, sdc1.sym2.shape)
-            )
         else:
-            self.assertFalse(hasattr(sc1, "sym1"))
             self.assertFalse(hasattr(dc1, "sym2"))
-            self.assertFalse(hasattr(sdc1, "sym1") or hasattr(sdc1, "sym2"))
 
 
 class TestMath(unittest.TestCase):

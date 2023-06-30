@@ -13,21 +13,6 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class HasConstraints(HasVariables[SymType]):
     """Class for creating and storing symbolic constraints for an NLP problem."""
 
-    __slots__ = (
-        "_dual_vars",
-        "_pars",
-        "_cons",
-        "_lbx",
-        "_ubx",
-        "_lam_lbx",
-        "_lam_ubx",
-        "_g",
-        "_lam_g",
-        "_h",
-        "_lam_h",
-        "_remove_redundant_x_bounds",
-    )
-
     def __init__(
         self,
         sym_type: Literal["SX", "MX"] = "SX",

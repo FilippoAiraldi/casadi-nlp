@@ -19,8 +19,6 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
     `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is defined.
     """
 
-    __slots__ = ("nlp",)
-
     def __init__(self, nlp: Nlp[SymType]) -> None:
         """Wraps an NLP instance.
 

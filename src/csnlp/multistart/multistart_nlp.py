@@ -60,7 +60,6 @@ def _chained_subevalf(
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting."""
 
-    __slots__ = ("_starts",)
     is_multi: ClassVar[bool] = True
 
     def __init__(self, *args, starts: int, **kwargs) -> None:
@@ -132,8 +131,6 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     automatically stacking the problem multiple independent times in the same,
     larger-scale NLP. This allows to solve the original problem multiple times via a
     single call to the solver."""
-
-    __slots__ = ("_stacked_nlp", "_fs")
 
     def __init__(self, *args, starts: int, **kwargs) -> None:
         # this class essentially is a facade that hides an internal nlp in which the
@@ -301,8 +298,6 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP via parallelization of the computations."""
 
-    __slots__ = ("_parallel", "_n_jobs")
-
     def __init__(
         self, *args, starts: int, n_jobs: Optional[int] = None, **kwargs
     ) -> None:
@@ -391,31 +386,15 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._failures += not this_success
         return self._process_solver_sol(best_sol)
 
-    def __getstate__(
-        self,
-        fullstate: bool = False,
-    ) -> Union[None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]]:
+    def __getstate__(self, fullstate: bool = False) -> Dict[str, Any]:
         # joblib.Parallel cannot be pickled or deepcopied
         state = super().__getstate__(fullstate)
-        state[1].pop("_parallel", None)  # type: ignore[index]
+        state.pop("_parallel", None)
         return state
 
-    def __setstate__(
-        self,
-        state: Union[
-            None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]
-        ],
-    ) -> None:
-        if isinstance(state, tuple) and len(state) == 2:
-            state, slotstate = state
-        else:
-            slotstate = None
+    def __setstate__(self, state: Optional[Dict[str, Any]]) -> None:
         if state is not None:
-            self.__dict__.update(state)  # type: ignore[arg-type]
-        if slotstate is not None:
-            for key, value in slotstate.items():
-                setattr(self, key, value)
-
+            self.__dict__.update(state)
         # re-initialized joblib.Parallel
         if not hasattr(self, "_n_jobs"):
             self._n_jobs = None

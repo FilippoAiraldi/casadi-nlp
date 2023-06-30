@@ -26,20 +26,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
     """
 
-    __slots__ = (
-        "_is_multishooting",
-        "_prediction_horizon",
-        "_control_horizon",
-        "_input_spacing",
-        "_states",
-        "_initial_states",
-        "_actions",
-        "_actions_exp",
-        "_slacks",
-        "_disturbances",
-        "_dynamics",
-    )
-
     def __init__(
         self,
         nlp: Nlp[SymType],

@@ -34,16 +34,6 @@ class HasObjective(HasConstraints[SymType]):
     """Class for creating an NLP problem with parameters, variables, constraints and an
     objective."""
 
-    __slots__ = (
-        "name",
-        "_f",
-        "_solver",
-        "_solver_opts",
-        "_solver_type",
-        "_cache",
-        "_failures",
-    )
-
     def __init__(
         self,
         sym_type: Literal["SX", "MX"] = "SX",

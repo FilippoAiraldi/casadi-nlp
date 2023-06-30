@@ -8,8 +8,6 @@ class RandomStartPoint:
     """Class containing all the information to guide the random generation of this
     point."""
 
-    __slots__ = ("method", "args", "kwargs")
-
     def __init__(self, method: str, *args: Any, **kwargs: Any) -> None:
         """Instantiates a `RandomStartPoint` object.
 
@@ -29,8 +27,6 @@ class RandomStartPoint:
 class RandomStartPoints:
     """Class that can be iterated to yield a set of random start points for a multistart
     NLP optimization problem."""
-
-    __slots__ = ("np_random", "multistarts", "points")
 
     def __init__(
         self,
@@ -78,8 +74,6 @@ class StructuredStartPoints:
     """Class that can be iterated to yield a set of structured (deterministic) start
     points for a multistart NLP optimization problem. The points are linearly spaced
     between upper- and lower-bounds."""
-
-    __slots__ = ("multistarts", "points")
 
     def __init__(
         self,

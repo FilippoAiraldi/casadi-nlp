@@ -36,7 +36,6 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     constraints, objective, solver).
     """
 
-    __slots__ = ("id", "_debug")
     __ids: ClassVar[Iterator[int]] = count(0)
     is_multi: ClassVar[bool] = False
 
