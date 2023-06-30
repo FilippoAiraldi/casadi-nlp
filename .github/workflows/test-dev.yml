@@ -3,7 +3,7 @@ name: Test-Dev
 on:
   push:
     branches:
-      - experimental
+      - dev
 
 jobs:
 
