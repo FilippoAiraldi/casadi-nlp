@@ -29,8 +29,6 @@ class NlpSensitivity(Wrapper[SymType]):
         Springer, Berlin, Heidelberg.
     """
 
-    __slots__ = ("include_barrier_term", "_p_idx_internal", "_tau")
-
     def __init__(
         self,
         nlp: Nlp[SymType],

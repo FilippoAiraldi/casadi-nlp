@@ -1,8 +1,7 @@
 import pickle
-from copy import _reconstruct, deepcopy  # type: ignore[attr-defined]
+from copy import _reconstruct, deepcopy
 from functools import cached_property
 from inspect import getmembers
-from itertools import chain
 from os.path import splitext
 from pickletools import optimize
 from typing import (
@@ -14,10 +13,8 @@ from typing import (
     List,
     Literal,
     Optional,
-    Tuple,
     Type,
     TypeVar,
-    Union,
 )
 
 if TYPE_CHECKING:
@@ -132,24 +129,19 @@ class SupportsDeepcopyAndPickle:
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 
-    def __getstate__(
-        self: T,
-        fullstate: bool = False,
-    ) -> Union[None, Dict[str, Any], Tuple[Optional[Dict[str, Any]], Dict[str, Any]]]:
+    def __getstate__(self: T, fullstate: bool = False) -> Optional[Dict[str, Any]]:
         """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
-        dictstate = (
-            _get_dict_state(self, self.__dict__.keys(), fullstate, False)
-            if hasattr(self, "__dict__") and self.__dict__.keys()
-            else None
-        )
-        slots = list(
-            chain.from_iterable(
-                getattr(cls, "__slots__", []) for cls in type(self).__mro__
-            )
-        )
-        slotstate = _get_dict_state(self, slots, fullstate, True) if slots else None
-        return (dictstate, slotstate) if slotstate is not None else dictstate
+        if not (hasattr(self, "__dict__") and self.__dict__.keys()):
+            return None
+        state = self.__dict__.copy()
+        if fullstate:
+            return state
+        state_items_copy = list(state.items())
+        for attr, val in state_items_copy:
+            if is_casadi_object(val) or not is_pickleable(val):
+                state.pop(attr, None)
+        return state
 
 
 _COMPRESSION_EXTS: Dict[str, Optional[str]] = {
@@ -201,9 +193,7 @@ def save(
 
     actual_ext = splitext(filename)[1]
     if compression is None:
-        compression = _COMPRESSION_EXTS.get(  # type: ignore[assignment]
-            actual_ext, None
-        )
+        compression = _COMPRESSION_EXTS.get(actual_ext)
 
     open_fun: Callable
     compress_fun: Callable

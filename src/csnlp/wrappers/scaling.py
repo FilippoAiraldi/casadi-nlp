@@ -18,8 +18,6 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
     as the automatic scaling of expression (e.g., objective and constraints).
     """
 
-    __slots__ = ("scaler", "warns", "_svars", "_spars", "_uvars", "_upars")
-
     def __init__(self, nlp: Nlp[SymType], scaler: Scaler, warns: bool = True) -> None:
         """Initializes a scaling wrapper around an NLP instance.
 
