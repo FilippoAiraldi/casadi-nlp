@@ -112,13 +112,13 @@ class SupportsDeepcopyAndPickle:
         """
         new = deepcopy(self)
         if invalidate_caches:
-            # basically do again what csnlp.util.funcs.invalidate_cache does
+            # basically do again what csnlp.core.cache.invalidate_cache does
             for membername, member in getmembers(type(new)):
-                if hasattr(member, "cache_clear"):
-                    getattr(new, membername).cache_clear()
-                elif isinstance(member, cached_property):
+                if isinstance(member, cached_property):
                     if membername in new.__dict__:
                         del new.__dict__[membername]
+                elif hasattr(member, "cache_clear"):
+                    getattr(new, membername).cache_clear()
         return new
 
     def __deepcopy__(self: T, memo: Optional[Dict[int, List[Any]]] = None) -> T:
