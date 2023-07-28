@@ -173,20 +173,23 @@ class NlpSensitivity(Wrapper[SymType]):
     def licq(self) -> SymType:
         """Gets the symbolic matrix for LICQ, defined as
         ```
-                    LICQ = [ dgdx^T, dhdx^T ]^T
+                    LICQ = [ dg dx, dh dx, dh_lbx dx, dh_ubx dx ]
         ```
         If the matrix is linear independent, then the NLP satisfies the Linear
         Independence Constraint Qualification.
 
-        Note:
-            1) the LICQ are computed for only the active inenquality constraints. Since
-               this is a symbolic representation, all are included, and it's up to the
-               user to eliminate the inactive.
-
-            2) lower and upper bound inequality constraints are not included in `h`
-               since they are by nature linear independent.
+        Note
+        -----
+        The LICQ is computed for only the active inenquality constraints. Since this is
+        a symbolic representation, all constraints are included, and it's up to the user
+        to eliminate the inactive ones.
         """
-        return cs.vertcat(self.jacobians["g-x"], self.jacobians["h-x"])
+        return cs.vertcat(
+            self.jacobians["g-x"],
+            self.jacobians["h-x"],
+            cs.jacobian(self.nlp.h_lbx, self.nlp.x),
+            cs.jacobian(self.nlp.h_ubx, self.nlp.x),
+        )
 
     def parametric_sensitivity(
         self,
