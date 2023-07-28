@@ -224,8 +224,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         else:
             if np.any(lb != -np.inf) or np.any(ub != +np.inf):
                 raise RuntimeError(
-                    "In single shooting, lower and upper state bounds can only"
-                    " be created after the dynamics have been set"
+                    "in single shooting, lower and upper state bounds can only be "
+                    "created after the dynamics have been set"
                 )
             x = None
             x0 = self.nlp.parameter(x0_name, (size, 1))
