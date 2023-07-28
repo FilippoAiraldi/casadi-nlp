@@ -100,14 +100,11 @@ def find_index_in_vector(V: Union[cs.SX, cs.MX], a: Union[cs.SX, cs.MX]):
     ValueError
         Raises if `V` or `a` are not vectors.
     """
-    if not (V.is_vector() and a.is_vector()):
+    if not V.is_vector() or not a.is_vector():
         raise ValueError("`V` and `a` must be vectors.")
 
     sp: cs.Sparsity = cs.jacobian(a, V).sparsity()
     idx = np.asarray(sp.get_crs()[1], int)
     if idx.size != a.numel():
-        raise RuntimeError(
-            "Invalid subset of target parameters (some were not found among the "
-            "original NLP parameters)."
-        )
+        raise RuntimeError("invalid subset: some entries of `a` were not found in `V`")
     return idx
