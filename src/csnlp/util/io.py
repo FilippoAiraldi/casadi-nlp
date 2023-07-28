@@ -1,7 +1,5 @@
 import pickle
 from copy import _reconstruct, deepcopy
-from functools import cached_property
-from inspect import getmembers
 from os.path import splitext
 from pickletools import optimize
 from typing import (
@@ -15,6 +13,8 @@ from typing import (
     Type,
     TypeVar,
 )
+
+from csnlp.core.cache import invalidate_caches_of
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
@@ -88,13 +88,7 @@ class SupportsDeepcopyAndPickle:
         """
         new = deepcopy(self)
         if invalidate_caches:
-            # basically do again what csnlp.core.cache.invalidate_cache does
-            for membername, member in getmembers(type(new)):
-                if isinstance(member, cached_property):
-                    if membername in new.__dict__:
-                        del new.__dict__[membername]
-                elif hasattr(member, "cache_clear"):
-                    getattr(new, membername).cache_clear()
+            invalidate_caches_of(new)
         return new
 
     def __deepcopy__(self: T, memo: Optional[Dict[int, List[Any]]] = None) -> T:

@@ -1,5 +1,16 @@
 from functools import _lru_cache_wrapper, cached_property, wraps
-from typing import Callable, List
+from inspect import getmembers
+from typing import Any, Callable, List
+
+
+def _is_cached_property(c: Callable) -> bool:
+    """Returns True if the callable is a cached property."""
+    return isinstance(c, cached_property)
+
+
+def _is_lru_cache(c: Callable) -> bool:
+    """Returns True if the callable is a lru cache."""
+    return hasattr(c, "cache_info") or hasattr(c, "cache_clear")
 
 
 def invalidate_cache(*callables: Callable) -> Callable:
@@ -36,9 +47,9 @@ def invalidate_cache(*callables: Callable) -> Callable:
     cached_properties: List[cached_property] = []
     lru_caches: List[_lru_cache_wrapper] = []
     for p in callables:
-        if isinstance(p, cached_property):
+        if _is_cached_property(p):
             cached_properties.append(p)
-        elif hasattr(p, "cache_clear"):
+        elif _is_lru_cache(p):
             lru_caches.append(p)  # type: ignore[arg-type]
         else:
             raise TypeError(
@@ -92,3 +103,24 @@ def invalidate_cache(*callables: Callable) -> Callable:
         return wrapper
 
     return decorating_function
+
+
+def invalidate_caches_of(obj: Any) -> None:
+    """
+    Similar to the decorator `invalidate_cache`, but clears the case of the given
+    object only once.
+
+    Parameters
+    ----------
+    obj : object
+        The object whose caches are to be cleared.
+    """
+    # basically do again what csnlp.core.cache.invalidate_cache does
+    for membername, member in getmembers(
+        type(obj), predicate=lambda m: _is_cached_property(m) or _is_lru_cache(m)
+    ):
+        if _is_cached_property(member):
+            if membername in obj.__dict__:
+                del obj.__dict__[membername]
+        elif _is_lru_cache(member):
+            getattr(obj, membername).cache_clear()
