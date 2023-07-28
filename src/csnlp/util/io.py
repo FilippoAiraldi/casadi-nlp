@@ -9,7 +9,6 @@ from typing import (
     Any,
     Callable,
     Dict,
-    Iterable,
     List,
     Literal,
     Optional,
@@ -60,26 +59,6 @@ def is_pickleable(obj: Any) -> bool:
         return True
     except Exception:
         return False
-
-
-def _get_dict_state(
-    obj: "SupportsDeepcopyAndPickle",
-    attributes: Iterable[str],
-    fullstate: bool,
-    remove_None: bool,
-) -> Dict[str, Any]:
-    """Internal utility for SupportsDeepcopyAndPickle."""
-    state: Dict[str, Any] = {attr: getattr(obj, attr, None) for attr in attributes}
-    if not fullstate:
-        for attr in list(state.keys()):
-            val = state[attr]
-            if (
-                (remove_None and val is None)
-                or is_casadi_object(val)
-                or not is_pickleable(val)
-            ):
-                state.pop(attr, None)
-    return state
 
 
 T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
