@@ -3,6 +3,7 @@ from typing import Union
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 
 def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
@@ -50,7 +51,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     return m
 
 
-def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
+def cs2array(x: Union[cs.MX, cs.SX]) -> npt.NDArray[np.object_]:
     """Converts casadi symbolic variable `x` to a numpy array of scalars. Opposite to
     `array2cs`.
 
@@ -64,7 +65,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
     Returns
     -------
-    np.ndarray
+    np array of cs.SX or MX
         The array containing the symbolic variable scalars.
     """
     if isinstance(x, np.ndarray):
@@ -80,7 +81,9 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     return y
 
 
-def find_index_in_vector(V: Union[cs.SX, cs.MX], a: Union[cs.SX, cs.MX]):
+def find_index_in_vector(
+    V: Union[cs.SX, cs.MX], a: Union[cs.SX, cs.MX]
+) -> npt.NDArray[np.int_]:
     """Finds the indices of `a` in `V`.
 
     Parameters
