@@ -218,8 +218,8 @@ class HasConstraints(HasVariables[SymType]):
 
         self._lbx = np.ma.concatenate((self._lbx, mlb))
         self._ubx = np.ma.concatenate((self._ubx, mub))
-        self._lbx.fill_value = -np.inf
-        self._ubx.fill_value = +np.inf
+        np.ma.set_fill_value(self._lbx, -np.inf)
+        np.ma.set_fill_value(self._ubx, +np.inf)
 
         name_lam_lb = f"lam_lb_{name}"
         name_lam_ub = f"lam_ub_{name}"
