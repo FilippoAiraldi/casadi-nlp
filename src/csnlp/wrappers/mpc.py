@@ -218,7 +218,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         """
         x0_name = _n(name)
         if self._is_multishooting:
-            x = self.nlp.variable(name, (size, self._prediction_horizon + 1), lb, ub)[0]
+            # do not upper/lower bound the first state, since it is constrained as x0
+            shape = (size, self._prediction_horizon + 1)
+            lb = np.broadcast_to(lb, shape).astype(float)
+            lb[:, 0] = -np.inf
+            ub = np.broadcast_to(ub, shape).astype(float)
+            ub[:, 0] = +np.inf
+
+            # create state variable and initial state constraint
+            x = self.nlp.variable(name, shape, lb, ub)[0]
             x0 = self.nlp.parameter(x0_name, (size, 1))
             self.nlp.constraint(x0_name, x[:, 0], "==", x0)
         else:
