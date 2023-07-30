@@ -1,5 +1,6 @@
 import pickle
 import unittest
+from itertools import product
 from typing import List, Union
 
 import casadi as cs
@@ -585,6 +586,124 @@ class TestNlp(unittest.TestCase):
         nlp2 = pickle.loads(pickle.dumps(nlp))
 
         self.assertEqual(nlp.name, nlp2.name)
+
+    @parameterized.expand(product(("both", "lb", "ub"), (True, False)))
+    def test_remove_variable_bounds__remove_bounds_correctly(
+        self, direction: str, all_idx: bool
+    ):
+        shape = tuple(np.random.randint(3, 10, size=2))
+        lb = np.random.rand(*shape) - 3
+        ub = np.random.rand(*shape) + 3
+        if all_idx:
+            idx_to_remove = list(product(range(shape[0]), range(shape[1])))
+        else:
+            n_to_remove = np.random.randint(1, np.prod(shape) // 2)
+            idx_to_remove = np.random.randint((0, 0), shape, size=(n_to_remove, 2))
+
+        nlp = Nlp(sym_type=self.sym_type, remove_redundant_x_bounds=True)
+        u_size = np.prod(nlp.variable("u", (5, 2), ub=+1)[0].shape)  # to create noise
+        nlp.variable("x", shape, lb=lb, ub=ub)
+        nlp.variable("z", (7, 9), lb=+2, ub=+3)  # to create noise
+        nlp.remove_variable_bounds("x", direction, None if all_idx else idx_to_remove)
+
+        if direction in {"both", "lb"}:
+            lb_ = lb.copy()
+            lb_mask_ = np.full(lb.shape, False)
+            for i in idx_to_remove:
+                lb_[tuple(i)] = -np.inf
+                lb_mask_[tuple(i)] = True
+            exp_lb = nlp.lbx.data[u_size : u_size + np.prod(shape)]
+            exp_lb_mask = nlp.lbx.mask[u_size : u_size + np.prod(shape)]
+            np.testing.assert_array_equal(lb_.reshape(-1, order="F"), exp_lb)
+            np.testing.assert_array_equal(lb_mask_.reshape(-1, order="F"), exp_lb_mask)
+            self.assertTrue(
+                nlp.dual_variables["lam_lb_x"].size1() == (~exp_lb_mask).sum()
+            )
+            self.assertTrue(nlp.h_lbx.shape == nlp.lam_lbx.shape)
+        if direction in {"both", "ub"}:
+            ub_ = ub.copy()
+            ub_mask_ = np.full(ub.shape, False)
+            for i in idx_to_remove:
+                ub_[tuple(i)] = +np.inf
+                ub_mask_[tuple(i)] = True
+            exp_ub = nlp.ubx.data[u_size : u_size + np.prod(shape)]
+            exp_ub_mask = nlp.ubx.mask[u_size : u_size + np.prod(shape)]
+            np.testing.assert_array_equal(ub_.reshape(-1, order="F"), exp_ub)
+            np.testing.assert_array_equal(ub_mask_.reshape(-1, order="F"), exp_ub_mask)
+            self.assertTrue(
+                nlp.dual_variables["lam_ub_x"].size1() == (~exp_ub_mask).sum()
+            )
+            self.assertTrue(nlp.h_ubx.shape == nlp.lam_ubx.shape)
+
+    @parameterized.expand(product(("both", "g", "h"), (False, True)))
+    def test_remove_constraints__remove_bounds_correctly(
+        self, remove: str, all_idx: bool
+    ):
+        nlp = Nlp(sym_type=self.sym_type)
+        x = nlp.variable("x", tuple(np.random.randint(2, 5, size=2)))[0]
+        y = nlp.variable("y", tuple(np.random.randint(2, 5, size=2)))[0]
+        z = nlp.variable("z", tuple(np.random.randint(2, 5, size=2)))[0]  # noise
+        w = nlp.variable("w", tuple(np.random.randint(2, 5, size=2)))[0]  # noise
+        q = nlp.variable("q", tuple(np.random.randint(2, 5, size=2)))[0]  # noise
+        p = nlp.variable("p", tuple(np.random.randint(2, 5, size=2)))[0]  # noise
+        nlp.minimize(cs.sumsqr(cs.veccat(x, y, z, w, q, p)))
+        nlp.constraint("h0", z, ">=", 0.0)  # noise
+        nlp.constraint("h1", x, ">=", 1.0)
+        nlp.constraint("h2", q, ">=", 0.0)  # noise
+        nlp.constraint("g0", w, "==", 0.0)  # noise
+        nlp.constraint("g1", y, "==", 2.0)
+        nlp.constraint("g2", p, "==", 0.0)  # noise
+        nlp.init_solver(OPTS)
+
+        if all_idx:
+            idx_to_remove_h1 = idx_to_remove_g1 = None
+        else:
+            n_to_remove = np.random.randint(1, np.prod(x.shape) // 2)
+            idx_to_remove_h1 = np.unique(
+                np.random.randint((0, 0), x.shape, size=(n_to_remove, 2)), axis=0
+            )
+            n_to_remove = np.random.randint(1, np.prod(y.shape) // 2)
+            idx_to_remove_g1 = np.unique(
+                np.random.randint((0, 0), y.shape, size=(n_to_remove, 2)), axis=0
+            )
+        remove_h = remove in {"both", "h"}
+        remove_g = remove in {"both", "g"}
+        if remove_h:
+            nlp.remove_constraints("h1", idx_to_remove_h1)
+        if remove_g:
+            nlp.remove_constraints("g1", idx_to_remove_g1)
+
+        sol = nlp.solve()
+
+        expected_nh = cs.veccat(z, x, q).size1()
+        expected_ng = cs.veccat(w, y, p).size1()
+        expected_x = np.full(x.shape, 1.0)
+        expected_y = np.full(y.shape, 2.0)
+        if remove_h:
+            if all_idx:
+                expected_nh -= np.prod(x.shape)
+                expected_x.fill(0.0)
+            else:
+                expected_nh -= idx_to_remove_h1.shape[0]
+                for idx in idx_to_remove_h1:
+                    expected_x[idx[0], idx[1]] = 0.0
+        if remove_g:
+            if all_idx:
+                expected_ng -= np.prod(y.shape)
+                expected_y.fill(0.0)
+            else:
+                expected_ng -= idx_to_remove_g1.shape[0]
+                for idx in idx_to_remove_g1:
+                    expected_y[idx[0], idx[1]] = 0.0
+
+        self.assertEqual(nlp.nh, expected_nh)
+        self.assertEqual(nlp.ng, expected_ng)
+        np.testing.assert_allclose(sol.vals["z"], 0.0, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(sol.vals["x"], expected_x, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(sol.vals["q"], 0.0, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(sol.vals["w"], 0.0, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(sol.vals["y"], expected_y, atol=1e-4, rtol=1e-4)
+        np.testing.assert_allclose(sol.vals["p"], 0.0, atol=1e-4, rtol=1e-4)
 
 
 if __name__ == "__main__":
