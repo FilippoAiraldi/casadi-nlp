@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, TypeVar, Union
+from typing import Dict, Iterable, Literal, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -319,3 +319,143 @@ class HasConstraints(HasVariables[SymType]):
         setattr(self, group, cs.veccat(getattr(self, group), expr))
         setattr(self, lam, cs.veccat(getattr(self, lam), lam_c))
         return (expr, lam_c, slack) if soft else (expr, lam_c)
+
+    @invalidate_cache(
+        nonmasked_lbx_idx, nonmasked_ubx_idx, h_lbx, h_ubx, lam, primal_dual
+    )
+    def remove_variable_bounds(
+        self,
+        name: str,
+        direction: Literal["lb", "ub", "both"],
+        idx: Union[Tuple[int, int], Iterable[Tuple[int, int]]] = None,
+    ) -> None:
+        """Removes one or more lower and/or upper bounds from the given variable
+
+        Parameters
+        ----------
+        name : str
+            Name of the variable whose bounds must be modified
+        direction : {"lb", "ub", "both"}
+            Which bound to modify.
+        idx : tuple[int, int] or an iterable of, optional
+            A 2D index, or an iterable of 2D indices, of the variable entries whose
+            corresponding lower/upper bounds must be removed, i.e., set to -/+ inf. If
+            not provided, then all the bounds for that variable are removed.
+
+        Note
+        ----
+        This is a somewhat costly operation, so it is preferable to avoid creating
+        in the first place constraints that will need to be eliminated. Moreover, this
+        operation may compromise the results already obtained in, e.g., sensitivity
+        analysis, because it changes the underlying NLP problem and there is no way to
+        invalidate any user-arbitrary result obtained previously.
+        """
+        # sourcery skip: merge-comparisons
+        n_rows, n_cols = self._vars[name].shape
+        size = n_rows * n_cols
+        if idx is None:
+            idx_ = np.arange(size, dtype=int)
+        else:
+            # transform 2D indices to 1D (casadi column-wise)
+            if isinstance(idx, tuple):
+                idx = (idx,)
+            idx_ = np.asarray([i[0] + i[1] * n_rows for i in idx], int)
+
+        # add offset to skip variable created prior to the current
+        offset = 0
+        for n, other_var in self._vars.items():
+            if n == name:
+                break
+            offset += other_var.shape[0] * other_var.shape[1]
+        idx_ += offset
+
+        # set lbx and ubx to -/+ inf
+        if direction == "both" or direction == "lb":
+            self._lbx[idx_] = -np.inf
+        if direction == "both" or direction == "ub":
+            self._ubx[idx_] = +np.inf
+
+        if self._remove_redundant_x_bounds:
+            # update masks
+            lbx_mask = np.ma.getmaskarray(self._lbx)
+            ubx_mask = np.ma.getmaskarray(self._ubx)
+            lbx_mask[idx_] = ubx_mask[idx_] = True
+            self._lbx.mask = lbx_mask
+            self._ubx.mask = ubx_mask
+
+            # remove obsolete multipliers
+            directions = ("lb", "ub") if direction == "both" else (direction,)
+            for lb_or_ub in directions:
+                name_lam = f"lam_{lb_or_ub}_{name}"
+                bounds = getattr(self, f"_{lb_or_ub}x")[offset : offset + size]
+                mask = np.ma.getmaskarray(bounds)
+                new_lam = self._sym_type.sym(name_lam, (~mask).sum())
+
+                # replace in dict and re-create vector of lbx/ubx multipliers
+                self._dual_vars[name_lam] = new_lam
+                all_lams = [
+                    lam
+                    for n, lam in self._dual_vars.items()
+                    if n.startswith(f"lam_{lb_or_ub}")
+                ]
+                setattr(self, f"_lam_{lb_or_ub}x", cs.vvcat(all_lams))
+
+    @invalidate_cache(lam, primal_dual)
+    def remove_constraints(
+        self,
+        name: str,
+        idx: Union[Tuple[int, int], Iterable[Tuple[int, int]]] = None,
+    ) -> None:
+        """Removes one or more (equality or inequality) constraints from the problem.
+
+        Parameters
+        ----------
+        name : str
+            Name of the constraint to be removed. The name will be used to identify if
+            the constraint is an inequality or an equality constraint.
+        idx : idx : tuple[int, int] or an iterable of, optional
+            A 2D index, or an iterable of 2D indices, of the constraint entries that
+            must be removed. If not provided, then the constraint is removed entirely.
+
+        Note
+        ----
+        This is a somewhat costly operation, so it is preferable to avoid creating
+        in the first place constraints that will need to be eliminated. Moreover, this
+        operation may compromise the results already obtained in, e.g., sensitivity
+        analysis, because it changes the underlying NLP problem and there is no way to
+        invalidate any user-arbitrary result obtained previously.
+        """
+        # sourcery skip: merge-comparisons
+        old_con = self._cons.pop(name)
+        group = "g" if f"lam_g_{name}" in self._dual_vars else "h"
+        this_name_lam = f"lam_{group}_{name}"
+        self._dual_vars.pop(this_name_lam)
+        if idx is not None:
+            # transform 2D indices to 1D (casadi column-wise) and keep only the
+            # remaining indices
+            n_rows = old_con.size1()
+            if isinstance(idx, tuple):
+                idx = (idx,)
+            idx_to_remove = {i[0] + i[1] * n_rows for i in idx}
+
+            # remove constraints and re-create corresponding multipliers
+            old_con = cs.vec(old_con)  # flatten the constraint - cannot do otherwise
+            idx_ = [i for i in range(old_con.size1()) if i not in idx_to_remove]
+            new_con = old_con[idx_]
+            self._cons[name] = new_con
+            self._dual_vars[this_name_lam] = self._sym_type.sym(
+                this_name_lam, new_con.size1()
+            )
+
+        # re-create constraints and multipliers vectors, and refresh the solver
+        new_cons = []
+        new_lams = []
+        for n, con in self._cons.items():
+            name_lam = f"lam_{group}_{n}"
+            if name_lam in self._dual_vars:
+                new_cons.append(con)
+                new_lams.append(self._dual_vars[name_lam])
+        setattr(self, f"_{group}", cs.vvcat(new_cons))
+        setattr(self, f"_lam_{group}", cs.vcat(new_lams))
+        if hasattr(self, "refresh_solver"):
+            self.refresh_solver()
