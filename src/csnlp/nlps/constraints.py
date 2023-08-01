@@ -1,4 +1,4 @@
-from typing import Dict, Iterable, Literal, Tuple, TypeVar, Union
+from typing import Dict, List, Literal, Tuple, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -327,7 +327,7 @@ class HasConstraints(HasVariables[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[Tuple[int, int], Iterable[Tuple[int, int]]] = None,
+        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more lower and/or upper bounds from the given variable
 
@@ -337,8 +337,8 @@ class HasConstraints(HasVariables[SymType]):
             Name of the variable whose bounds must be modified
         direction : {"lb", "ub", "both"}
             Which bound to modify.
-        idx : tuple[int, int] or an iterable of, optional
-            A 2D index, or an iterable of 2D indices, of the variable entries whose
+        idx : tuple[int, int] or a list of, optional
+            A 2D index, or a list of 2D indices, of the variable entries whose
             corresponding lower/upper bounds must be removed, i.e., set to -/+ inf. If
             not provided, then all the bounds for that variable are removed.
 
@@ -404,7 +404,7 @@ class HasConstraints(HasVariables[SymType]):
     def remove_constraints(
         self,
         name: str,
-        idx: Union[Tuple[int, int], Iterable[Tuple[int, int]]] = None,
+        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more (equality or inequality) constraints from the problem.
 
@@ -413,8 +413,8 @@ class HasConstraints(HasVariables[SymType]):
         name : str
             Name of the constraint to be removed. The name will be used to identify if
             the constraint is an inequality or an equality constraint.
-        idx : idx : tuple[int, int] or an iterable of, optional
-            A 2D index, or an iterable of 2D indices, of the constraint entries that
+        idx : idx : tuple[int, int] or a list of, optional
+            A 2D index, or a list of 2D indices, of the constraint entries that
             must be removed. If not provided, then the constraint is removed entirely.
 
         Note
