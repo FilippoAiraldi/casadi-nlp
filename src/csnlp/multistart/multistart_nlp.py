@@ -290,6 +290,25 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def __call__(self, *args, **kwargs):
         return self.solve_multi(*args, **kwargs)
 
+    def remove_variable_bounds(
+        self,
+        name: str,
+        direction: Literal["lb", "ub", "both"],
+        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
+    ) -> None:
+        idx = [idx] if isinstance(idx, tuple) else list(idx)
+        super().remove_variable_bounds(name, direction, idx)
+        for i in range(self._starts):
+            self._stacked_nlp.remove_variable_bounds(_n(name, i), direction, idx)
+
+    def remove_constraints(
+        self, name: str, idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None
+    ) -> None:
+        idx = [idx] if isinstance(idx, tuple) else list(idx)
+        super().remove_constraints(name, idx)
+        for i in range(self._starts):
+            self._stacked_nlp.remove_constraints(_n(name, i), idx)
+
 
 class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP via parallelization of the computations."""
