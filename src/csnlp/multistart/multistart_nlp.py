@@ -32,13 +32,6 @@ def _n(sym_name: str, scenario: int) -> str:
     return f"{sym_name}__{scenario}"
 
 
-def _get_value(
-    x, sol: Solution[SymType], old: SymType, new: SymType, eval: bool = True
-) -> Union[SymType, cs.DM]:
-    """Internal utility for substituting numerical values in multinlp solutions."""
-    return sol._get_value(cs.substitute(x, old, new), eval=eval)
-
-
 def _chained_subevalf(
     expr: Union[SymType, np.ndarray],
     old_vars: Dict[str, SymType],
