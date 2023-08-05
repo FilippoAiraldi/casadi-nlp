@@ -413,7 +413,7 @@ class HasConstraints(HasVariables[SymType]):
         name : str
             Name of the constraint to be removed. The name will be used to identify if
             the constraint is an inequality or an equality constraint.
-        idx : idx : tuple[int, int] or a list of, optional
+        idx : tuple[int, int] or a list of, optional
             A 2D index, or a list of 2D indices, of the constraint entries that
             must be removed. If not provided, then the constraint is removed entirely.
 
