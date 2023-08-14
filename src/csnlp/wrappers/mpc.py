@@ -183,6 +183,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         size: int = 1,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        remove_bounds_on_initial: bool = False,
     ) -> Tuple[Optional[SymType], SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
         horizon. Automatically creates the constraint on the initial conditions for this
@@ -198,6 +199,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             Hard lower bound of the state, by default -np.inf.
         ub : array_like, casadi.DM, optional
             Hard upper bound of the state, by default +np.inf.
+        remove_bounds_on_initial : bool, optional
+            If `True`, then the upper and lower bounds on the initial state are removed,
+            i.e., set to `+/- np.inf` (since the initial state is constrained to be
+            equal to the current state of the system, it is sometimes advantageous to
+            remove its bounds). By default `False`.
 
         Returns
         -------
@@ -218,12 +224,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         """
         x0_name = _n(name)
         if self._is_multishooting:
-            # do not upper/lower bound the first state, since it is constrained as x0
             shape = (size, self._prediction_horizon + 1)
-            lb = np.broadcast_to(lb, shape).astype(float)
-            lb[:, 0] = -np.inf
-            ub = np.broadcast_to(ub, shape).astype(float)
-            ub[:, 0] = +np.inf
+            if remove_bounds_on_initial:
+                lb = np.broadcast_to(lb, shape).astype(float)
+                lb[:, 0] = -np.inf
+                ub = np.broadcast_to(ub, shape).astype(float)
+                ub[:, 0] = +np.inf
 
             # create state variable and initial state constraint
             x = self.nlp.variable(name, shape, lb, ub)[0]
