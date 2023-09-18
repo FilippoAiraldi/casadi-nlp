@@ -96,7 +96,12 @@ def spy(
 
 
 def set_mpl_defaults(
-    mpl_style: str = "bmh", np_print_precision: int = 4, matlab_colors: bool = False
+    mpl_style: str = "bmh",
+    linewidth: float = 1.5,
+    markersize: float = 2,
+    savefig_dpi: int = 600,
+    np_print_precision: int = 4,
+    matlab_colors: bool = False
 ) -> None:
     """Sets some default parameters for `numpy` and `matplotlib` for printing
     and plotting.
@@ -105,6 +110,12 @@ def set_mpl_defaults(
     ----------
     mpl_style : str, optional
         `matplotlib` plotting style, by default 'bmh'.
+    linewidth : float, optional
+        `matplotlib` default linewidth, by default 1.5.
+    markersize : float, optional
+        `matplotlib` default markersize, by default 2.
+    savefig_dpi : int, optional
+        `matplotlib` savefig dpi, by default 600.
     np_print_precision : int, optional
         `numpy` printing precision, by default 4.
     matlab_colors : bool, optional
@@ -114,8 +125,8 @@ def set_mpl_defaults(
     np.set_printoptions(precision=np_print_precision)
     mpl.style.use(mpl_style)  # 'seaborn-darkgrid'
     mpl.rcParams["lines.solid_capstyle"] = "round"
-    mpl.rcParams["lines.linewidth"] = 1.5
-    mpl.rcParams["lines.markersize"] = 2
-    mpl.rcParams["savefig.dpi"] = 600
+    mpl.rcParams["lines.linewidth"] = linewidth
+    mpl.rcParams["lines.markersize"] = markersize
+    mpl.rcParams["savefig.dpi"] = savefig_dpi
     if matlab_colors:
         mpl.rcParams["axes.prop_cycle"] = cycler("color", MATLAB_COLORS)
