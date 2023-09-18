@@ -48,7 +48,7 @@ x0 = np.array([1, 1])  # initial state
 # build the scenario-based MPC
 F = get_dynamics()
 scmpc = ScenarioBasedMpc[cs.SX](Nlp(), K, N)
-x, _, _ = scmpc.state("x", F.size1_in(0), remove_bounds_on_initial=True)
+x, _, _ = scmpc.state("x", F.size1_in(0), bound_initial=False)
 u, _ = scmpc.action("u", F.size1_in(1), lb=-5, ub=+5)
 d, _ = scmpc.disturbance("d", F.size1_in(2))
 scmpc.constraint_from_single("x_lb", x[:, 1:], ">=", 1)  # equivalent to lb, ub on x
