@@ -25,7 +25,7 @@ MATLAB_COLORS = [
 
 
 def save2tikz(*figs: Figure) -> None:
-    """Saves the figure to a tikz file (.tex extension). See
+    """Saves the figure to a tikz file (`.tex` extension). See
     https://pypi.org/project/tikzplotlib/ for more details.
 
     Parameters
@@ -36,6 +36,10 @@ def save2tikz(*figs: Figure) -> None:
     """
     import tikzplotlib
 
+    # monkey patching to fix some issues with tikzplotlib
+    mpl.lines.Line2D._us_dashSeq = property(lambda self: self._dash_pattern[1])
+    mpl.lines.Line2D._us_dashOffset = property(lambda self: self._dash_pattern[0])
+    mpl.legend.Legend._ncol = property(lambda self: self._ncols)
     for fig in figs:
         tikzplotlib.save(
             f"figure_{fig.number}.tex",
@@ -110,7 +114,8 @@ def set_mpl_defaults(
     np.set_printoptions(precision=np_print_precision)
     mpl.style.use(mpl_style)  # 'seaborn-darkgrid'
     mpl.rcParams["lines.solid_capstyle"] = "round"
+    mpl.rcParams["lines.linewidth"] = 1.5
+    mpl.rcParams["lines.markersize"] = 2
     mpl.rcParams["savefig.dpi"] = 600
-    mpl.rcParams["lines.linewidth"] = 3
     if matlab_colors:
         mpl.rcParams["axes.prop_cycle"] = cycler("color", MATLAB_COLORS)
