@@ -1,6 +1,7 @@
 import pickle
 import unittest
 from itertools import product
+from unittest.mock import Mock
 
 import casadi as cs
 import numpy as np
@@ -75,6 +76,26 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(x2_0.shape, (1, 1))
         self.assertEqual(x2_0.shape, mpc.initial_states["x2_0"].shape)
         self.assertEqual(mpc.ns, x1_0.shape[0] + x2_0.shape[0])
+
+    @parameterized.expand(product((False, True), (False, True)))
+    def test_state__removes_bounds_properly(self, initial: bool, terminal: bool):
+        N = 10
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting="multi")
+
+        shape = (2, N + 1)
+        nlp.variable = Mock(return_value=cs.MX.sym("x", *shape))
+        mpc.state("x", 2, lb=0, ub=1, bound_initial=initial, bound_terminal=terminal)
+
+        lb, ub = np.full(shape, 0.0), np.full(shape, 1.0)
+        if not initial:
+            lb[:, 0], ub[:, 0] = -np.inf, np.inf
+        if not terminal:
+            lb[:, -1], ub[:, -1] = -np.inf, np.inf
+        nlp.variable.assert_called_once()
+        lb_actual, ub_actual = nlp.variable.call_args[0][-2:]
+        np.testing.assert_array_equal(lb_actual, lb)
+        np.testing.assert_array_equal(ub_actual, ub)
 
     @parameterized.expand([(0,), (1,), (2,)])
     def test_state__raises__in_singleshooting_with_state_bounds(self, i: int):
@@ -237,7 +258,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
         shooting = "multi" if multishooting else "single"
         scmpc = SCMPC[cs.MX](Nlp(sym_type="MX"), K, 10, shooting=shooting)
         size = 4
-        x, xs, _ = scmpc.state("x", size, remove_bounds_on_initial=True)
+        x, xs, _ = scmpc.state("x", size, bound_initial=False, bound_terminal=False)
         self.assertEqual(len(xs), K)
         self.assertEqual(scmpc.ns, size)
         self.assertEqual(scmpc.ns_all, size * K)

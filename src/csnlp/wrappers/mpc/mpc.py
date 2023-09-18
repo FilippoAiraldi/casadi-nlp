@@ -183,7 +183,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         size: int = 1,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-        remove_bounds_on_initial: bool = False,
+        bound_initial: bool = True,
+        bound_terminal: bool = True,
     ) -> Tuple[Optional[SymType], SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
         horizon. Automatically creates the constraint on the initial conditions for this
@@ -199,11 +200,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             Hard lower bound of the state, by default -np.inf.
         ub : array_like, casadi.DM, optional
             Hard upper bound of the state, by default +np.inf.
-        remove_bounds_on_initial : bool, optional
-            If `True`, then the upper and lower bounds on the initial state are removed,
-            i.e., set to `+/- np.inf` (since the initial state is constrained to be
-            equal to the current state of the system, it is sometimes advantageous to
-            remove its bounds). By default `False`.
+        bound_initial : bool, optional
+            If `False`, then the upper and lower bounds on the initial state are not
+            imposed, i.e., set to `+/- np.inf` (since the initial state is constrained
+            to be equal to the current state of the system, it is sometimes advantageous
+            to remove its bounds). By default `True`.
+        bound_terminal : bool, optional
+            Same as above, but for the terminal state. By default `True`.
 
         Returns
         -------
@@ -225,11 +228,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         x0_name = _n(name)
         if self._is_multishooting:
             shape = (size, self._prediction_horizon + 1)
-            if remove_bounds_on_initial:
-                lb = np.broadcast_to(lb, shape).astype(float)
+            lb = np.broadcast_to(lb, shape).astype(float)
+            ub = np.broadcast_to(ub, shape).astype(float)
+            if not bound_initial:
                 lb[:, 0] = -np.inf
-                ub = np.broadcast_to(ub, shape).astype(float)
                 ub[:, 0] = +np.inf
+            if not bound_terminal:
+                lb[:, -1] = -np.inf
+                ub[:, -1] = +np.inf
 
             # create state variable and initial state constraint
             x = self.nlp.variable(name, shape, lb, ub)[0]
