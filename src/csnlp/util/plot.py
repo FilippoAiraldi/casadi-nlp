@@ -101,7 +101,7 @@ def set_mpl_defaults(
     markersize: float = 2,
     savefig_dpi: int = 600,
     np_print_precision: int = 4,
-    matlab_colors: bool = False
+    matlab_colors: bool = False,
 ) -> None:
     """Sets some default parameters for `numpy` and `matplotlib` for printing
     and plotting.
