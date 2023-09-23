@@ -8,7 +8,6 @@ import numpy as np
 from parameterized import parameterized
 
 from csnlp import Nlp, Solution
-from csnlp.util.math import quad_form
 from csnlp.wrappers import Mpc
 
 
@@ -575,15 +574,15 @@ class QuadRotorMPC(GenericMPC):
         w_s = self.add_par("w_s", ns, 1)  # weights for stage/final slack
         J += sum(
             (
-                quad_form(w_x, x[:, k] - xf)
-                + quad_form(w_u, u[:, k] - uf)
+                cs.dot(w_x, (x[:, k] - xf) ** 2)
+                + cs.dot(w_u, (u[:, k] - uf) ** 2)
                 + cs.dot(w_s, s[:, k])
             )
             for k in range(N - 1)
         )
         J += (
-            quad_form(w_x, x[:, -1] - xf)
-            + quad_form(w_u, u[:, -1] - uf)
+            cs.dot(w_x, (x[:, -1] - xf) ** 2)
+            + cs.dot(w_u, (u[:, -1] - uf) ** 2)
             + cs.dot(w_s, s[:, -1])
         )
         self.minimize(J)
@@ -670,15 +669,15 @@ class QuadRotorMpcActual(Mpc[cs.SX]):
         w_s = self.parameter("w_s", (ns, 1))  # weights for stage/final slack
         J += sum(
             (
-                quad_form(w_x, x[:, k + 1] - xf)
-                + quad_form(w_u, u[:, k] - uf)
+                cs.dot(w_x, (x[:, k + 1] - xf) ** 2)
+                + cs.dot(w_u, (u[:, k] - uf) ** 2)
                 + cs.dot(w_s, s[:, k])
             )
             for k in range(N - 1)
         )
         J += (
-            quad_form(w_x, x[:, -1] - xf)
-            + quad_form(w_u, u[:, -1] - uf)
+            cs.dot(w_x, (x[:, -1] - xf) ** 2)
+            + cs.dot(w_u, (u[:, -1] - uf) ** 2)
             + cs.dot(w_s, s[:, -1])
         )
 

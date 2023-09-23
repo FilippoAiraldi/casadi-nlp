@@ -121,22 +121,6 @@ class TestMath(unittest.TestCase):
         np.testing.assert_allclose(p, p_mx)
         np.testing.assert_allclose(p, p_dm)
 
-    @parameterized.expand([(1,), (5,), (10,)])
-    def test_quad_form(self, n: int):
-        x_sx = cs.SX.sym("X", n, 1)
-        x_mx = cs.MX.sym("X", n, 1)
-        for m in [1, n]:
-            A_sx = cs.SX.sym("A", n, m)
-            A_mx = cs.MX.sym("A", n, m)
-            x = np.random.randn(n, 1) * 2
-            A = np.random.randn(n, m) * 2
-            p_sx = subsevalf(math.quad_form(A_sx, x_sx), [x_sx, A_sx], [x, A])
-            p_mx = subsevalf(math.quad_form(A_mx, x_mx), [x_mx, A_mx], [x, A])
-            p = x.T @ (np.diag(A.flat) if m == 1 else A) @ x
-
-            np.testing.assert_allclose(p, p_sx)
-            np.testing.assert_allclose(p, p_mx)
-
     def test_norm_cdf(self):
         shape = (3, 4)
         x_sx = cs.SX.sym("X", *shape)
