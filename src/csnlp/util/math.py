@@ -18,14 +18,18 @@ def log(
     x : Union[cs.SX, cs.MX, cs.DM]
         Value to compute the logarithm of.
     base : Union[None, cs.SX, cs.MX, cs.DM], optional
-        Base of the logarithm, by default None
+        Base of the logarithm, by default `None`
 
     Returns
     -------
     Union[cs.SX, cs.MX, cs.DM]
         The logarithm. of `x` with base `base`.
     """
-    return cs.log(x) if base is None else cs.log(x) / cs.log(base)
+    if base is None:
+        return cs.log(x)
+    if base == 10 or base == 10.0:
+        return cs.log10(x)
+    return cs.log(x) / cs.log(base)
 
 
 def prod(
@@ -68,37 +72,6 @@ def prod(
     n_negatives = sum_(x < 0)
     p = cs.exp(sum_(cs.log(cs.fabs(x))))
     return cs.if_else(cs.remainder(n_negatives, 2) == 0.0, 1, -1) * p
-
-
-def quad_form(
-    A: Union[cs.SX, cs.MX, cs.DM], x: Union[cs.SX, cs.MX, cs.DM]
-) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Calculates quadratic form `x.T*A*x`.
-
-    Parameters
-    ----------
-    A : Union[cs.SX, cs.MX, cs.DM]
-        The matrix of weights in the quadratic form. If a vector, a matrix with the
-        vector as diagonal is used instead.
-    x : Union[cs.SX, cs.MX, cs.DM]
-        The vector in the quadratic form.
-
-    Returns
-    -------
-    Union[cs.SX, cs.MX, cs.DM]
-        The result of the quadratic form.
-
-    Raises
-    ------
-    RuntimeError
-        Raises if
-         - `A` is not squared
-         - `A` and `x` cannot be multiplied together
-         - `x` is not a vector.
-    """
-    if A.is_vector():
-        A = cs.diag(A)
-    return cs.bilin(A, x, x)
 
 
 def norm_cdf(
