@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Callable, Dict, Literal, Optional, TypeVar
+from typing import Any, Dict, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -11,13 +11,6 @@ from csnlp.core.solutions import Solution, subsevalf
 from csnlp.nlps.constraints import HasConstraints
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
-
-_XXSOL: Dict[str, Callable] = {
-    "ipopt": cs.nlpsol,
-    "sqpmethod": cs.nlpsol,
-    "qrqp": cs.qpsol,
-    "osqp": cs.qpsol,
-}
 
 
 def _solve_and_get_stats(
@@ -91,7 +84,8 @@ class HasObjective(HasConstraints[SymType]):
     def init_solver(
         self,
         opts: Optional[Dict[str, Any]] = None,
-        solver: Literal["ipopt", "sqpmethod", "qrqp", "osqp"] = "ipopt",
+        solver: str = "ipopt",
+        type: Literal["auto", "nlp", "conic"] = "auto",
     ) -> None:
         """Initializes the solver for this NLP with the given options.
 
@@ -99,26 +93,37 @@ class HasObjective(HasConstraints[SymType]):
         ----------
         opts : Dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
-        solver : {'ipopt', 'sqpmethod', 'qrqp', 'osqp'}, optional
-            Type of solver to instantiate. "ipopt" and "sqpmethod" trigger the
-            instantiation of an NLP problem, while "qrqp" and "osqp" a conic one. By
-            default, 'ipopt' is selected.
+        solver : str, optional
+            Type of solver to instantiate. For example, `"ipopt"` and `"sqpmethod"`
+            trigger the instantiation of an NLP problem, while, e.g., `"qrqp"`,
+            `"osqp"`, and `"qpoases"` a conic one. However, the solver type can be
+            overruled with the `type` argument. By default, `"ipopt"` is
+            selected.
+        type : "auto", "nlp", "conic", optional
+            Type of problem to instantiate. If `"nlp"`, then the problem is forced to be
+            instantiated with `cs.nlpsol`. If `"conic"`, then `cs.qpsol` is forced
+            instead. If `"auto"`, then the problem type is selected automatically.
 
         Raises
         ------
         RuntimeError
             Raises if the objective has not yet been specified with `minimize`.
         """
+        if type == "conic" or (type == "auto" and cs.has_conic(solver)):
+            func = cs.qpsol
+        elif type == "nlp" or (type == "auto" and cs.has_nlpsol(solver)):
+            func = cs.nlpsol
+        elif type not in ("auto", "nlp", "conic"):
+            raise ValueError(f"unknown problem type: '{type}'")
+        else:
+            raise RuntimeError(f"'{solver}' plugin not found in either conic or nlp")
         if self._f is None:
             raise RuntimeError("NLP objective not set.")
 
         opts = {} if opts is None else opts.copy()
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
-
-        func = _XXSOL.get(solver, cs.nlpsol)
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
-
         self._solver = self._cache.cache(solver_func)
         self._solver_type = solver
         self._solver_opts = opts

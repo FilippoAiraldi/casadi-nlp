@@ -2,6 +2,7 @@ import pickle
 import unittest
 from itertools import product
 from typing import List, Union
+from unittest.mock import Mock
 
 import casadi as cs
 import numpy as np
@@ -374,12 +375,39 @@ class TestNlp(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             nlp.init_solver(OPTS)
 
+    def test_init_solver__raises__when_type_is_wrong(self):
+        nlp = Nlp(sym_type=self.sym_type)
+        with self.assertRaises(ValueError):
+            nlp.init_solver(OPTS, type="a_random_type")
+
     def test_init_solver__saves_options_correctly(self):
         nlp = Nlp(sym_type=self.sym_type)
         x = nlp.variable("x")[0]
         nlp.minimize(x**2)
         nlp.init_solver(OPTS)
         self.assertDictEqual(OPTS, nlp.solver_opts)
+
+    @parameterized.expand([("sqpmethod",), ("osqp",)])
+    def test_init_solver__chooses_conic_or_nlp_correctly(self, solver: str):
+        nlp = Nlp(sym_type=self.sym_type)
+        x = nlp.variable("x")[0]
+        nlp.minimize(x**2)
+
+        old_qpsol, old_nlpsol = cs.qpsol, cs.nlpsol
+        cs.qpsol = mock_qpsol = Mock()
+        cs.nlpsol = mock_nlpsol = Mock()
+        try:
+            nlp.init_solver(solver=solver)
+        finally:
+            cs.qpsol, cs.nlpsol = old_qpsol, old_nlpsol
+
+        if solver == "sqpmethod":
+            mock_qpsol.assert_not_called()
+            mock_nlpsol.assert_called_once()
+        else:
+            mock_qpsol.assert_called_once()
+            mock_nlpsol.assert_not_called()
+
 
     def test_solve__raises__with_uninit_solver(self):
         nlp = Nlp(sym_type=self.sym_type)
