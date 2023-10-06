@@ -408,7 +408,6 @@ class TestNlp(unittest.TestCase):
             mock_qpsol.assert_called_once()
             mock_nlpsol.assert_not_called()
 
-
     def test_solve__raises__with_uninit_solver(self):
         nlp = Nlp(sym_type=self.sym_type)
         with self.assertRaisesRegex(RuntimeError, "Solver uninitialized."):
