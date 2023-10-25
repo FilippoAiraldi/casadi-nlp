@@ -71,7 +71,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> npt.NDArray[np.object_]:
     if isinstance(x, np.ndarray):
         return x
     if isinstance(x, cs.DM):
-        return x.full()
+        return x.toarray()
 
     shape = x.shape
     y = np.empty(shape, object)
