@@ -1,7 +1,7 @@
 import pickle
 import unittest
 from itertools import product
-from typing import Type, TypeVar, Union
+from typing import TypeVar, Union
 from unittest.mock import Mock
 
 import casadi as cs
@@ -138,7 +138,7 @@ class TestMultistartNlp(unittest.TestCase):
         product([False, True], [StackedMultistartNlp, ParallelMultistartNlp])
     )
     def test_solve__computes_right_solution(
-        self, copy: bool, multinlp_cls: Type[TMultiNlp]
+        self, copy: bool, multinlp_cls: type[TMultiNlp]
     ):
         N = 3
         nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
@@ -176,7 +176,7 @@ class TestMultistartNlp(unittest.TestCase):
         np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
 
     @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
-    def test_is_pickleable(self, multinlp_cls: Type[TMultiNlp]):
+    def test_is_pickleable(self, multinlp_cls: type[TMultiNlp]):
         N = 3
         nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]

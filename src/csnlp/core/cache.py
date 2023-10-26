@@ -1,6 +1,6 @@
 from functools import _lru_cache_wrapper, cached_property, wraps
 from inspect import getmembers
-from typing import Any, Callable, List
+from typing import Any, Callable
 
 
 def _is_cached_property(c: Callable) -> bool:
@@ -44,8 +44,8 @@ def invalidate_cache(*callables: Callable) -> Callable:
     """
     if not callables:
         raise ValueError("No callables were passed for cache invalidation.")
-    cached_properties: List[cached_property] = []
-    lru_caches: List[_lru_cache_wrapper] = []
+    cached_properties: list[cached_property] = []
+    lru_caches: list[_lru_cache_wrapper] = []
     for p in callables:
         if _is_cached_property(p):
             cached_properties.append(p)

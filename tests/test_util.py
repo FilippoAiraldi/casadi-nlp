@@ -4,7 +4,7 @@ import pickle
 import tempfile
 import unittest
 from itertools import product
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import casadi as cs
 import numpy as np
@@ -108,7 +108,7 @@ class TestMath(unittest.TestCase):
         self.assertEqual(math.log(x, base), _math.log(x, base))
 
     @parameterized.expand(product([(3, 1), (1, 3), (3, 4)], [-2, -1, 0, 1, None]))
-    def test_prod(self, shape: Tuple[int, int], axis: Optional[int]):
+    def test_prod(self, shape: tuple[int, int], axis: Optional[int]):
         x = np.random.randn(*shape) * 3
         p = np.prod(x, axis=axis, keepdims=True)
         x_sx = cs.SX.sym("X", *shape)

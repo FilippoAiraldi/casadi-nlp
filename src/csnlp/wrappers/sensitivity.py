@@ -1,4 +1,4 @@
-from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -77,7 +77,7 @@ class NlpSensitivity(Wrapper[SymType]):
         )
 
     @cached_property
-    def kkt(self) -> Tuple[SymType, Optional[SymType]]:
+    def kkt(self) -> tuple[SymType, Optional[SymType]]:
         """Gets the KKT conditions of the NLP problem in vector form, i.e.,
         ```
                             |      dLdx     |
@@ -106,7 +106,7 @@ class NlpSensitivity(Wrapper[SymType]):
         return kkt, self._tau
 
     @cached_property
-    def jacobians(self) -> Dict[str, SymType]:
+    def jacobians(self) -> dict[str, SymType]:
         """Computes various partial derivatives, which are then grouped in a dict with
         the following entries
             - `L-x`: lagrangian w.r.t. primal variables
@@ -131,7 +131,7 @@ class NlpSensitivity(Wrapper[SymType]):
         }
 
     @cached_property
-    def hessians(self) -> Dict[str, SymType]:
+    def hessians(self) -> dict[str, SymType]:
         """Computes various partial hessians, which are then grouped in a dict with the
         following entries
             - `L-pp`: lagrangian w.r.t. parameters (twice)
@@ -149,7 +149,7 @@ class NlpSensitivity(Wrapper[SymType]):
         }
 
     @cached_property
-    def hojacobians(self) -> Dict[str, np.ndarray]:
+    def hojacobians(self) -> dict[str, np.ndarray]:
         """Computes various 3D jacobians, which are then grouped in a dict with the
         following entries
             - `K-pp`: kkt conditions w.r.t. parameters (twice)
@@ -196,7 +196,7 @@ class NlpSensitivity(Wrapper[SymType]):
         expr: SymType = None,
         solution: Optional[Solution[SymType]] = None,
         second_order: bool = False,
-    ) -> Union[Tuple[SymType, Optional[SymType]], Tuple[cs.DM, Optional[cs.DM]]]:
+    ) -> Union[tuple[SymType, Optional[SymType]], tuple[cs.DM, Optional[cs.DM]]]:
         """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
         parametrization, according to [1].
 
@@ -296,7 +296,7 @@ class NlpSensitivity(Wrapper[SymType]):
         solution: Optional[Solution[SymType]],
         second_order: bool,
         d: Callable[[SymType], Union[SymType, cs.DM]],
-    ) -> Union[Tuple[SymType, np.ndarray, SymType], Tuple[cs.DM, np.ndarray, cs.DM]]:
+    ) -> Union[tuple[SymType, np.ndarray, SymType], tuple[cs.DM, np.ndarray, cs.DM]]:
         """Internal utility to compute the sensitivity of y w.r.t. p."""
         # first order sensitivity, a.k.a., dydp
         Ky = d(self.jacobians["K-y"])
@@ -323,7 +323,7 @@ class NlpSensitivity(Wrapper[SymType]):
         return dydp, dydp_, d2ydp2
 
     @invalidate_cache(jacobians, hessians, hojacobians)
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
+    def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         """See `Nlp.parameter` method."""
         return self.nlp.parameter(name, shape)
 
@@ -331,10 +331,10 @@ class NlpSensitivity(Wrapper[SymType]):
     def variable(
         self,
         name: str,
-        shape: Tuple[int, int] = (1, 1),
+        shape: tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[SymType, SymType, SymType]:
+    ) -> tuple[SymType, SymType, SymType]:
         """See `Nlp.variable` method."""
         return self.nlp.variable(name, shape, lb, ub)
 
@@ -347,7 +347,7 @@ class NlpSensitivity(Wrapper[SymType]):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[SymType, ...]:
+    ) -> tuple[SymType, ...]:
         """See `Nlp.constraint` method."""
         return self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
 
@@ -376,7 +376,7 @@ class NlpSensitivity(Wrapper[SymType]):
         self._p_idx_internal = self.nlp.p, find_index_in_vector(self.nlp.p, p)
 
     @property
-    def _p_idx(self) -> Tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
+    def _p_idx(self) -> tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
         """Internal utility to return the indices of p from all the NLP pars. While SX
         is fine with computing jacobians with indexed variables, MX requires purely
         symbolic variables. So, for MX, jacobians need to be computed for all elements

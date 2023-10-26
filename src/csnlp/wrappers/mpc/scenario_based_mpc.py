@@ -1,5 +1,5 @@
 from itertools import chain
-from typing import Callable, Dict, List, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -75,9 +75,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
             nlp, prediction_horizon, control_horizon, input_spacing, shooting
         )
         self._n_scenarios = n_scenarios
-        self.single_states: Dict[str, SymType] = {}
-        self.single_disturbances: Dict[str, SymType] = {}
-        self.single_slacks: Dict[str, SymType] = {}
+        self.single_states: dict[str, SymType] = {}
+        self.single_disturbances: dict[str, SymType] = {}
+        self.single_slacks: dict[str, SymType] = {}
 
     @property
     def n_scenarios(self) -> int:
@@ -104,15 +104,15 @@ class ScenarioBasedMpc(Mpc[SymType]):
         """Gets the name of the i-th scenario."""
         return _n(base_name, i)
 
-    def states_i(self, i: int) -> Dict[str, SymType]:
+    def states_i(self, i: int) -> dict[str, SymType]:
         """Gets the symbolic states belonging to the i-th scenario."""
         return {n: self.states[_n(n, i)] for n in self.single_states}
 
-    def slacks_i(self, i: int) -> List[SymType]:
+    def slacks_i(self, i: int) -> list[SymType]:
         """Gets the symbolic slack variables belonging to the i-th scenario."""
         return {n: self.slacks[_n(n, i)] for n in self.single_slacks}
 
-    def disturbances_i(self, i: int) -> Dict[str, SymType]:
+    def disturbances_i(self, i: int) -> dict[str, SymType]:
         """Gets the symbolic disturbances belonging to the i-th scenario."""
         return {n: self.disturbances[_n(n, i)] for n in self.single_disturbances}
 
@@ -124,7 +124,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
         bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> Tuple[SymType, List[Optional[SymType]], SymType]:
+    ) -> tuple[SymType, list[Optional[SymType]], SymType]:
         """Adds one state variable per scenario to the SCMPC controller. Automatically
         creates the (shared) constraint on the initial conditions for these states.
 
@@ -210,7 +210,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         self.single_states[name] = x_single
         return x_single, xs, x0
 
-    def disturbance(self, name: str, size: int = 1) -> Tuple[SymType, List[SymType]]:
+    def disturbance(self, name: str, size: int = 1) -> tuple[SymType, list[SymType]]:
         """Adds one disturbance parameter per scenario to the SCMPC controller along the
         whole prediction horizon.
 
@@ -249,7 +249,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[List[SymType], ...]:
+    ) -> tuple[list[SymType], ...]:
         """Similarly to `Nlp.constraint`, adds a constraint to the NLP scheme. However,
         instead of manually creating the constraint for each scenario, this method
         allows to define only one constraint expression for a single scenario, which is
@@ -335,7 +335,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         self,
         F: Union[
             cs.Function,
-            Callable[[Tuple[npt.ArrayLike, ...]], Tuple[npt.ArrayLike, ...]],
+            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
         n_in: Optional[int] = None,
         n_out: Optional[int] = None,

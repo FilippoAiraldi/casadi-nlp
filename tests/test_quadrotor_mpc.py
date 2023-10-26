@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import Any, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -22,7 +22,7 @@ class QuadRotorEnvConfig:
     roll_d: float = 10
     roll_dd: float = 8
     roll_gain: float = 10
-    winds: Dict[float, float] = field(default_factory=lambda: {1: 1.0, 2: 0.7, 3: 0.85})
+    winds: dict[float, float] = field(default_factory=lambda: {1: 1.0, 2: 0.7, 3: 0.85})
     x0: np.ndarray = field(
         default_factory=lambda: np.array([0, 0, 3.5, 0, 0, 0, 0, 0, 0, 0])
     )
@@ -142,7 +142,7 @@ class QuadRotorEnv:
         self._n_within_termination = 0
         return self.x
 
-    def step(self, u: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, dict]:
+    def step(self, u: np.ndarray) -> tuple[np.ndarray, float, bool, bool, dict]:
         u = u.squeeze()  # in case a row or col was passed
         wind = (
             self._C
@@ -191,10 +191,10 @@ class QuadRotorEnv:
         roll_d: Union[float, cs.SX],
         roll_dd: Union[float, cs.SX],
         roll_gain: Union[float, cs.SX],
-        winds: Dict[float, float] = None,
+        winds: dict[float, float] = None,
     ) -> Union[
-        Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
-        Tuple[cs.SX, cs.SX, cs.SX],
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
+        tuple[cs.SX, cs.SX, cs.SX],
     ]:
         T = self.config.T
         is_casadi = any(
@@ -256,9 +256,9 @@ class QuadRotorEnv:
 @dataclass(frozen=True)
 class QuadRotorSolution:
     f: float
-    vars: Dict[str, cs.SX]
-    vals: Dict[str, np.ndarray]
-    stats: Dict[str, Any]
+    vars: dict[str, cs.SX]
+    vals: dict[str, np.ndarray]
+    stats: dict[str, Any]
     get_value: partial
 
     @property
@@ -277,9 +277,9 @@ class GenericMPC:
     def __init__(self, name: str = None) -> None:
         self.name = f"MPC{np.random.random()}" if name is None else name
         self.f: cs.SX = None  # objective
-        self.vars: Dict[str, cs.SX] = {}
-        self.pars: Dict[str, cs.SX] = {}
-        self.cons: Dict[str, cs.SX] = {}
+        self.vars: dict[str, cs.SX] = {}
+        self.pars: dict[str, cs.SX] = {}
+        self.cons: dict[str, cs.SX] = {}
         self.p = cs.SX()
         self.x, self.lbx, self.ubx = cs.SX(), np.array([]), np.array([])
         self.lam_lbx, self.lam_ubx = cs.SX(), cs.SX()
@@ -288,7 +288,7 @@ class GenericMPC:
         self.h, self.lbh, self.ubh = cs.SX(), np.array([]), np.array([])
         self.lam_h = cs.SX()
         self.solver: cs.Function = None
-        self.opts: Dict = None
+        self.opts: dict = None
 
     @property
     def ng(self) -> int:
@@ -307,7 +307,7 @@ class GenericMPC:
         *dims: int,
         lb: np.ndarray = -np.inf,
         ub: np.ndarray = np.inf,
-    ) -> Tuple[cs.SX, cs.SX, cs.SX]:
+    ) -> tuple[cs.SX, cs.SX, cs.SX]:
         assert name not in self.vars, f"Variable {name} already exists."
         lb, ub = np.broadcast_to(lb, dims), np.broadcast_to(ub, dims)
         assert np.all(lb < ub), "Improper variable bounds."
@@ -327,7 +327,7 @@ class GenericMPC:
 
     def add_con(
         self, name: str, expr1: cs.SX, op: str, expr2: cs.SX
-    ) -> Tuple[cs.SX, cs.SX]:
+    ) -> tuple[cs.SX, cs.SX]:
         assert name not in self.cons, f"Constraint {name} already exists."
         expr = expr1 - expr2
         dims = expr.shape
@@ -359,14 +359,14 @@ class GenericMPC:
     def minimize(self, objective: cs.SX) -> None:
         self.f = objective
 
-    def init_solver(self, opts: Dict) -> None:
+    def init_solver(self, opts: dict) -> None:
         g = cs.vertcat(self.g, self.h)
         nlp = {"x": self.x, "p": self.p, "g": g, "f": self.f}
         self.solver = cs.nlpsol(f"nlpsol_{self.name}", "ipopt", nlp, opts)
         self.opts = opts
 
     def solve(
-        self, pars: Dict[str, np.ndarray], vals0: Dict[str, np.ndarray] = None
+        self, pars: dict[str, np.ndarray], vals0: dict[str, np.ndarray] = None
     ) -> QuadRotorSolution:
         assert self.solver is not None, "Solver uninitialized."
         assert len(self.pars.keys() - pars.keys()) == 0, (
@@ -386,7 +386,7 @@ class GenericMPC:
             kwargs["x0"] = np.clip(
                 subsevalf(self.x, self.vars, vals0), self.lbx, self.ubx
             )
-        sol: Dict[str, cs.DM] = self.solver(**kwargs)
+        sol: dict[str, cs.DM] = self.solver(**kwargs)
         lam_lbx = -np.minimum(sol["lam_x"], 0)
         lam_ubx = np.maximum(sol["lam_x"], 0)
         lam_g = sol["lam_g"][: self.ng, :]
@@ -423,8 +423,8 @@ class GenericMPC:
 
 def subsevalf(
     expr: cs.SX,
-    old: Union[cs.SX, Dict[str, cs.SX], List[cs.SX], Tuple[cs.SX]],
-    new: Union[cs.SX, Dict[str, cs.SX], List[cs.SX], Tuple[cs.SX]],
+    old: Union[cs.SX, dict[str, cs.SX], list[cs.SX], tuple[cs.SX]],
+    new: Union[cs.SX, dict[str, cs.SX], list[cs.SX], tuple[cs.SX]],
     eval: bool = True,
 ) -> Union[cs.SX, np.ndarray]:
     if isinstance(old, dict):
@@ -445,7 +445,7 @@ ConfigType = TypeVar("ConfigType")
 
 
 def init_config(
-    config: Optional[Union[ConfigType, Dict]], cls: Type[ConfigType]
+    config: Optional[Union[ConfigType, dict]], cls: type[ConfigType]
 ) -> ConfigType:
     if config is None:
         return cls()
@@ -465,7 +465,7 @@ def init_config(
 @dataclass
 class QuadRotorMPCConfig:
     N: int = 15
-    solver_opts: Dict = field(
+    solver_opts: dict = field(
         default_factory=lambda: {
             "expand": True,
             "print_time": False,

@@ -1,5 +1,4 @@
 import unittest
-from typing import List, Type
 
 import casadi as cs
 import numpy as np
@@ -64,7 +63,7 @@ class TestExamples(unittest.TestCase):
         x0s = [0.9, 0.5, 1.1]
         args = ([{"p0": 0, "p1": 1} for _ in x0s], [{"x": x0} for x0 in x0s])
 
-        nlps: List[MultistartNlp] = [
+        nlps: list[MultistartNlp] = [
             StackedMultistartNlp(starts=N, sym_type=self.sym_type),
             ParallelMultistartNlp(starts=N, n_jobs=N, sym_type=self.sym_type),
         ]
@@ -78,7 +77,7 @@ class TestExamples(unittest.TestCase):
             nlp = nlp.copy()
 
             best_sol: Solution = nlp.solve_multi(*args)
-            all_sols: List[Solution] = nlp.solve_multi(*args, return_all_sols=True)
+            all_sols: list[Solution] = nlp.solve_multi(*args, return_all_sols=True)
             fs = [all_sol.f for all_sol in all_sols]
             self.assertEqual(best_sol.f, min(fs))
             np.testing.assert_allclose(fs, RESULTS["multistart_nlp_fs"])
@@ -200,7 +199,7 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
     @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
-    def test__scaling(self, multinlp_cls: Type):
+    def test__scaling(self, multinlp_cls: type):
         def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
             x, u = cs.SX.sym("x", 3), cs.SX.sym("u")
             x_next = x + cs.vertcat(x[1], u / x[2] - g, -alpha * u) * dt

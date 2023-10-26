@@ -1,4 +1,5 @@
-from typing import Any, Dict, Generator, NamedTuple, Optional
+from collections.abc import Generator
+from typing import Any, NamedTuple, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -30,7 +31,7 @@ class RandomStartPoints:
 
     def __init__(
         self,
-        points: Dict[str, RandomStartPoint],
+        points: dict[str, RandomStartPoint],
         multistarts: int,
         seed: Optional[int] = None,
     ) -> None:
@@ -50,7 +51,7 @@ class RandomStartPoints:
         self.multistarts = multistarts
         self.np_random = np.random.default_rng(seed)
 
-    def __iter__(self) -> Generator[Dict[str, npt.ArrayLike], None, None]:
+    def __iter__(self) -> Generator[dict[str, npt.ArrayLike], None, None]:
         """Iterates over the random start points, yielding each time a different set."""
         points = self.points.items()
         yield from (
@@ -77,7 +78,7 @@ class StructuredStartPoints:
 
     def __init__(
         self,
-        points: Dict[str, StructuredStartPoint],
+        points: dict[str, StructuredStartPoint],
         multistarts: int,
     ) -> None:
         """Instantiates the generator of structured start points for multistarting.
@@ -94,7 +95,7 @@ class StructuredStartPoints:
         self.points = points
         self.multistarts = multistarts
 
-    def __iter__(self) -> Generator[Dict[str, npt.ArrayLike], None, None]:
+    def __iter__(self) -> Generator[dict[str, npt.ArrayLike], None, None]:
         """Iterates over the structured start points."""
         data = {
             n: iter(np.linspace(p.lb, p.ub, self.multistarts))  # type: ignore[arg-type]

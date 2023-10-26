@@ -1,18 +1,7 @@
 import warnings
+from collections.abc import Iterator, Sequence
 from itertools import count
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Iterator,
-    Literal,
-    Optional,
-    Sequence,
-    Tuple,
-    Type,
-    TypeVar,
-    Union,
-)
+from typing import Any, ClassVar, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -79,7 +68,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         self._debug = NlpDebug() if debug else None
 
     @property
-    def sym_type(self) -> Type[SymType]:
+    def sym_type(self) -> type[SymType]:
         """Gets the CasADi symbolic type used in this NLP scheme."""
         return self._sym_type
 
@@ -97,7 +86,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
 
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
+    def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         if self._debug is not None:
             self._debug.register("p", name, shape)
@@ -106,10 +95,10 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     def variable(  # type: ignore[override]
         self,
         name: str,
-        shape: Tuple[int, int] = (1, 1),
+        shape: tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[SymType, SymType, SymType]:
+    ) -> tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, lb, ub)
         if self._debug is not None:
             self._debug.register("x", name, shape)
@@ -123,7 +112,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[SymType, ...]:
+    ) -> tuple[SymType, ...]:
         out = super().constraint(name, lhs, op, rhs, soft, simplify)
         if self._debug is not None:
             self._debug.register("g" if op == "==" else "h", name, out[0].shape)
@@ -136,7 +125,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         outs: Sequence[SymType],
         name_in: Optional[Sequence[str]] = None,
         name_out: Optional[Sequence[str]] = None,
-        opts: Optional[Dict[Any, Any]] = None,
+        opts: Optional[dict[Any, Any]] = None,
     ) -> cs.Function:
         """Converts the optimization problem to an MX symbolic function. If the
         NLP is modelled in SX, the function will still be converted in MX since

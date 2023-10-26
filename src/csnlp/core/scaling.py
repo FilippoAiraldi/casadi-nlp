@@ -1,10 +1,10 @@
-from typing import Dict, Optional, Tuple
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 
 
-class Scaler(Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]):
+class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
     """Class for scaling of quantities. It suffices to register the scale of each the
     variable, and then it can be easily (un-)scaled according to
     ```
@@ -15,7 +15,7 @@ class Scaler(Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]):
     """
 
     def __init__(
-        self, d: Optional[Dict[str, Tuple[npt.ArrayLike, npt.ArrayLike]]] = None
+        self, d: Optional[dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]] = None
     ) -> None:
         """Initializes the scaling class.
 

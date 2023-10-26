@@ -2,7 +2,7 @@ import random
 import unittest
 from functools import cached_property, lru_cache, partial
 from itertools import product
-from typing import Tuple, Type, Union
+from typing import Union
 
 import casadi as cs
 import numpy as np
@@ -122,7 +122,7 @@ class TestNlpDebug(unittest.TestCase):
         shape = (2, 3)
         for group in GROUPS:
             debug.register(group, name, shape)
-            info: Tuple[range, NlpDebugEntry] = getattr(debug, f"_{group}_info")[0]
+            info: tuple[range, NlpDebugEntry] = getattr(debug, f"_{group}_info")[0]
             self.assertEqual(info[0], range(shape[0] * shape[1]))
             self.assertEqual(info[1].name, name)
             self.assertEqual(info[1].shape, shape)
@@ -170,8 +170,8 @@ class TestSolutions(unittest.TestCase):
     @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
     def test_subsevalf__computes_correct_value(
         self,
-        XX: Union[Type[cs.SX], Type[cs.MX]],
-        struct_X: Union[Type[struct_SX], Type[struct_MX]],
+        XX: Union[type[cs.SX], type[cs.MX]],
+        struct_X: Union[type[struct_SX], type[struct_MX]],
     ):
         shape = (3, 4)
 
@@ -216,8 +216,8 @@ class TestSolutions(unittest.TestCase):
     @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
     def test_solution__computes_correct_value(
         self,
-        XX: Union[Type[cs.SX], Type[cs.MX]],
-        struct_X: Union[Type[struct_SX], Type[struct_MX]],
+        XX: Union[type[cs.SX], type[cs.MX]],
+        struct_X: Union[type[struct_SX], type[struct_MX]],
     ):
         f = 0
         shape = (3, 4)
@@ -275,7 +275,7 @@ class TestSolutions(unittest.TestCase):
 class TestData(unittest.TestCase):
     @parameterized.expand(product([cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]))
     def test_cs2array_array2cs__convert_properly(
-        self, sym_type: Union[Type[cs.SX], Type[cs.MX]], shape: Tuple[int, int]
+        self, sym_type: Union[type[cs.SX], type[cs.MX]], shape: tuple[int, int]
     ):
         x = sym_type.sym("x", *shape)
         a = cs2array(x)
@@ -293,7 +293,7 @@ class TestData(unittest.TestCase):
 
     @parameterized.expand([(cs.SX,), (cs.MX,)])
     def test_find_index_in_vector__works_properly(
-        self, sym_type: Union[Type[cs.SX], Type[cs.MX]]
+        self, sym_type: Union[type[cs.SX], type[cs.MX]]
     ):
         X = sym_type.sym("X", 5)
         x = cs.horzcat(X[3], X[2])
@@ -302,7 +302,7 @@ class TestData(unittest.TestCase):
 
 class TestDerivatives(unittest.TestCase):
     @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
-    def test_hojacobian__computes_right_derivatives(self, shape: Tuple[int, int]):
+    def test_hojacobian__computes_right_derivatives(self, shape: tuple[int, int]):
         x = cs.SX.sym("x", *shape)
         y = (
             (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))
@@ -318,7 +318,7 @@ class TestDerivatives(unittest.TestCase):
             np.testing.assert_allclose(o, 0, atol=1e-9)
 
     @parameterized.expand([((2, 2),), ((3, 1),), ((1, 3),)])
-    def test_hohessian__computes_right_derivatives(self, shape: Tuple[int, int]):
+    def test_hohessian__computes_right_derivatives(self, shape: tuple[int, int]):
         x = cs.SX.sym("x", *shape)
         y = (
             (x.reshape((-1, 1)) @ x.reshape((1, -1)) + (x.T if x.is_row() else x))

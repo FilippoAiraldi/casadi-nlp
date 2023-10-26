@@ -1,7 +1,8 @@
+from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import partial
 from itertools import product
-from typing import Any, Dict, Generic, Iterable, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -17,11 +18,11 @@ class Solution(Generic[SymType]):
     """Class containing information on the solution of an NLP solver's run."""
 
     f: float
-    vars: Dict[str, SymType]
-    vals: Dict[str, cs.DM]
-    dual_vars: Dict[str, SymType]
-    dual_vals: Dict[str, cs.DM]
-    stats: Dict[str, Any]
+    vars: dict[str, SymType]
+    vals: dict[str, cs.DM]
+    dual_vars: dict[str, SymType]
+    dual_vals: dict[str, cs.DM]
+    stats: dict[str, Any]
     _get_value: partial  # Callable[[SymType, bool], Union[SymType, cs.DM]]
 
     @property
@@ -83,8 +84,8 @@ class Solution(Generic[SymType]):
 
 def _internal_subsevalf_cs(
     expr: SymType,
-    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
     eval: bool,
 ) -> Union[SymType, cs.DM]:
     """Internal utility for substituting and evaluting casadi objects."""
@@ -109,8 +110,8 @@ def _internal_subsevalf_cs(
 
 def _internal_subsevalf_np(
     expr: np.ndarray,
-    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
     eval: bool,
 ) -> Union[SymType, np.ndarray, cs.DM]:
     """Internal utility for substituting and evaluting arrays of casadi objects."""
@@ -146,8 +147,8 @@ def _internal_subsevalf_np(
 
 def subsevalf(
     expr: Union[SymType, np.ndarray],
-    old: Union[SymType, Dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, Dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
     """

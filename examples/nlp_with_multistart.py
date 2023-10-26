@@ -1,5 +1,3 @@
-from typing import List
-
 import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np
@@ -39,7 +37,7 @@ x0s = list(
 xfs = [float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s]
 
 # use automatic multistart solver
-all_sols: List[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
+all_sols: list[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
     pars={"p0": 0, "p1": 1},  # type: ignore[arg-type]
     vals0=x0s,
     return_all_sols=True,

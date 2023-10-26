@@ -2,7 +2,7 @@ from inspect import getframeinfo
 from itertools import dropwhile
 from traceback import walk_stack
 from types import MappingProxyType
-from typing import List, NamedTuple, Tuple
+from typing import NamedTuple
 
 from numpy import prod
 
@@ -12,7 +12,7 @@ class NlpDebugEntry(NamedTuple):
 
     name: str
     type: str
-    shape: Tuple[int, ...]
+    shape: tuple[int, ...]
     filename: str
     function: str
     lineno: int
@@ -51,10 +51,10 @@ class NlpDebug:
 
     def __init__(self) -> None:
         """Initializes the debug information collector."""
-        self._p_info: List[Tuple[range, NlpDebugEntry]] = []
-        self._x_info: List[Tuple[range, NlpDebugEntry]] = []
-        self._g_info: List[Tuple[range, NlpDebugEntry]] = []
-        self._h_info: List[Tuple[range, NlpDebugEntry]] = []
+        self._p_info: list[tuple[range, NlpDebugEntry]] = []
+        self._x_info: list[tuple[range, NlpDebugEntry]] = []
+        self._g_info: list[tuple[range, NlpDebugEntry]] = []
+        self._h_info: list[tuple[range, NlpDebugEntry]] = []
 
     def p_describe(self, index: int) -> NlpDebugEntry:
         """Returns debug information on the parameter at the given `index`.
@@ -140,7 +140,7 @@ class NlpDebug:
         """
         return self.__describe(self._h_info, index)
 
-    def register(self, group: str, name: str, shape: Tuple[int, ...]) -> None:
+    def register(self, group: str, name: str, shape: tuple[int, ...]) -> None:
         """Registers debug information on new object name under the specific
         group.
 
@@ -164,7 +164,7 @@ class NlpDebug:
         )
         frame, lineno = next(stack)
         traceback = getframeinfo(frame, context=3)
-        info: List[Tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
+        info: list[tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
             (
@@ -186,7 +186,7 @@ class NlpDebug:
         )
 
     def __describe(
-        self, info: List[Tuple[range, NlpDebugEntry]], index: int
+        self, info: list[tuple[range, NlpDebugEntry]], index: int
     ) -> NlpDebugEntry:
         for range_, description in info:
             if index in range_:
