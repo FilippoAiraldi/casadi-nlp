@@ -7,7 +7,7 @@ import casadi as cs
 import numpy as np
 from casadi.tools.structure3 import CasadiStructured, DMStruct
 
-from csnlp.core.data import array2cs, cs2array
+from .data import array2cs, cs2array
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

@@ -5,9 +5,9 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.core.scaling import Scaler
-from csnlp.core.solutions import Solution, subsevalf
-from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
+from ..core.scaling import Scaler
+from ..core.solutions import Solution, subsevalf
+from .wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

@@ -7,8 +7,8 @@ import numpy.typing as npt
 from joblib import Memory
 from joblib.memory import MemorizedFunc
 
-from csnlp.core.solutions import Solution, subsevalf
-from csnlp.nlps.constraints import HasConstraints
+from ..core.solutions import Solution, subsevalf
+from .constraints import HasConstraints
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

@@ -4,11 +4,11 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.core.cache import cached_property, invalidate_cache
-from csnlp.core.data import array2cs, cs2array, find_index_in_vector
-from csnlp.core.derivatives import hohessian, hojacobian
-from csnlp.core.solutions import Solution
-from csnlp.wrappers.wrapper import Nlp, Wrapper
+from ..core.cache import cached_property, invalidate_cache
+from ..core.data import array2cs, cs2array, find_index_in_vector
+from ..core.derivatives import hohessian, hojacobian
+from ..core.solutions import Solution
+from .wrapper import Nlp, Wrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

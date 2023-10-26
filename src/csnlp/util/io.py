@@ -14,7 +14,7 @@ from typing import (
     TypeVar,
 )
 
-from csnlp.core.cache import invalidate_caches_of
+from ..core.cache import invalidate_caches_of
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct

@@ -2,7 +2,7 @@ from typing import Dict, Literal, Tuple, TypeVar
 
 import casadi as cs
 
-from csnlp.nlps.parameters import HasParameters
+from .parameters import HasParameters
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
