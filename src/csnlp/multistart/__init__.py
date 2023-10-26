@@ -7,8 +7,8 @@ __all__ = [
     "StructuredStartPoints",
 ]
 
-from csnlp.multistart.multistart_nlp import ParallelMultistartNlp, StackedMultistartNlp
-from csnlp.multistart.startpoints import (
+from .multistart_nlp import ParallelMultistartNlp, StackedMultistartNlp
+from .startpoints import (
     RandomStartPoint,
     RandomStartPoints,
     StructuredStartPoint,

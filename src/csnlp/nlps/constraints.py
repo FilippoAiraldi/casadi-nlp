@@ -4,8 +4,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.core.cache import cached_property, invalidate_cache
-from csnlp.nlps.variables import HasVariables
+from ..core.cache import cached_property, invalidate_cache
+from .variables import HasVariables
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

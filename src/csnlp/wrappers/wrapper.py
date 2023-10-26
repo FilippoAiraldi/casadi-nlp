@@ -2,9 +2,9 @@ from typing import Any, Generic, List, Type, TypeVar, Union
 
 import casadi as cs
 
-from csnlp.core.solutions import Solution
-from csnlp.nlps.nlp import Nlp
-from csnlp.util.io import SupportsDeepcopyAndPickle
+from ..core.solutions import Solution
+from ..nlps.nlp import Nlp
+from ..util.io import SupportsDeepcopyAndPickle
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

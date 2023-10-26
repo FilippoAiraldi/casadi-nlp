@@ -11,7 +11,7 @@ from matplotlib.figure import Figure
 from matplotlib.image import AxesImage
 from matplotlib.lines import Line2D
 
-from csnlp.core.data import array2cs
+from ..core.data import array2cs
 
 MATLAB_COLORS = [
     "#0072BD",

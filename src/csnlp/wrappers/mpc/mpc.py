@@ -5,8 +5,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.util.math import repeat
-from csnlp.wrappers.wrapper import Nlp, NonRetroactiveWrapper
+from ...util.math import repeat
+from ..wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

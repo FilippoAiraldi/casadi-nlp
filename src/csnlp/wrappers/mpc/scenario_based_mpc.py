@@ -6,9 +6,10 @@ import numpy as np
 import numpy.typing as npt
 
 from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
-from csnlp.wrappers.mpc.mpc import Mpc
-from csnlp.wrappers.mpc.mpc import _n as _name_init_state
-from csnlp.wrappers.wrapper import Nlp
+
+from ..wrapper import Nlp
+from .mpc import Mpc
+from .mpc import _n as _name_init_state
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

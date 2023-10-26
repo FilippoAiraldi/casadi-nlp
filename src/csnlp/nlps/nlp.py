@@ -19,9 +19,9 @@ import numpy as np
 import numpy.typing as npt
 from joblib import Memory
 
-from csnlp.core.debug import NlpDebug
-from csnlp.nlps.objective import HasObjective
-from csnlp.util.io import SupportsDeepcopyAndPickle
+from ..core.debug import NlpDebug
+from ..util.io import SupportsDeepcopyAndPickle
+from .objective import HasObjective
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

@@ -19,10 +19,10 @@ import numpy as np
 import numpy.typing as npt
 from joblib import Parallel, delayed
 
-from csnlp.core.cache import invalidate_cache
-from csnlp.core.solutions import Solution, subsevalf
-from csnlp.nlps.nlp import Nlp
-from csnlp.nlps.objective import _solve_and_get_stats
+from ..core.cache import invalidate_cache
+from ..core.solutions import Solution, subsevalf
+from ..nlps.nlp import Nlp
+from ..nlps.objective import _solve_and_get_stats
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 

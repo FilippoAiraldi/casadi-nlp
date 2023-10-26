@@ -7,8 +7,8 @@ __all__ = [
     "Wrapper",
 ]
 
-from csnlp.wrappers.mpc.mpc import Mpc
-from csnlp.wrappers.mpc.scenario_based_mpc import ScenarioBasedMpc
-from csnlp.wrappers.scaling import NlpScaling
-from csnlp.wrappers.sensitivity import NlpSensitivity
-from csnlp.wrappers.wrapper import NonRetroactiveWrapper, Wrapper
+from .mpc.mpc import Mpc
+from .mpc.scenario_based_mpc import ScenarioBasedMpc
+from .scaling import NlpScaling
+from .sensitivity import NlpSensitivity
+from .wrapper import NonRetroactiveWrapper, Wrapper
