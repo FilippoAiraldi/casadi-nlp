@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "csnlp"
-version = "1.5.7"
+version = "1.5.8"
 authors = [
   { name="Filippo Airaldi", email="filippoairaldi@gmail.com" },
 ]
