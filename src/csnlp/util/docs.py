@@ -7,7 +7,7 @@ https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/util.p
 from collections import namedtuple
 from contextlib import suppress
 from itertools import dropwhile
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Callable
 from warnings import warn
 
 import casadi as cs
@@ -33,7 +33,7 @@ _TABLE_START = "+="  # string prefix that starts the table
 _CELL_END = "+-"  # string prefix that ends the cell
 _CELL_CONTENTS = "|"  # string prefix that continues the cell
 _JOINS = ("", "", "", " ")  # how to join multiple lines in a given cell
-_TYPES: Dict[str, Callable] = {  # casadi types to python types
+_TYPES: dict[str, Callable] = {  # casadi types to python types
     "OT_INTEGER": int,
     "OT_STRING": str,
     "OT_REAL": float,
@@ -55,7 +55,7 @@ def _get_doc_cell(lines) -> _DocCell:
     cell. It must have exactly one entry for each cell
     """
     ncol = 4
-    fields: Tuple[List[str], ...] = ([], [], [], [])
+    fields: tuple[list[str], ...] = ([], [], [], [])
     for line in lines:
         cells = line.split(" | ", ncol - 1)
         cells[0] = cells[0].lstrip().lstrip("|")
@@ -85,7 +85,7 @@ def _get_doc_cell(lines) -> _DocCell:
     return _DocCell(id, default, doc)
 
 
-def _get_doc_dict(docstring: str) -> Dict[str, Tuple[Any, str]]:
+def _get_doc_dict(docstring: str) -> dict[str, tuple[Any, str]]:
     lineiter = dropwhile(
         lambda x: not x.startswith(_TABLE_START), docstring.split("\n")
     )
@@ -93,8 +93,8 @@ def _get_doc_dict(docstring: str) -> Dict[str, Tuple[Any, str]]:
         next(lineiter)
     except StopIteration as e:
         raise ValueError("No table found!") from e
-    thiscell: List[str] = []
-    allcells: List[_DocCell] = []
+    thiscell: list[str] = []
+    allcells: list[_DocCell] = []
     for line in lineiter:
         if line.startswith(_CELL_END):
             allcells.append(_get_doc_cell(thiscell))
@@ -106,7 +106,7 @@ def _get_doc_dict(docstring: str) -> Dict[str, Tuple[Any, str]]:
     return {c.id: (c.default, c.doc) for c in allcells}
 
 
-def get_casadi_plugins() -> Dict[str, List[str]]:
+def get_casadi_plugins() -> dict[str, list[str]]:
     """Returns a dictionary of available casadi plugin as a dict of (type, name)."""
 
     func = getattr(cs, "CasadiMeta_getPlugins", getattr(cs, "CasadiMeta_plugins", None))
@@ -115,7 +115,7 @@ def get_casadi_plugins() -> Dict[str, List[str]]:
 
     all_plugins: str = func()
     plugins = (p.split("::") for p in all_plugins.split(";"))
-    plugin_dict: Dict[str, List[str]] = {}
+    plugin_dict: dict[str, list[str]] = {}
     for group, name in plugins:
         if group not in plugin_dict:
             plugin_dict[group] = []
@@ -123,7 +123,7 @@ def get_casadi_plugins() -> Dict[str, List[str]]:
     return plugin_dict
 
 
-def list_available_solvers() -> Dict[str, List[str]]:
+def list_available_solvers() -> dict[str, list[str]]:
     """Returns available solvers as a string or a dictionary."""
     availablesolvers = get_casadi_plugins()
     return {
@@ -132,7 +132,7 @@ def list_available_solvers() -> Dict[str, List[str]]:
     }
 
 
-def get_solver_options(solver, display: bool = True) -> Dict[str, Tuple[Any, str]]:
+def get_solver_options(solver, display: bool = True) -> dict[str, tuple[Any, str]]:
     """Returns a dictionary of solver-specific options, with default value and
     description."""
     availablesolvers = list_available_solvers()
@@ -142,7 +142,7 @@ def get_solver_options(solver, display: bool = True) -> Dict[str, Tuple[Any, str
         docstring = cs.doc_conic(solver)
     else:
         raise ValueError(f"Unknown solver: '{solver}'.")
-    options: Dict[str, Tuple[Any, str]] = _get_doc_dict(docstring)
+    options: dict[str, tuple[Any, str]] = _get_doc_dict(docstring)
     if display:
         print("Available options [default] for %s:\n" % solver)
         for k in sorted(options.keys()):

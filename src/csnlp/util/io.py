@@ -2,17 +2,7 @@ import pickle
 from copy import _reconstruct, deepcopy
 from os.path import splitext
 from pickletools import optimize
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Literal,
-    Optional,
-    Type,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, TypeVar
 
 from ..core.cache import invalidate_caches_of
 
@@ -91,7 +81,7 @@ class SupportsDeepcopyAndPickle:
             invalidate_caches_of(new)
         return new
 
-    def __deepcopy__(self: T, memo: Optional[Dict[int, List[Any]]] = None) -> T:
+    def __deepcopy__(self: T, memo: Optional[dict[int, list[Any]]] = None) -> T:
         """Returns a deepcopy of the object."""
         rv = self.__reduce_ex__(4)
         if isinstance(rv, str):
@@ -102,7 +92,7 @@ class SupportsDeepcopyAndPickle:
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 
-    def __getstate__(self: T, fullstate: bool = False) -> Optional[Dict[str, Any]]:
+    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, Any]]:
         """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
         if not (hasattr(self, "__dict__") and self.__dict__.keys()):
@@ -117,7 +107,7 @@ class SupportsDeepcopyAndPickle:
         return state
 
 
-_COMPRESSION_EXTS: Dict[str, Optional[str]] = {
+_COMPRESSION_EXTS: dict[str, Optional[str]] = {
     ".pkl": None,
     ".xz": "lzma",
     ".pbz2": "bz2",
@@ -228,7 +218,7 @@ def save(
     return filename
 
 
-def load(filename: str) -> Dict[str, Any]:
+def load(filename: str) -> dict[str, Any]:
     """Loads data from a (possibly compressed) file.
 
     Parameters
@@ -305,11 +295,11 @@ def load(filename: str) -> Dict[str, Any]:
     return data
 
 
-def _check_mat_keys(dictionary: Dict, mat_struct_type: Type) -> Dict:
+def _check_mat_keys(dictionary: dict, mat_struct_type: type) -> dict:
     """Internal utility to check if entries in dictionary are mat-objects. If yes,
     todict is called to change them to nested dictionaries."""
 
-    def _todict_recursive(matobj: "mat_struct") -> Dict:
+    def _todict_recursive(matobj: "mat_struct") -> dict:
         dictionary = {}
         for strg in matobj._fieldnames:
             elem = matobj.__dict__[strg]

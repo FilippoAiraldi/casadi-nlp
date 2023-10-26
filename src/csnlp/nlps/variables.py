@@ -1,4 +1,4 @@
-from typing import Dict, Literal, Tuple, TypeVar
+from typing import Literal, TypeVar
 
 import casadi as cs
 
@@ -19,7 +19,7 @@ class HasVariables(HasParameters[SymType]):
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
         super().__init__(sym_type)
-        self._vars: Dict[str, SymType] = {}
+        self._vars: dict[str, SymType] = {}
         self._x = self._sym_type()
 
     @property
@@ -33,11 +33,11 @@ class HasVariables(HasParameters[SymType]):
         return self._x.shape[0]
 
     @property
-    def variables(self) -> Dict[str, SymType]:
+    def variables(self) -> dict[str, SymType]:
         """Gets the primal variables of the NLP scheme."""
         return self._vars
 
-    def variable(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
+    def variable(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         """Adds a variable to the NLP problem.
 
         Parameters

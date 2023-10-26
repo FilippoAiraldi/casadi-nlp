@@ -1,5 +1,5 @@
 from math import sqrt
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import casadi as cs
 
@@ -124,7 +124,7 @@ def norm_ppf(
 
 
 def repeat(
-    a: Union[cs.SX, cs.MX, cs.DM], repeats: Union[int, Tuple[int, int]]
+    a: Union[cs.SX, cs.MX, cs.DM], repeats: Union[int, tuple[int, int]]
 ) -> Union[cs.SX, cs.MX, cs.DM]:
     """Repeats elements in array.
 

@@ -1,5 +1,5 @@
 from itertools import product
-from typing import Tuple, Union
+from typing import Union
 
 import casadi as cs
 import numpy as np
@@ -30,7 +30,7 @@ def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
 def hohessian(
     ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX], y: Union[cs.MX, cs.SX, None] = None
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """Computes hessian on higher-order matrices, i.e., with an output in 6D.
 
     Parameters

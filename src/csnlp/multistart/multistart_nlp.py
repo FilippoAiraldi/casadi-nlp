@@ -1,18 +1,7 @@
+from collections.abc import Iterable
 from functools import lru_cache, partial
 from itertools import repeat
-from typing import (
-    Any,
-    ClassVar,
-    Dict,
-    Generic,
-    Iterable,
-    List,
-    Literal,
-    Optional,
-    Tuple,
-    TypeVar,
-    Union,
-)
+from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -34,12 +23,12 @@ def _n(sym_name: str, scenario: int) -> str:
 
 def _chained_subevalf(
     expr: Union[SymType, np.ndarray],
-    old_vars: Dict[str, SymType],
-    new_vars: Dict[str, SymType],
-    old_pars: Dict[str, SymType],
-    new_pars: Dict[str, SymType],
-    old_dual_vars: Optional[Dict[str, SymType]] = None,
-    new_dual_vars: Optional[Dict[str, SymType]] = None,
+    old_vars: dict[str, SymType],
+    new_vars: dict[str, SymType],
+    old_pars: dict[str, SymType],
+    new_pars: dict[str, SymType],
+    old_dual_vars: Optional[dict[str, SymType]] = None,
+    new_dual_vars: Optional[dict[str, SymType]] = None,
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
     """Internal utility to perform `subevalf` on vars, pars and duals in chain."""
@@ -83,14 +72,14 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
     def solve_multi(
         self,
         pars: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         vals0: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
         **_,
-    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         """Solves the NLP with multiple initial conditions.
 
         Parameters
@@ -134,25 +123,25 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self._stacked_nlp = Nlp(*args, **kwargs)  # actual nlp
 
     @lru_cache(maxsize=32)
-    def _vars_i(self, i: int) -> Dict[str, SymType]:
+    def _vars_i(self, i: int) -> dict[str, SymType]:
         """Internal utility to retrieve the variables of the i-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._vars[_n(k, i)] for k in self._vars}
 
     @lru_cache(maxsize=32)
-    def _pars_i(self, i: int) -> Dict[str, SymType]:
+    def _pars_i(self, i: int) -> dict[str, SymType]:
         """Internal utility to retrieve the parameters of the i-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._pars[_n(k, i)] for k in self._pars}
 
     @lru_cache(maxsize=32)
-    def _dual_vars_i(self, i: int) -> Dict[str, SymType]:
+    def _dual_vars_i(self, i: int) -> dict[str, SymType]:
         """Internal utility to retrieve the dual variables of the i-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
 
     @invalidate_cache(_pars_i)
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
+    def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         out = super().parameter(name, shape)
         for i in range(self._starts):
             self._stacked_nlp.parameter(_n(name, i), shape)
@@ -162,10 +151,10 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def variable(
         self,
         name: str,
-        shape: Tuple[int, int] = (1, 1),
+        shape: tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[SymType, SymType, SymType]:
+    ) -> tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, lb, ub)
         for i in range(self._starts):
             self._stacked_nlp.variable(_n(name, i), shape, lb, ub)
@@ -180,7 +169,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[SymType, ...]:
+    ) -> tuple[SymType, ...]:
         expr = lhs - rhs
         if simplify:
             expr = cs.cse(cs.simplify(expr))
@@ -204,7 +193,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
         vars = self.variables
         pars = self.parameters
-        self._fs: List[SymType] = [
+        self._fs: list[SymType] = [
             _chained_subevalf(
                 objective, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
             )
@@ -215,7 +204,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def init_solver(
         self,
-        opts: Optional[Dict[str, Any]] = None,
+        opts: Optional[dict[str, Any]] = None,
         solver: str = "ipopt",
         type: Literal["auto", "nlp", "conic"] = "auto",
     ) -> None:
@@ -226,15 +215,15 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def solve_multi(
         self,
         pars: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         vals0: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
         return_stacked_sol: bool = False,
         **_,
-    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         assert not (
             return_stacked_sol and return_all_sols
         ), "`return_all_sols` and `return_stacked_sol` can't be both true."
@@ -295,7 +284,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
+        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_variable_bounds(name, direction, idx)
@@ -303,7 +292,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._stacked_nlp.remove_variable_bounds(_n(name, i), direction, idx)
 
     def remove_constraints(
-        self, name: str, idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None
+        self, name: str, idx: Union[tuple[int, int], list[tuple[int, int]]] = None
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_constraints(name, idx)
@@ -349,14 +338,14 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def solve_multi(
         self,
         pars: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         vals0: Union[
-            None, Dict[str, npt.ArrayLike], Iterable[Dict[str, npt.ArrayLike]]
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
         **_,
-    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
         shared_kwargs = {
@@ -379,7 +368,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
             for p, v0 in zip(pars_iter, vals0_iter)
         )
-        sols: List[Dict[str, Any]] = self._parallel(
+        sols: list[dict[str, Any]] = self._parallel(
             delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
         )
         if return_all_sols:
@@ -402,13 +391,13 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._failures += not this_success
         return self._process_solver_sol(best_sol)
 
-    def __getstate__(self, fullstate: bool = False) -> Dict[str, Any]:
+    def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
         # joblib.Parallel cannot be pickled or deepcopied
         state = super().__getstate__(fullstate)
         state.pop("_parallel", None)
         return state
 
-    def __setstate__(self, state: Optional[Dict[str, Any]]) -> None:
+    def __setstate__(self, state: Optional[dict[str, Any]]) -> None:
         if state is not None:
             self.__dict__.update(state)
         # re-initialized joblib.Parallel

@@ -1,4 +1,4 @@
-from typing import Dict, List, Literal, Tuple, TypeVar, Union
+from typing import Literal, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -30,9 +30,9 @@ class HasConstraints(HasVariables[SymType]):
         """
         super().__init__(sym_type)
 
-        self._dual_vars: Dict[str, SymType] = {}
-        self._pars: Dict[str, SymType] = {}
-        self._cons: Dict[str, SymType] = {}
+        self._dual_vars: dict[str, SymType] = {}
+        self._pars: dict[str, SymType] = {}
+        self._cons: dict[str, SymType] = {}
 
         self._g, self._lam_g = self._sym_type(0, 1), self._sym_type(0, 1)
         self._h, self._lam_h = self._sym_type(0, 1), self._sym_type(0, 1)
@@ -101,12 +101,12 @@ class HasConstraints(HasVariables[SymType]):
         return self._h.shape[0]
 
     @property
-    def dual_variables(self) -> Dict[str, SymType]:
+    def dual_variables(self) -> dict[str, SymType]:
         """Gets the dual variables of the NLP scheme."""
         return self._dual_vars
 
     @property
-    def constraints(self) -> Dict[str, SymType]:
+    def constraints(self) -> dict[str, SymType]:
         """Gets the constraints of the NLP scheme."""
         return self._cons
 
@@ -166,10 +166,10 @@ class HasConstraints(HasVariables[SymType]):
     def variable(
         self,
         name: str,
-        shape: Tuple[int, int] = (1, 1),
+        shape: tuple[int, int] = (1, 1),
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[SymType, SymType, SymType]:
+    ) -> tuple[SymType, SymType, SymType]:
         """
         Adds a variable to the NLP problem.
 
@@ -240,7 +240,7 @@ class HasConstraints(HasVariables[SymType]):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[SymType, ...]:
+    ) -> tuple[SymType, ...]:
         """Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
 
         Parameters
@@ -327,7 +327,7 @@ class HasConstraints(HasVariables[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
+        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more lower and/or upper bounds from the given variable
 
@@ -404,7 +404,7 @@ class HasConstraints(HasVariables[SymType]):
     def remove_constraints(
         self,
         name: str,
-        idx: Union[Tuple[int, int], List[Tuple[int, int]]] = None,
+        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more (equality or inequality) constraints from the problem.
 

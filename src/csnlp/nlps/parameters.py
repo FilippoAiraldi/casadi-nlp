@@ -1,4 +1,4 @@
-from typing import Dict, Generic, Literal, Tuple, Type, TypeVar
+from typing import Generic, Literal, TypeVar
 
 import casadi as cs
 
@@ -17,8 +17,8 @@ class HasParameters(Generic[SymType]):
             The CasADi symbolic variable type to use in the NLP, by default "SX".
         """
         super().__init__()
-        self._sym_type: Type[SymType] = getattr(cs, sym_type)
-        self._pars: Dict[str, SymType] = {}
+        self._sym_type: type[SymType] = getattr(cs, sym_type)
+        self._pars: dict[str, SymType] = {}
         self._p = self._sym_type()
 
     @property
@@ -32,11 +32,11 @@ class HasParameters(Generic[SymType]):
         return self._p.shape[0]
 
     @property
-    def parameters(self) -> Dict[str, SymType]:
+    def parameters(self) -> dict[str, SymType]:
         """Gets the parameters of the NLP scheme."""
         return self._pars
 
-    def parameter(self, name: str, shape: Tuple[int, int] = (1, 1)) -> SymType:
+    def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         """Adds a parameter to the NLP scheme.
 
         Parameters

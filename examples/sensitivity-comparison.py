@@ -4,7 +4,6 @@ https://github.com/casadi/casadi/blob/develop/docs/examples/python/nlp_sensitivi
 """
 
 import time
-from typing import Tuple
 
 import casadi as cs
 import matplotlib.pyplot as plt
@@ -17,7 +16,7 @@ from csnlp.core.data import array2cs, cs2array
 plt.style.use("bmh")
 
 
-def get_coeffs(d: int) -> Tuple[cs.DM, cs.DM, cs.DM]:
+def get_coeffs(d: int) -> tuple[cs.DM, cs.DM, cs.DM]:
     """Gets the coefficients of the collocation equation, of the continuity equation,
     and lastly of the quadrature function."""
     tau_root = np.append(0, cs.collocation_points(d, "legendre"))

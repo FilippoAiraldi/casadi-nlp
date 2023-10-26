@@ -1,7 +1,7 @@
 import pickle
 import unittest
 from itertools import product
-from typing import List, Union
+from typing import Union
 from unittest.mock import Mock
 
 import casadi as cs
@@ -32,7 +32,7 @@ class TestNlp(unittest.TestCase):
         self,
         lhs: Union[cs.SX, cs.MX],
         rhs: Union[cs.SX, cs.MX],
-        vars: Union[List[cs.SX], List[cs.MX]],
+        vars: Union[list[cs.SX], list[cs.MX]],
         force_numerical: bool = False,
     ):
         if isinstance(rhs, (int, float)):

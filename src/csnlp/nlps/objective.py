@@ -1,5 +1,5 @@
 from functools import partial
-from typing import Any, Dict, Literal, Optional, TypeVar
+from typing import Any, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -14,8 +14,8 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 def _solve_and_get_stats(
-    solver: MemorizedFunc, kwargs: Dict[str, npt.ArrayLike]
-) -> Dict[str, Any]:
+    solver: MemorizedFunc, kwargs: dict[str, npt.ArrayLike]
+) -> dict[str, Any]:
     """Internal utility to simultaneously run the solver and get its stats."""
     sol = solver(**kwargs)
     sol["p"] = kwargs["p"]  # add to solution the parameters for which it was computed
@@ -54,7 +54,7 @@ class HasObjective(HasConstraints[SymType]):
         self.name = name
         self._f: Optional[SymType] = None
         self._solver: Optional[MemorizedFunc] = None
-        self._solver_opts: Dict[str, Any] = {}
+        self._solver_opts: dict[str, Any] = {}
         self._cache = cache if cache is not None else Memory(None)
         self._failures = 0
 
@@ -71,7 +71,7 @@ class HasObjective(HasConstraints[SymType]):
         return self._solver.func if self._solver is not None else None
 
     @property
-    def solver_opts(self) -> Dict[str, Any]:
+    def solver_opts(self) -> dict[str, Any]:
         """Gets the NLP optimization solver options. The dict is empty, if the solver
         options are not set with method `init_solver`."""
         return self._solver_opts
@@ -83,7 +83,7 @@ class HasObjective(HasConstraints[SymType]):
 
     def init_solver(
         self,
-        opts: Optional[Dict[str, Any]] = None,
+        opts: Optional[dict[str, Any]] = None,
         solver: str = "ipopt",
         type: Literal["auto", "nlp", "conic"] = "auto",
     ) -> None:
@@ -170,8 +170,8 @@ class HasObjective(HasConstraints[SymType]):
 
     def solve(
         self,
-        pars: Optional[Dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[Dict[str, npt.ArrayLike]] = None,
+        pars: Optional[dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[dict[str, npt.ArrayLike]] = None,
     ) -> Solution[SymType]:
         """Solves the NLP optimization problem.
 
@@ -216,10 +216,10 @@ class HasObjective(HasConstraints[SymType]):
 
     def _process_pars_and_vals0(
         self,
-        kwargs: Dict[str, npt.ArrayLike],
-        pars: Optional[Dict[str, npt.ArrayLike]],
-        vals0: Optional[Dict[str, npt.ArrayLike]],
-    ) -> Dict[str, npt.ArrayLike]:
+        kwargs: dict[str, npt.ArrayLike],
+        pars: Optional[dict[str, npt.ArrayLike]],
+        vals0: Optional[dict[str, npt.ArrayLike]],
+    ) -> dict[str, npt.ArrayLike]:
         """Internal utility to convert pars and initial-val dicts to solver kwargs."""
         if pars is None:
             pars = {}
@@ -236,7 +236,7 @@ class HasObjective(HasConstraints[SymType]):
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
         return kwargs
 
-    def _process_solver_sol(self, sol: Dict[str, Any]) -> Solution:
+    def _process_solver_sol(self, sol: dict[str, Any]) -> Solution:
         """Internal utility to convert the solver sol dict to a Solution instance."""
         # objective
         f = float(sol["f"])

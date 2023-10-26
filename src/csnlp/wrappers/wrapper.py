@@ -1,4 +1,4 @@
-from typing import Any, Generic, List, Type, TypeVar, Union
+from typing import Any, Generic, TypeVar, Union
 
 import casadi as cs
 
@@ -35,7 +35,7 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
         """'Returns the original NLP of the wrapper."""
         return self.nlp.unwrapped
 
-    def is_wrapped(self, wrapper_type: Type["Wrapper[SymType]"]) -> bool:
+    def is_wrapped(self, wrapper_type: type["Wrapper[SymType]"]) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type.
 
         Parameters
@@ -60,7 +60,7 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
 
     def __call__(
         self, *args: Any, **kwds: Any
-    ) -> Union[Solution[SymType], List[Solution[SymType]]]:
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         return (self.solve_multi if self.nlp.is_multi else self.solve)(*args, **kwds)
 
     def __str__(self) -> str:

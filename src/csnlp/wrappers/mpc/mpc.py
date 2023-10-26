@@ -1,5 +1,5 @@
 from math import ceil
-from typing import Callable, Dict, Literal, Optional, Tuple, TypeVar, Union
+from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -90,12 +90,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         else:
             self._input_spacing = input_spacing
 
-        self._states: Dict[str, SymType] = {}
-        self._initial_states: Dict[str, SymType] = {}
-        self._actions: Dict[str, SymType] = {}
-        self._actions_exp: Dict[str, SymType] = {}
-        self._slacks: Dict[str, SymType] = {}
-        self._disturbances: Dict[str, SymType] = {}
+        self._states: dict[str, SymType] = {}
+        self._initial_states: dict[str, SymType] = {}
+        self._actions: dict[str, SymType] = {}
+        self._actions_exp: dict[str, SymType] = {}
+        self._slacks: dict[str, SymType] = {}
+        self._disturbances: dict[str, SymType] = {}
         self._dynamics: cs.Function = None
 
     @property
@@ -109,22 +109,22 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return self._control_horizon
 
     @property
-    def states(self) -> Dict[str, SymType]:
+    def states(self) -> dict[str, SymType]:
         """Gets the states of the MPC controller."""
         return self._states
 
     @property
-    def initial_states(self) -> Dict[str, SymType]:
+    def initial_states(self) -> dict[str, SymType]:
         """Gets the initial states (parameters) of the MPC controller."""
         return self._initial_states
 
     @property
-    def first_states(self) -> Dict[str, SymType]:
+    def first_states(self) -> dict[str, SymType]:
         """Gets the first (along the prediction horizon) states of the controller."""
         return {n: s[:, 0] for n, s in self._states.items()}
 
     @property
-    def first_actions(self) -> Dict[str, SymType]:
+    def first_actions(self) -> dict[str, SymType]:
         """Gets the first (along the prediction horizon) actions of the controller."""
         return {n: a[:, 0] for n, a in self._actions.items()}
 
@@ -134,12 +134,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return sum(x0.shape[0] for x0 in self._initial_states.values())
 
     @property
-    def actions(self) -> Dict[str, SymType]:
+    def actions(self) -> dict[str, SymType]:
         """Gets the control actions of the MPC controller."""
         return self._actions
 
     @property
-    def actions_expanded(self) -> Dict[str, SymType]:
+    def actions_expanded(self) -> dict[str, SymType]:
         """Gets the expanded control actions of the MPC controller."""
         return self._actions_exp
 
@@ -149,7 +149,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return sum(a.shape[0] for a in self._actions.values())
 
     @property
-    def slacks(self) -> Dict[str, SymType]:
+    def slacks(self) -> dict[str, SymType]:
         """Gets the slack variables of the MPC controller."""
         return self._slacks
 
@@ -159,7 +159,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return sum(s.shape[0] for s in self._slacks.values())
 
     @property
-    def disturbances(self) -> Dict[str, SymType]:
+    def disturbances(self) -> dict[str, SymType]:
         """Gets the disturbance parameters of the MPC controller."""
         return self._disturbances
 
@@ -185,7 +185,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
         bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> Tuple[Optional[SymType], SymType]:
+    ) -> tuple[Optional[SymType], SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
         horizon. Automatically creates the constraint on the initial conditions for this
         state.
@@ -259,7 +259,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         size: int = 1,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-    ) -> Tuple[SymType, SymType]:
+    ) -> tuple[SymType, SymType]:
         """Adds a control action variable to the MPC controller along the whole control
         horizon. Automatically expands this action to be of the same length of the
         prediction horizon by padding with the final action.
@@ -327,7 +327,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         rhs: Union[SymType, np.ndarray, cs.DM],
         soft: bool = False,
         simplify: bool = True,
-    ) -> Tuple[SymType, ...]:
+    ) -> tuple[SymType, ...]:
         """See `Nlp.constraint` method."""
         out = self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
         if soft:
@@ -338,7 +338,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         F: Union[
             cs.Function,
-            Callable[[Tuple[npt.ArrayLike, ...]], Tuple[npt.ArrayLike, ...]],
+            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
         n_in: Optional[int] = None,
         n_out: Optional[int] = None,
