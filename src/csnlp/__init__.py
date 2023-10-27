@@ -1,3 +1,5 @@
+__version__ = "1.5.9rc1"
+
 __all__ = ["Nlp", "Solution", "multistart", "scaling"]
 
 from . import multistart
