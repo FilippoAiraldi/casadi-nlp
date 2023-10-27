@@ -1,5 +1,5 @@
-scipy>=1.9.3
-coverage==7.1.0
-parameterized==0.8.1
-blosc2==2.0.0
-brotli==1.0.9
+scipy>=1.11.3
+coverage[toml]>=7.3.2
+parameterized>=0.9.0
+blosc2>=2.2.9
+brotli>=1.0.9
