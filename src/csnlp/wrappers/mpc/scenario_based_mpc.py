@@ -173,10 +173,10 @@ class ScenarioBasedMpc(Mpc[SymType]):
             shape = (size, self._prediction_horizon + 1)
             lb = np.broadcast_to(lb, shape).astype(float)
             ub = np.broadcast_to(ub, shape).astype(float)
-            if bound_initial:
+            if not bound_initial:
                 lb[:, 0] = -np.inf
                 ub[:, 0] = +np.inf
-            if bound_terminal:
+            if not bound_terminal:
                 lb[:, -1] = -np.inf
                 ub[:, -1] = +np.inf
         elif np.any(lb != -np.inf) or np.any(ub != +np.inf):
