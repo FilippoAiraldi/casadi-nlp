@@ -1,5 +1,5 @@
-from collections.abc import Generator
-from typing import Any, NamedTuple, Optional
+from collections.abc import Generator, Sequence
+from typing import Any, NamedTuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -33,7 +33,14 @@ class RandomStartPoints:
         self,
         points: dict[str, RandomStartPoint],
         multistarts: int,
-        seed: Optional[int] = None,
+        seed: Union[
+            None,
+            int,
+            Sequence[int],
+            np.random.SeedSequence,
+            np.random.BitGenerator,
+            np.random.Generator,
+        ] = None,
     ) -> None:
         """Instantiates the generator of random start points for multistarting.
 
@@ -44,7 +51,7 @@ class RandomStartPoints:
             starting points for it (in the form of a `RandomStartPoint` object).
         multistarts : int
             The number of multiple start points.
-        seed : int, optional
+        seed : None, int, array_like[ints], SeedSequence, BitGenerator, Generator
             RNG seed.
         """
         self.points = points
