@@ -314,11 +314,11 @@ class ScenarioBasedMpc(Mpc[SymType]):
         slacks, returned as first output by the methods `state`, `disturbance`, and
         `constraint_from_single`, respectively.
         """
-        objective = cs.simplify(cs.cse(objective)) / self._n_scenarios
+        objective_ = objective / self._n_scenarios
         return self.nlp.minimize(
             sum(
                 _chained_subevalf(
-                    objective,
+                    objective_,
                     self.single_states,
                     self.states_i(i),
                     self.single_disturbances,
