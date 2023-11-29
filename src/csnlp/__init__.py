@@ -1,4 +1,4 @@
-__version__ = "1.5.9rc2"
+__version__ = "1.5.9rc3"
 
 __all__ = ["Nlp", "Solution", "multistart", "scaling"]
 
