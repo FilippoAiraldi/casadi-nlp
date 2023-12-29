@@ -37,7 +37,7 @@ jobs:
           coverage run -m unittest discover ./tests 'test_*.py'
 
       - name: Coverage with Code Climate
-        uses: paambaati/codeclimate-action@v4.0.0
+        uses: paambaati/codeclimate-action@v5.0.0
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CODECLIMATE_REPORTER_ID }}
         with:
