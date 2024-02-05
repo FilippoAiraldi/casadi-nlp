@@ -56,6 +56,7 @@ class TestIo(unittest.TestCase):
             ("bt",),
             ("bl2",),
             ("mat",),
+            ("npz",),
         ]
     )
     def test_save_and_load__preserve_data_correctly(self, ext: str):
