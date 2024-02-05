@@ -122,7 +122,7 @@ _COMPRESSION_EXTS: dict[str, Optional[str]] = {
 def save(
     filename: str,
     compression: Optional[
-        Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab"]
+        Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
     ] = None,
     **data: Any,
 ) -> str:
@@ -242,6 +242,7 @@ def load(filename: str) -> dict[str, Any]:
          - "brotli": .bt
          - "blosc2": .bl2
          - "matlab": .mat
+         - "numpy": .npz
 
     Returns
     -------
