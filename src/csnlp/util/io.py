@@ -115,6 +115,7 @@ _COMPRESSION_EXTS: dict[str, Optional[str]] = {
     ".bt": "brotli",
     ".bl2": "blosc2",
     ".mat": "matlab",
+    ".npz": "numpy",
 }
 
 
@@ -141,12 +142,13 @@ def save(
          - "brotli": .bt
          - "blosc2": .bl2
          - "matlab": .mat
+         - "numpy": .npz
     **data : dict
         Any data to be saved to a file.
-    compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab"]}
+    compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "npz"}
         Type of compression to apply to the file. Note that `brotli` and `blosc2`
         require the installation of the corresponding pip package. `matlab` requires the
-        installation of `scipy` to save as .mat file. By default, pickle is used.
+        installation of `scipy` to save as .mat file. By default, `pickle` is used.
 
     Returns
     -------
@@ -196,6 +198,8 @@ def save(
         compress_fun = blosc2.compress
     elif compression == "matlab":
         expected_ext = ".mat"
+    elif compression == "numpy":
+        expected_ext = ".npz"
     else:
         raise ValueError(f"Unknown compression method {compression}.")
 
@@ -207,6 +211,11 @@ def save(
         import scipy.io as spio
 
         spio.savemat(filename, data, do_compression=True, oned_as="column")
+
+    elif compression == "numpy":
+        import numpy as np
+
+        np.savez_compressed(filename, **data)
 
     # address all other cases that do adhere to the open/compress scheme
     else:
@@ -272,7 +281,7 @@ def load(filename: str) -> dict[str, Any]:
 
         open_fun = open
         decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))  # noqa E731
-    elif compression != "matlab":
+    elif compression not in ("matlab", "numpy"):
         raise ValueError(f"Unknown file extension {ext}.")
 
     # address first special cases that do not adhere to the open/decompress scheme
@@ -283,6 +292,11 @@ def load(filename: str) -> dict[str, Any]:
             spio.loadmat(filename, struct_as_record=False, squeeze_me=True),
             spio.matlab.mat_struct,
         )
+    elif compression == "numpy":
+        import numpy as np
+
+        with np.load(filename, allow_pickle=True) as file:
+            data = dict(file)
 
     # address all other cases that do adhere to the open/decompress scheme
     else:
