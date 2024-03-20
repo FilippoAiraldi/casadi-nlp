@@ -62,10 +62,14 @@ class TestStartPoints(unittest.TestCase):
     def test_random_start_points__returns_correct_values__when_seeded(self):
         multistarts = 5
         seed = 69
+        biases = {"x": 0.5, "y": -0.2}
+        scales = {"x": 0.1, "y": 0.3}
         S = RandomStartPoints(
-            {"x": RandomStartPoint("uniform"), "y": RandomStartPoint("normal")},
-            multistarts,
-            seed,
+            points={"x": RandomStartPoint("uniform"), "y": RandomStartPoint("normal")},
+            multistarts=multistarts,
+            biases=biases,
+            scales=scales,
+            seed=seed,
         )
         expecteds = [
             (0.5803723752156749, 0.33860174484688865),
@@ -75,8 +79,8 @@ class TestStartPoints(unittest.TestCase):
             (0.008451104579143554, -0.34391256021075023),
         ]
         for actual, expected in zip(S, expecteds):
-            self.assertAlmostEqual(actual["x"], expected[0])
-            self.assertAlmostEqual(actual["y"], expected[1])
+            self.assertAlmostEqual(actual["x"], expected[0] * scales["x"] + biases["x"])
+            self.assertAlmostEqual(actual["y"], expected[1] * scales["y"] + biases["y"])
 
     def test_structured_start_points__returns_correct_values(self):
         multistarts = np.random.randint(10, 100)
