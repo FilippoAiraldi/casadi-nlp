@@ -40,6 +40,37 @@ def _chained_subevalf(
     return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
 
 
+def _find_best_sol(sols: Iterable[dict[str, Any]]) -> dict[str, Any]:
+    """Picks the best solution out of multiple solutions, with the following logic: the
+    current solution should be considered better if
+     * it is feasible and the best is not, or
+     * both are feasible or infeasible, and the current is successful and the best is
+       not, or
+     * both are successful or not, and the current has a lower f than the best.
+    """
+    best_sol = next(sols)
+    best_f = float(best_sol["f"])
+    is_best_successful = best_sol["stats"]["success"]
+    is_best_feasible = "infeasib" not in best_sol["stats"]["return_status"].lower()
+    for sol in sols:
+        f = float(sol["f"])
+        is_successful = sol["stats"]["success"]
+        is_feasible = "infeasib" not in sol["stats"]["return_status"].lower()
+        if (
+            (is_feasible and not is_best_feasible)
+            or (
+                is_feasible == is_best_feasible
+                and (is_successful and not is_best_successful)
+            )
+            or (is_successful == is_best_successful and f < best_f)
+        ):
+            best_sol = sol
+            best_f = f
+            is_best_successful = is_successful
+            is_best_feasible = is_feasible
+    return best_sol
+
+
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting."""
 
@@ -325,7 +356,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         """
         super().__init__(*args, starts=starts, **kwargs)
         self._n_jobs = n_jobs
-        self._parallel = Parallel(n_jobs=n_jobs)
+        self._parallel = Parallel(n_jobs=n_jobs, return_as="generator")
         self.initialize_parallel()
 
     def initialize_parallel(self) -> None:
@@ -369,27 +400,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
             for p, v0 in zip(pars_iter, vals0_iter)
         )
-        sols: list[dict[str, Any]] = self._parallel(
+        sols: Iterable[dict[str, Any]] = self._parallel(
             delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
         )
         if return_all_sols:
             return list(map(self._process_solver_sol, sols))
-
-        # pick the best solution, with priority to successful ones
-        best_sol = sols[0]
-        best_f = float(best_sol["f"])
-        best_success = best_sol["stats"]["success"]
-        self._failures += not best_success
-        for sol in sols[1:]:
-            this_f = float(sol["f"])
-            this_success = sol["stats"]["success"]
-            if (not best_success and this_success) or (
-                best_success == this_success and this_f < best_f
-            ):
-                best_sol = sol
-                best_f = this_f
-                best_success = this_success
-            self._failures += not this_success
+        best_sol = _find_best_sol(sols)
         return self._process_solver_sol(best_sol)
 
     def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
@@ -487,10 +503,11 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         )
         x0s = []
         ps = []
+        default = cs.DM.zeros(0, 1)
         for p, v0 in zip(pars_iter, vals0_iter):
             kwargs = self._process_pars_and_vals0({}, p, v0)
-            x0s.append(kwargs["x0"])
-            ps.append(kwargs["p"])
+            x0s.append(kwargs.get("x0", default))
+            ps.append(kwargs.get("p", default))
         single_kwargs = {
             "x0": cs.hcat(x0s),
             "p": cs.hcat(ps),

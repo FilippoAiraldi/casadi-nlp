@@ -21,7 +21,8 @@ def func(x, p0, p1):
 N = 3
 LB, UB = -0.5, 1.4
 # nlp = ms.StackedMultistartNlp[cs.SX](starts=N)
-nlp = ms.MappedMultistartNlp[cs.SX](starts=N, parallelization="thread")
+# nlp = ms.MappedMultistartNlp[cs.SX](starts=N, parallelization="thread")
+nlp = ms.ParallelMultistartNlp[cs.SX](starts=N, n_jobs=N)
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 p0 = nlp.parameter("p0")
 p1 = nlp.parameter("p1")
@@ -42,7 +43,8 @@ xfs = [float(nlp.solve(pars=pars, vals0=x0).vals["x"]) for x0 in x0s]
 all_sols: list[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
     pars=pars, vals0=x0s, return_all_sols=True
 )
-best_sol = all_sols[np.argmin([s.f for s in all_sols])]
+best_sol: Solution[cs.SX] = nlp.solve_multi(pars=pars, vals0=x0s)
+# best_sol = all_sols[np.argmin([s.f for s in all_sols])]
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)
