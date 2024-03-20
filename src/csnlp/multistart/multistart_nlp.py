@@ -405,6 +405,8 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         )
         if return_all_sols:
             return list(map(self._process_solver_sol, sols))
+        if isinstance(sols, (list, tuple)):  # when n_jobs=1
+            sols = iter(sols)
         best_sol = _find_best_sol(sols)
         return self._process_solver_sol(best_sol)
 
