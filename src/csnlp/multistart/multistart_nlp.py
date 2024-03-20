@@ -7,6 +7,7 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 from joblib import Parallel, delayed
+from joblib.memory import MemorizedFunc
 
 from ..core.cache import invalidate_cache
 from ..core.solutions import Solution, subsevalf
@@ -405,3 +406,126 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._n_jobs = None
         self._parallel = Parallel(n_jobs=self._n_jobs)
         self.initialize_parallel()
+
+
+class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
+    """A class that solves an NLP multiple times in parallel via `casadi.Function.map`
+    parallelization.
+
+    See https://github.com/casadi/casadi/wiki/FAQ:-How-to-use-map%28%29-and-mapaccum%28%29-to-speed-up-calculations%3F.
+    """
+
+    def __init__(
+        self,
+        *args: Any,
+        starts: int,
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "serial",
+        max_num_threads: Optional[int] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Initializes the multistart NLP instance.
+
+        Parameters
+        ----------
+        args, kwargs
+            See inherited `csnlp.Nlp`.
+        starts : int
+            A positive integer for the number of multiple starting guesses to optimize.
+        parallelization : "serial", "unroll", "inline", "thread", "openmp"
+            The type of parallelization to use (see `casadi.Function.map`). By default,
+            `"serial"` is selected.
+        max_num_threads : int, optional
+            Maximum number of threads to use in parallelization; if `None`, the number
+            of threads is equal to the number of starts.
+
+        Raises
+        ------
+        ValueError
+            Raises if the scenario number is invalid.
+        """
+        super().__init__(*args, starts=starts, **kwargs)
+        self._mapped_solver: Optional[MemorizedFunc] = None
+        self._parallelization = parallelization
+        self._max_num_threads = max_num_threads
+
+    def init_solver(self, *args: Any, **kwargs: Any) -> None:
+        super().init_solver(*args, **kwargs)
+        solver: cs.Function = self._solver.func
+        mapped_solver = solver.map(
+            self._starts, self._parallelization, self._max_num_threads or self._starts
+        )
+        self._mapped_solver = self._cache.cache(mapped_solver)
+
+    def solve_multi(
+        self,
+        pars: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        return_all_sols: bool = False,
+        _return_mapped_sol: bool = False,
+        **_,
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+        assert not (
+            _return_mapped_sol and return_all_sols
+        ), "`return_all_sols` and `_return_mapped_sol` can't be both true."
+        if self._mapped_solver is None:
+            raise RuntimeError("Solver uninitialized.")
+        pars_iter = (
+            repeat(pars, self.starts)
+            if pars is None or isinstance(pars, dict)
+            else pars
+        )
+        vals0_iter = (
+            repeat(vals0, self.starts)
+            if vals0 is None or isinstance(vals0, dict)
+            else vals0
+        )
+        x0s = []
+        ps = []
+        for p, v0 in zip(pars_iter, vals0_iter):
+            kwargs = self._process_pars_and_vals0({}, p, v0)
+            x0s.append(kwargs["x0"])
+            ps.append(kwargs["p"])
+        single_kwargs = {
+            "x0": cs.hcat(x0s),
+            "p": cs.hcat(ps),
+            "lbx": self._lbx.data,
+            "ubx": self._ubx.data,
+            "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
+            "ubg": 0,
+        }
+        single_sol: dict[str, cs.DM] = self._mapped_solver(**single_kwargs)
+
+        # NOTE: the mapped solver does not return the stats, so we have to use the
+        # original solver to get them - this likely returns the stats of the last
+        # run of the mapped solver, but it's the best we can do up to this point
+        stats = self._solver.func.stats()
+
+        # if the user wants the mapped solution, return it, though it's not a Solution
+        # and it's mostly for debugging
+        if _return_mapped_sol:
+            single_sol["p"] = single_kwargs["p"]
+            single_sol["stats"] = stats
+            return single_sol  # NOTE: this is NOT a Solution object
+
+        # convert the mapped solution to a list of Solution objects
+        if return_all_sols:
+            sols = []
+            for i, p in enumerate(ps):
+                sol_i = {k: v[:, i] for k, v in single_sol.items()}
+                sol_i["p"] = ps[i]
+                sol_i["stats"] = stats.copy()
+                sols.append(self._process_solver_sol(sol_i))
+            return sols
+
+        # just return the best, as we cannot use stats to exclude failed solutions
+        i = np.argmin(single_sol["f"])
+        sol = {k: v[:, i] for k, v in single_sol.items()}
+        sol["p"] = ps[i]
+        sol["stats"] = stats
+        return self._process_solver_sol(sol)
