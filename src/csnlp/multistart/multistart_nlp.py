@@ -44,7 +44,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
 
     is_multi: ClassVar[bool] = True
 
-    def __init__(self, *args, starts: int, **kwargs) -> None:
+    def __init__(self, *args: Any, starts: int, **kwargs: Any) -> None:
         """Initializes the multistart NLP instance.
 
         Parameters
@@ -114,7 +114,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     larger-scale NLP. This allows to solve the original problem multiple times via a
     single call to the solver."""
 
-    def __init__(self, *args, starts: int, **kwargs) -> None:
+    def __init__(self, *args: Any, starts: int, **kwargs: Any) -> None:
         # this class essentially is a facade that hides an internal nlp in which the
         # problem (variables, parameters, etc.) are duplicated by the requested number
         # of multiple starts. For this reason, all methods are overridden to create
@@ -304,7 +304,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP via parallelization of the computations."""
 
     def __init__(
-        self, *args, starts: int, n_jobs: Optional[int] = None, **kwargs
+        self, *args: Any, starts: int, n_jobs: Optional[int] = None, **kwargs: Any
     ) -> None:
         """Initializes the multistart NLP instance.
 
