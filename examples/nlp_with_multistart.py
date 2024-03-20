@@ -8,55 +8,56 @@ from csnlp import multistart as ms
 plt.style.use("bmh")
 
 
-def func(x):
+def func(x, p0, p1):
     return (
-        -0.3 * x**2
-        - np.exp(-10 * x**2)
-        + np.exp(-100 * (x - 1) ** 2)
-        + np.exp(-100 * (x - 1.5) ** 2)
+        -p0 * x**2
+        - np.exp(-p1 * x**2)
+        + np.exp(-10 * p1 * (x - 1) ** 2)
+        + np.exp(-10 * p1 * (x - 1.5) ** 2)
     )
 
 
 # build the NLP
 N = 3
 LB, UB = -0.5, 1.4
-nlp = ms.StackedMultistartNlp[cs.SX](starts=N)
+# nlp = ms.StackedMultistartNlp[cs.SX](starts=N)
+nlp = ms.MappedMultistartNlp[cs.SX](starts=N, parallelization="thread")
 x = nlp.variable("x", lb=LB, ub=UB)[0]
-nlp.parameter("p0")
-nlp.parameter("p1")
-nlp.minimize(func(x))
+p0 = nlp.parameter("p0")
+p1 = nlp.parameter("p1")
+nlp.minimize(func(x, p0, p1))
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 0}}
 nlp.init_solver(opts)
 
 # manually solve the problem from multiple initial conditions
+pars = {"p0": 0.3, "p1": 10}
 x0s = list(
     ms.RandomStartPoints(
         points={"x": ms.RandomStartPoint("uniform", LB, UB)}, multistarts=3, seed=42
     )
 )
-xfs = [float(nlp.solve(pars={"p0": 0, "p1": 1}, vals0=x0).vals["x"]) for x0 in x0s]
+xfs = [float(nlp.solve(pars=pars, vals0=x0).vals["x"]) for x0 in x0s]
 
 # use automatic multistart solver
 all_sols: list[Solution[cs.SX]] = nlp.solve_multi(  # type: ignore[assignment]
-    pars={"p0": 0, "p1": 1},  # type: ignore[arg-type]
-    vals0=x0s,
-    return_all_sols=True,
+    pars=pars, vals0=x0s, return_all_sols=True
 )
 best_sol = all_sols[np.argmin([s.f for s in all_sols])]
 
 # plot function
 fig, ax = plt.subplots(constrained_layout=True)
 xs = np.linspace(LB, UB, 500)
-ax.plot(xs, func(xs), "k--")
+F = lambda x: func(x, **pars)
+ax.plot(xs, F(xs), "k--")
 
 # plot manual solutions
 for x0_, xf in zip(x0s, xfs):
     x0: float = x0_["x"]  # type: ignore[assignment]
     xs = np.linspace(x0, xf, 100)
-    lbl = rf"$x_0={{{x0:.3f}}} \rightarrow f^{{\star}}={{{func(xf):.3f}}}$"
-    c = ax.plot(xs, func(xs), "-", lw=2, label=lbl)[0]
-    ax.plot(x0, func(x0), "o", markersize=6, color=c.get_color())
-    ax.plot(xf, func(xf), "*", markersize=8, color=c.get_color())
+    lbl = rf"$x_0={{{x0:.3f}}} \rightarrow f^{{\star}}={{{F(xf):.3f}}}$"
+    c = ax.plot(xs, F(xs), "-", lw=2, label=lbl)[0]
+    ax.plot(x0, F(x0), "o", markersize=6, color=c.get_color())
+    ax.plot(xf, F(xf), "*", markersize=8, color=c.get_color())
 
 # plot all multistart solutions
 for sol in all_sols:

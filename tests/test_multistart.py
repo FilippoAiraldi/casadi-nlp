@@ -1,7 +1,7 @@
 import pickle
 import unittest
 from itertools import product
-from typing import TypeVar, Union
+from typing import TypeVar
 from unittest.mock import Mock
 
 import casadi as cs
@@ -10,6 +10,7 @@ from parameterized import parameterized, parameterized_class
 
 from csnlp.core.solutions import subsevalf
 from csnlp.multistart import (
+    MappedMultistartNlp,
     ParallelMultistartNlp,
     RandomStartPoint,
     RandomStartPoints,
@@ -17,7 +18,7 @@ from csnlp.multistart import (
     StructuredStartPoint,
     StructuredStartPoints,
 )
-from csnlp.multistart.multistart_nlp import _n
+from csnlp.multistart.multistart_nlp import MultistartNlp, _n
 
 OPTS = {
     "expand": True,
@@ -31,7 +32,8 @@ OPTS = {
         "print_options_documentation": "no",
     },
 }
-TMultiNlp = TypeVar("TMultiNlp", ParallelMultistartNlp, StackedMultistartNlp)
+MULTI_NLP_CLASSES = [ParallelMultistartNlp, StackedMultistartNlp, MappedMultistartNlp]
+TMultiNlp = TypeVar("TMultiNlp", *MULTI_NLP_CLASSES)
 
 
 class TestStartPoints(unittest.TestCase):
@@ -134,21 +136,19 @@ class TestMultistartNlp(unittest.TestCase):
         ):
             nlp(None, None, return_all_sols=True, return_stacked_sol=True)
 
-    @parameterized.expand(
-        product([False, True], [StackedMultistartNlp, ParallelMultistartNlp])
-    )
+    @parameterized.expand(product([False, True], MULTI_NLP_CLASSES))
     def test_solve__computes_right_solution(
         self, copy: bool, multinlp_cls: type[TMultiNlp]
     ):
         N = 3
         nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
-        nlp.parameter("p")
+        p = nlp.parameter("p")
         nlp.minimize(
-            -0.3 * x**2
-            - cs.exp(-10 * x**2)
-            + cs.exp(-100 * (x - 1) ** 2)
-            + cs.exp(-100 * (x - 1.5) ** 2)
+            -0.3 * p * x**2
+            - cs.exp(-10 * p * x**2)
+            + cs.exp(-100 * p * (x - 1) ** 2)
+            + cs.exp(-100 * p * (x - 1.5) ** 2)
         )
         nlp.init_solver(OPTS)
         if copy:
@@ -158,12 +158,12 @@ class TestMultistartNlp(unittest.TestCase):
         x0s = [0.9, 0.5, 1.1]
         xfs, fs = [], []
         for x0 in x0s:
-            sol = nlp.solve(pars={"p": 0}, vals0={"x": x0})
+            sol = nlp.solve(pars={"p": 1.0}, vals0={"x": x0})
             xfs.append(sol.vals["x"])
             fs.append(sol.f)
 
         # solve with multistart
-        args = ({"p": 0}, [{"x": x0} for x0 in x0s])
+        args = ({"p": 1.0}, [{"x": x0} for x0 in x0s])
         best_sol = nlp.solve_multi(*args)
         all_sols = nlp.solve_multi(*args, return_all_sols=True)
 
@@ -175,22 +175,20 @@ class TestMultistartNlp(unittest.TestCase):
         np.testing.assert_allclose(best_sol.f, min(fs))
         np.testing.assert_allclose(best_sol.value(nlp.f), min(fs))
 
-    @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
+    @parameterized.expand([(cls,) for cls in MULTI_NLP_CLASSES])
     def test_is_pickleable(self, multinlp_cls: type[TMultiNlp]):
         N = 3
         nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
-        nlp.parameter("p")
+        p = nlp.parameter("p")
         nlp.minimize(
-            -0.3 * x**2
-            - cs.exp(-10 * x**2)
-            + cs.exp(-100 * (x - 1) ** 2)
-            + cs.exp(-100 * (x - 1.5) ** 2)
+            -0.3 * p * x**2
+            - cs.exp(-10 * p * x**2)
+            + cs.exp(-100 * p * (x - 1) ** 2)
+            + cs.exp(-100 * p * (x - 1.5) ** 2)
         )
         nlp.init_solver(OPTS)
-        nlp2: Union[StackedMultistartNlp, ParallelMultistartNlp] = pickle.loads(
-            pickle.dumps(nlp)
-        )
+        nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
         self.assertEqual(nlp.name, nlp2.name)
         if multinlp_cls is StackedMultistartNlp:
             self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
