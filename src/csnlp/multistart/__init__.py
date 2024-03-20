@@ -1,4 +1,5 @@
 __all__ = [
+    "MappedMultistartNlp",
     "ParallelMultistartNlp",
     "RandomStartPoint",
     "RandomStartPoints",
@@ -7,7 +8,11 @@ __all__ = [
     "StructuredStartPoints",
 ]
 
-from .multistart_nlp import ParallelMultistartNlp, StackedMultistartNlp
+from .multistart_nlp import (
+    MappedMultistartNlp,
+    ParallelMultistartNlp,
+    StackedMultistartNlp,
+)
 from .startpoints import (
     RandomStartPoint,
     RandomStartPoints,
