@@ -186,7 +186,7 @@ class TestMultistartNlp(unittest.TestCase):
             AssertionError,
             "`return_all_sols` and `return_stacked_sol` can't be both true.",
         ):
-            nlp(None, None, return_all_sols=True, return_stacked_sol=True)
+            nlp((None,), (None,), return_all_sols=True, return_stacked_sol=True)
 
     @parameterized.expand(product([False, True], MULTI_NLP_CLASSES))
     def test_solve__computes_right_solution(

@@ -93,7 +93,7 @@ for i in range(2):
     mpc.minimize(m[0] - m[-1])
     mpc.init_solver(opts)
     x_initial = cs.repmat([0, 0, 1e5], 1, N + 1)
-    sol: Solution[cs.SX] = mpc.solve_multi(
+    sol: Solution[cs.SX] = mpc(
         pars=({"x_0": x0} for _ in range(K)),
         vals0=(
             {

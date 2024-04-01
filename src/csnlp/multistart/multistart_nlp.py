@@ -96,6 +96,24 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
         super().__init__(*args, **kwargs)
         self._starts = starts
 
+    def __call__(
+        self,
+        pars: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        **kwargs: Any,
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+        # call solve_multi only if either pars or vals0 is an iterable; otherwise, run
+        # the single, base NLP
+        if (pars is None or isinstance(pars, dict)) and (
+            vals0 is None or isinstance(vals0, dict)
+        ):
+            return self.solve(pars, vals0)
+        return self.solve_multi(pars, vals0, **kwargs)
+
     @property
     def starts(self) -> int:
         """Gets the number of starts."""
@@ -137,7 +155,9 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
              - the best solution out of all multiple starts
              - all the solutions (one per start)
         """
-        raise NotImplementedError
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does not implement `solve_multi`"
+        )
 
 
 class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
@@ -308,9 +328,6 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         if return_all_sols:
             return [get_ith_sol(i) for i in range(self._starts)]
         return get_ith_sol(np.argmin(fs).item())
-
-    def __call__(self, *args, **kwargs):
-        return self.solve_multi(*args, **kwargs)
 
     def remove_variable_bounds(
         self,
