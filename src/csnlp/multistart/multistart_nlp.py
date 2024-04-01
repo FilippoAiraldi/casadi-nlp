@@ -1,4 +1,4 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from functools import lru_cache, partial
 from itertools import repeat
 from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
@@ -40,7 +40,7 @@ def _chained_subevalf(
     return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
 
 
-def _find_best_sol(sols: Iterable[dict[str, Any]]) -> dict[str, Any]:
+def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
     """Picks the best solution out of multiple solutions, with the following logic: the
     current solution should be considered better if
      * it is feasible and the best is not, or
