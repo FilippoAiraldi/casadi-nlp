@@ -32,7 +32,7 @@ class RandomStartPoints:
     def __init__(
         self,
         points: dict[str, RandomStartPoint],
-        multistarts: int,
+        multistarts: int = 10,
         biases: Optional[dict[str, npt.ArrayLike]] = None,
         scales: Optional[dict[str, npt.ArrayLike]] = None,
         seed: Union[
@@ -51,8 +51,8 @@ class RandomStartPoints:
         points : dict of (str, RandomStartPoint)
             Dictionary containing the name of each variable, and how to generate random
             starting points for it (in the form of a `RandomStartPoint` object).
-        multistarts : int
-            The number of multiple start points.
+        multistarts : int, optional
+            The number of multiple start points. Default is 10.s
         biases : dict of (str, array_like), optional
             Biases to add to the generated random points under the same name. If `None`,
             no bias is added.
@@ -102,7 +102,7 @@ class StructuredStartPoints:
     def __init__(
         self,
         points: dict[str, StructuredStartPoint],
-        multistarts: int,
+        multistarts: int = 10,
     ) -> None:
         """Instantiates the generator of structured start points for multistarting.
 
@@ -112,8 +112,8 @@ class StructuredStartPoints:
             Dictionary containing the name of each variable, and how to generate
             structured starting points for it (in the form of a `StructuredStartPoint`
             object).
-        multistarts : int
-            The number of multiple start points.
+        multistarts : int, optional
+            The number of multiple start points. Default is 10.
         """
         self.points = points
         self.multistarts = multistarts
