@@ -34,7 +34,7 @@ nlp.init_solver(opts)
 pars = {"p0": 0.3, "p1": 10}
 x0s = list(
     ms.RandomStartPoints(
-        points={"x": ms.RandomStartPoint("uniform", LB, UB)}, multistarts=3, seed=42
+        points={"x": ms.RandomStartPoint("uniform", LB, UB)}, multistarts=N, seed=42
     )
 )
 xfs = [float(nlp.solve(pars=pars, vals0=x0).vals["x"]) for x0 in x0s]

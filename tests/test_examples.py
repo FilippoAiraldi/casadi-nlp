@@ -78,11 +78,10 @@ class TestExamples(unittest.TestCase):
 
             best_sol: Solution = nlp.solve_multi(*args)
             all_sols: list[Solution] = nlp.solve_multi(*args, return_all_sols=True)
-            fs = [all_sol.f for all_sol in all_sols]
-            self.assertEqual(best_sol.f, min(fs))
-            np.testing.assert_allclose(fs, RESULTS["multistart_nlp_fs"])
-
             all_sols.sort()
+            fs = [all_sol.f for all_sol in all_sols]
+            self.assertEqual(best_sol.f, fs[0])
+            np.testing.assert_allclose(fs, np.sort(RESULTS["multistart_nlp_fs"]))
             sols.append(all_sols)
 
         for sol1, sol2 in zip(*sols):

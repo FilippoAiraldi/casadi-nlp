@@ -353,7 +353,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP via parallelization of the computations."""
 
     def __init__(
-        self, *args: Any, starts: int, n_jobs: Optional[int] = None, **kwargs: Any
+        self,
+        *args: Any,
+        starts: int,
+        parallel: Optional[Parallel] = None,
+        n_jobs: Optional[int] = None,
+        **kwargs: Any,
     ) -> None:
         """Initializes the multistart NLP instance.
 
@@ -363,8 +368,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             See inherited `csnlp.Nlp`.
         starts : int
             A positive integer for the number of multiple starting guesses to optimize.
+        parallel: joblib.Parallel, optional
+            A parallel backend to use (must be already initialized); if `None`, a new
+            one is instead created and initialized.
         n_jobs : int, optional
-            Number of concurrently running jobs; see `n_job` in `joblib.Parallel`.
+            Number of concurrently running jobs; see `n_job` in `joblib.Parallel`. Only
+            used if the `parallel` backend is not provided.
 
         Raises
         ------
@@ -372,9 +381,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             Raises if the scenario number is invalid.
         """
         super().__init__(*args, starts=starts, **kwargs)
-        self._n_jobs = n_jobs
-        self._parallel = Parallel(n_jobs=n_jobs, return_as="generator")
-        self.initialize_parallel()
+        if parallel is None:
+            self._parallel = Parallel(n_jobs=n_jobs, return_as="generator_unordered")
+            self.initialize_parallel()
+        else:
+            self._parallel = parallel
+        self._n_jobs = self._parallel.n_jobs
 
     def initialize_parallel(self) -> None:
         """Initializes the parallel backend."""
@@ -417,13 +429,11 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
             for p, v0 in zip(pars_iter, vals0_iter)
         )
-        sols: Iterable[dict[str, Any]] = self._parallel(
+        sols: Iterator[dict[str, Any]] = self._parallel(
             delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
         )
         if return_all_sols:
             return list(map(self._process_solver_sol, sols))
-        if isinstance(sols, (list, tuple)):  # when n_jobs=1
-            sols = iter(sols)
         best_sol = _find_best_sol(sols)
         return self._process_solver_sol(best_sol)
 
@@ -439,7 +449,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         # re-initialized joblib.Parallel
         if not hasattr(self, "_n_jobs"):
             self._n_jobs = None
-        self._parallel = Parallel(n_jobs=self._n_jobs)
+        self._parallel = Parallel(n_jobs=self._n_jobs, return_as="generator_unordered")
         self.initialize_parallel()
 
 
