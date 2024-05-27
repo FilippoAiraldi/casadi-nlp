@@ -22,7 +22,7 @@ N = 3
 LB, UB = -0.5, 1.4
 # nlp = ms.StackedMultistartNlp[cs.SX](starts=N)
 # nlp = ms.MappedMultistartNlp[cs.SX](starts=N, parallelization="thread")
-nlp = ms.ParallelMultistartNlp[cs.SX](starts=N, n_jobs=N)
+nlp = ms.ParallelMultistartNlp[cs.SX](starts=N, parallel_kwargs={"n_jobs": N})
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 p0 = nlp.parameter("p0")
 p1 = nlp.parameter("p1")
