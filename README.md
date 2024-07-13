@@ -5,10 +5,10 @@
 In particular, it makes use of the [CasADi](https://web.casadi.org/) framework [[1]](#1) to model the optimization problems and perform symbolic differentiation, as well as the [IPOPT](https://github.com/coin-or/Ipopt) solver [[2]](#2) (though the package can be adapted to other solvers pretty easily). The package offers also tools for the sensitivity analysis of NLPs, solving them with multiple initial conditions, as well as for building MPC controllers.
 
 [![PyPI version](https://badge.fury.io/py/csnlp.svg)](https://badge.fury.io/py/csnlp)
-[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/dev/LICENSE)
+[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
 ![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
 
-[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-dev.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-dev.yml)
+[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml)
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
@@ -85,7 +85,7 @@ Similarly, an NLP instance can be wrapped in an MPC wrapper that makes it easier
 
 ## Examples
 
-Our [examples](https://github.com/FilippoAiraldi/casadi-nlp/tree/dev/examples) subdirectory contains example applications of this package in NLP optimization, sensitivity analysis, scaling of NLPs, and optimal control.
+Our [examples](https://github.com/FilippoAiraldi/casadi-nlp/tree/main/examples) subdirectory contains example applications of this package in NLP optimization, sensitivity analysis, scaling of NLPs, and optimal control.
 
 ---
 
