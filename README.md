@@ -1,4 +1,4 @@
-# Nonlinear Programming with CasADi
+# CasADi-NLP: NonLinear Programming with CasADi
 
 **csnlp** provides classes and utilities to model, solve and analyse nonlinear programmes (NLPs) in optimization.
 
