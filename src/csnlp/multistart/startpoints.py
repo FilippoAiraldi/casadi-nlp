@@ -10,13 +10,15 @@ class RandomStartPoint:
     point."""
 
     def __init__(self, method: str, *args: Any, **kwargs: Any) -> None:
-        """Instantiates a `RandomStartPoint` object.
+        """Creates an instance of :class:`RandomStartPoint`.
 
         Parameters
         ----------
         method : str
-            Name of the method of `numpy.random.Generator` that must be used to generate
-            random start locations for this point, e.g., `"unform"`, `"normal"`, etc.
+            Name of the method of :class:`numpy.random.Generator` that must be used to
+            generate random start locations for this point, e.g., ``"unform"`` for
+            :meth:`numpy.random.Generator.uniform`, ``"normal"`` for
+            :meth:`numpy.random.Generator.normal`, etc.
         args, kwargs
             Args and kwargs with which to call the above method.
         """
@@ -27,7 +29,8 @@ class RandomStartPoint:
 
 class RandomStartPoints:
     """Class that can be iterated to yield a set of random start points for a multistart
-    NLP optimization problem."""
+    NLP optimization problem (see :class:`csnlp.multistart.multistart_nlp.MultistartNlp`
+    and its subclasses)."""
 
     def __init__(
         self,
@@ -50,16 +53,16 @@ class RandomStartPoints:
         ----------
         points : dict of (str, RandomStartPoint)
             Dictionary containing the name of each variable, and how to generate random
-            starting points for it (in the form of a `RandomStartPoint` object).
+            starting points for it (in the form of a :class:`RandomStartPoint` object).
         multistarts : int, optional
-            The number of multiple start points. Default is 10.s
+            The number of multiple start points. Default is ``10``.
         biases : dict of (str, array_like), optional
-            Biases to add to the generated random points under the same name. If `None`,
-            no bias is added.
+            Biases to add to the generated random points under the same name. If
+            ``None``, no bias is added.
         scales : float, or array of floats
             Scales to multiplty the generated random points with, under the same name.
-            If `None`, no scale is multiplied.
-        seed : None, int, array_like[ints], SeedSequence, BitGenerator, Generator
+            If ``None``, no scale is multiplied.
+        seed : None, int, array_like of ints, SeedSequence, BitGenerator, Generator
             RNG seed.
         """
         self.points = points
@@ -96,8 +99,9 @@ class StructuredStartPoint(NamedTuple):
 
 class StructuredStartPoints:
     """Class that can be iterated to yield a set of structured (deterministic) start
-    points for a multistart NLP optimization problem. The points are linearly spaced
-    between upper- and lower-bounds."""
+    points for a multistart NLP optimization problem (see
+    :class:`csnlp.multistart.multistart_nlp.MultistartNlp` and its subclasses). The
+    points are linearly spaced between upper- and lower-bounds."""
 
     def __init__(
         self,
@@ -110,10 +114,10 @@ class StructuredStartPoints:
         ----------
         points : dict of (str, StructuredStartPoint)
             Dictionary containing the name of each variable, and how to generate
-            structured starting points for it (in the form of a `StructuredStartPoint`
-            object).
+            structured starting points for it (in the form of a
+            :class:`StructuredStartPoint` object).
         multistarts : int, optional
-            The number of multiple start points. Default is 10.
+            The number of multiple start points. Default is ``10``.
         """
         self.points = points
         self.multistarts = multistarts
@@ -121,7 +125,7 @@ class StructuredStartPoints:
     def __iter__(self) -> Generator[dict[str, npt.ArrayLike], None, None]:
         """Iterates over the structured start points."""
         data = {
-            n: iter(np.linspace(p.lb, p.ub, self.multistarts))  # type: ignore[arg-type]
+            n: iter(np.linspace(p.lb, p.ub, self.multistarts))
             for n, p in self.points.items()
         }.items()
         yield from ({n: next(v) for n, v in data} for _ in range(self.multistarts))

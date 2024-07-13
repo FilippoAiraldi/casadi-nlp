@@ -8,15 +8,16 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class HasVariables(HasParameters[SymType]):
-    """Class for creating and storing symbolic variables of an NLP problem."""
+    """Class for the creation and storage of symbolic variables in an NLP problem. It
+    builds on top of :class:`HasParameters`, which handles parameters."""
 
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
         """Instantiate the class.
 
         Parameters
         ----------
-        sym_type : "SX" or "MX", optional
-            The CasADi symbolic variable type to use in the NLP, by default "SX".
+        sym_type : {"SX", "MX"}, optional
+            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
         """
         super().__init__(sym_type)
         self._vars: dict[str, SymType] = {}
@@ -45,7 +46,7 @@ class HasVariables(HasParameters[SymType]):
         name : str
             Name of the new variable. Must not be already in use.
         shape : tuple[int, int], optional
-            Shape of the new variable. By default, a scalar.
+            Shape of the new parameter. By default a scalar, i.e., ``(1, 1)``.
 
         Returns
         -------
@@ -55,7 +56,7 @@ class HasVariables(HasParameters[SymType]):
         Raises
         ------
         ValueError
-            Raises if there is already another variable with the same name.
+            Raises if there is already another variable with the same name ``name``.
         """
         if name in self._vars:
             raise ValueError(f"Variable name '{name}' already exists.")

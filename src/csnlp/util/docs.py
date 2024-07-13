@@ -1,7 +1,9 @@
-"""Functions to extract information from CasADi documentation.
-
-Taken from
-https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/util.py.
+"""A collection of stand-alone functions to extract information from the CasADi
+documentation via code. In particular, this module offers a way to get the solvers that
+are available in CasADi (i.e., they have an interface) as well as and their options. The
+functions are taken from the
+`MPCTools <https://bitbucket.org/rawlings-group/mpc-tools-casadi/src/master/mpctools/util.py>`_
+repository by the Rawlings' group.
 """
 
 from collections import namedtuple
@@ -48,11 +50,10 @@ _TYPES: dict[str, Callable] = {  # casadi types to python types
 
 
 def _get_doc_cell(lines) -> _DocCell:
-    """
-    Returns a DocCell tuple for the set of lines.
+    """Returns a DocCell tuple for the set of lines.
 
     joins is a tuple of strings to say how to join multiple lines in a given
-    cell. It must have exactly one entry for each cell
+    cell. It must have exactly one entry for each cell.
     """
     ncol = 4
     fields: tuple[list[str], ...] = ([], [], [], [])
@@ -107,7 +108,21 @@ def _get_doc_dict(docstring: str) -> dict[str, tuple[Any, str]]:
 
 
 def get_casadi_plugins() -> dict[str, list[str]]:
-    """Returns a dictionary of available casadi plugin as a dict of (type, name)."""
+    """Returns the available CasADi plugins.
+
+    Returns
+    -------
+    dict of (str, list of str))
+        A dictionary containing for each type of problem a list of plugin names that
+        are available.
+
+    Raises
+    ------
+    RuntimeError
+        Raises in case the plugins cannot be retrieved because the functions
+        :func:`cs.CasadiMeta_getPlugins` or :func:`cs.CasadiMeta_plugins` are not
+        available.
+    """
 
     func = getattr(cs, "CasadiMeta_getPlugins", getattr(cs, "CasadiMeta_plugins", None))
     if func is None:
@@ -124,7 +139,21 @@ def get_casadi_plugins() -> dict[str, list[str]]:
 
 
 def list_available_solvers() -> dict[str, list[str]]:
-    """Returns available solvers as a string or a dictionary."""
+    """Returns the available CasADi solvers.
+
+    Returns
+    -------
+    dict of (str, list of str))
+        A dictionary containing for each type of problem a list of plugin names that
+        are available.
+
+    Raises
+    ------
+    RuntimeError
+        Raises in case the plugins cannot be retrieved because the functions
+        :func:`cs.CasadiMeta_getPlugins` or :func:`cs.CasadiMeta_plugins` are not
+        available.
+    """
     availablesolvers = get_casadi_plugins()
     return {
         "nlp": availablesolvers.get("Nlpsol", []),
@@ -132,9 +161,27 @@ def list_available_solvers() -> dict[str, list[str]]:
     }
 
 
-def get_solver_options(solver, display: bool = True) -> dict[str, tuple[Any, str]]:
-    """Returns a dictionary of solver-specific options, with default value and
-    description."""
+def get_solver_options(solver: str, display: bool = True) -> dict[str, tuple[Any, str]]:
+    """Returns the solver-specific options, with default value and description whenever
+    available.
+
+    Parameters
+    ----------
+    solver : str
+        The solver name.
+    display : bool, optional
+        Whether to print the options, by default ``True``
+
+    Returns
+    -------
+    dict of (str, tuple of (Any, str))
+        A dictionary containing for each option the default value and a description.
+
+    Raises
+    ------
+    ValueError
+        Raises in case ``solver`` is not included in the available solvers.
+    """
     availablesolvers = list_available_solvers()
     if solver in availablesolvers["nlp"]:
         docstring = cs.doc_nlpsol(solver)

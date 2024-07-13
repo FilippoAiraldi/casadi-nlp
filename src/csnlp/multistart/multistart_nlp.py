@@ -18,7 +18,7 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 def _n(sym_name: str, scenario: int) -> str:
-    """Internal utility for the naming convention of i-scenario's symbols."""
+    """Internal utility for the naming convention of the ``i``-th scenario's symbols."""
     return f"{sym_name}__{scenario}"
 
 
@@ -32,7 +32,8 @@ def _chained_subevalf(
     new_dual_vars: Optional[dict[str, SymType]] = None,
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
-    """Internal utility to perform `subevalf` on vars, pars and duals in chain."""
+    """Internal utility to perform :func:`subevalf` on variables, parameters and dual
+    variables in chain."""
     expr = subsevalf(expr, old_vars, new_vars, eval=False)
     if old_dual_vars is None:
         return subsevalf(expr, old_pars, new_pars, eval=eval)
@@ -43,10 +44,12 @@ def _chained_subevalf(
 def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
     """Picks the best solution out of multiple solutions, with the following logic: the
     current solution should be considered better if
-     * it is feasible and the best is not, or
-     * both are feasible or infeasible, and the current is successful and the best is
-       not, or
-     * both are successful or not, and the current has a lower f than the best.
+
+    * it is feasible and the best is not, or
+    * both are feasible or infeasible, and the current is successful and the best is
+      not, or
+    * both are successful or not, and the current has a lower optimal value than the
+      best.
     """
     best_sol = next(sols)
     best_f = float(best_sol["f"])
@@ -72,7 +75,9 @@ def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
 
 
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
-    """Base class for NLP with multistarting."""
+    """Base class for NLP with multistarting. This class lays the foundation for solving
+    an NLP problem (described as an instance of :class:`csnlp.Nlp`) multiple times with
+    different initial conditions."""
 
     is_multi: ClassVar[bool] = True
 
@@ -82,7 +87,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
         Parameters
         ----------
         args, kwargs
-            See inherited `csnlp.Nlp`.
+            See inherited :meth:`csnlp.Nlp.__init__`.
         starts : int
             A positive integer for the number of multiple starting guesses to optimize.
 
@@ -134,26 +139,27 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
 
         Parameters
         ----------
-        pars : dict[str, array_like] or iterable of, optional
+        pars : dict of (str, array_like) or iterable of, optional
             An iterable that, for each multistart, contains a dictionary with, for each
             parameter in the NLP scheme, the corresponding numerical value. In case a
-            single dict is passed, the same is used across all scenarions. Can be `None`
-            if no parameters are present.
-        vals0 : dict[str, array_like] or iterable of, optional
+            single dict is passed, the same is used across all scenarions. Can be
+            ``None`` if no parameters are present.
+        vals0 : dict of (str, array_like) or iterable of, optional
             An iterable that, for each multistart, contains a dictionary with, for each
             variable in the NLP scheme, the corresponding initial guess. In case a
             single dict is passed, the same is used across all scenarions. By default
-            `None`, in which case  initial guesses are not passed to the solver.
+            ``None``, in which case  initial guesses are not passed to the solver.
         return_all_sols : bool, optional
-            If `True`, returns the solution of each multistart of the NLP; otherwise,
-            only the best solution is returned. By default, `False`.
+            If ``True``, returns the solution of each multistart of the NLP; otherwise,
+            only the best solution is returned. By default, ``False``.
 
         Returns
         -------
         Solution or list of Solutions
-            Depending on the flags `return_all_sols`, returns
-             - the best solution out of all multiple starts
-             - all the solutions (one per start)
+            Depending on the flags ``return_all_sols``, returns
+
+            - the best solution out of all multiple starts
+            - all the solutions (one per start).
         """
         raise NotImplementedError(
             f"{self.__class__.__name__} does not implement `solve_multi`"
@@ -161,10 +167,10 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
 
 
 class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
-    """A class that models and solves an NLP from multiple starting initial guesses by
-    automatically stacking the problem multiple independent times in the same,
-    larger-scale NLP. This allows to solve the original problem multiple times via a
-    single call to the solver."""
+    """A class that models and solves an NLP problem from multiple starting initial
+    guesses by automatically stacking the original problem multiple independent times
+    in the same, larger-scale NLP. This allows to solve the original problem multiple
+    times via a single call to the solver."""
 
     def __init__(self, *args: Any, starts: int, **kwargs: Any) -> None:
         # this class essentially is a facade that hides an internal nlp in which the
@@ -176,19 +182,19 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     @lru_cache(maxsize=32)
     def _vars_i(self, i: int) -> dict[str, SymType]:
-        """Internal utility to retrieve the variables of the i-th scenario."""
+        """Internal utility to retrieve the variables of the ``i``-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._vars[_n(k, i)] for k in self._vars}
 
     @lru_cache(maxsize=32)
     def _pars_i(self, i: int) -> dict[str, SymType]:
-        """Internal utility to retrieve the parameters of the i-th scenario."""
+        """Internal utility to retrieve the parameters of the ``i``-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._pars[_n(k, i)] for k in self._pars}
 
     @lru_cache(maxsize=32)
     def _dual_vars_i(self, i: int) -> dict[str, SymType]:
-        """Internal utility to retrieve the dual variables of the i-th scenario."""
+        """Internal utility to retrieve the dual variables of the ``i``-th scenario."""
         nlp = self._stacked_nlp.unwrapped
         return {k: nlp._dual_vars[_n(k, i)] for k in self._dual_vars}
 
@@ -231,7 +237,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         # below we have to pass both soft=False and the expression with slack included.
         vars = self.variables
         pars = self.parameters
-        expr_ = out[0]  # slack-relaxed expression in the form h(x)<=0 or ==0
+        expr_ = out[0]  # slack-relaxed expression in the form h(x,p)<=0 or g(x,p)==0
         op_: Literal["==", "<="] = "==" if op == "==" else "<="
         for i in range(self._starts):
             expr_i = _chained_subevalf(
@@ -350,7 +356,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
 
 class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
-    """A class that solves an NLP via parallelization of the computations."""
+    """A class that solves an NLP problem multiple times, with different initial
+    starting conditions, via parallelization of the computations via :mod:`joblib`."""
 
     def __init__(
         self, *args: Any, starts: int, n_jobs: Optional[int] = None, **kwargs: Any
@@ -360,11 +367,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         Parameters
         ----------
         args, kwargs
-            See inherited `csnlp.Nlp`.
+            See inherited :meth:`csnlp.Nlp.__init__`.
         starts : int
             A positive integer for the number of multiple starting guesses to optimize.
         n_jobs : int, optional
-            Number of concurrently running jobs; see `n_job` in `joblib.Parallel`.
+            Number of concurrently running jobs; see ``n_job`` in
+            :class:`joblib.Parallel`.
 
         Raises
         ------
@@ -444,10 +452,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
 
 class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
-    """A class that solves an NLP multiple times in parallel via `casadi.Function.map`
-    parallelization.
+    """A class that solves an NLP problem multiple times, with different initial
+    conditions, in parallel via :func:`casadi.Function.map` parallelization.
 
-    See https://github.com/casadi/casadi/wiki/FAQ:-How-to-use-map%28%29-and-mapaccum%28%29-to-speed-up-calculations%3F.
+    See
+    `this wiki <https://github.com/casadi/casadi/wiki/FAQ:-How-to-use-map%28%29-and-mapaccum%28%29-to-speed-up-calculations%3F>`_
+    for more details.
     """
 
     def __init__(
@@ -465,14 +475,14 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         Parameters
         ----------
         args, kwargs
-            See inherited `csnlp.Nlp`.
+            See inherited :meth:`csnlp.Nlp.__init__`.
         starts : int
             A positive integer for the number of multiple starting guesses to optimize.
         parallelization : "serial", "unroll", "inline", "thread", "openmp"
-            The type of parallelization to use (see `casadi.Function.map`). By default,
-            `"serial"` is selected.
+            The type of parallelization to use (see :func:`casadi.Function.map`). By
+            default, ``"serial"`` is selected.
         max_num_threads : int, optional
-            Maximum number of threads to use in parallelization; if `None`, the number
+            Maximum number of threads to use in parallelization; if ``None``, the number
             of threads is equal to the number of starts.
 
         Raises

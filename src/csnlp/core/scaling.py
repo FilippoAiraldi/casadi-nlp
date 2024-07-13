@@ -5,11 +5,11 @@ import numpy.typing as npt
 
 
 class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
-    """Class for scaling of quantities. It suffices to register the scale of each the
-    variable, and then it can be easily (un-)scaled according to
-    ```
-            x_scaled = (x - loc) / scale
-    ```
+    r"""Class for scaling of NLP variables. It suffices to register the scale of each
+    the variable, and then it can be easily (un-)scaled according to
+
+    .. math:: x_{scaled} = \frac{x - loc}{scale}.
+
     Quantities need not be numerical, and can be of any type that supports basic
     algebraic operations.
     """
@@ -21,9 +21,9 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
 
         Parameters
         ----------
-        d : dict[str, tuple[array_like, array_like]], optional
+        d : dict of (str, tuple of 2 array_like), optional
             A possible non-empty dict of variable group names with the corresponding
-            scaling range.
+            scaling parameters ``loc`` and ``scale``.
         """
         super().__init__()
         if d is not None:
@@ -33,23 +33,22 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
     def register(
         self, name: str, loc: npt.ArrayLike = 0, scale: npt.ArrayLike = 1
     ) -> None:
-        """Registers a new variable's loc and scale for normalization, but raises if
-        duplicates occur.
+        """Registers for the variable ``name`` a new set of ``loc`` and ``scale``
+        parameters for its normalization, but raises if duplicates occur.
 
         Parameters
         ----------
         name : str
             Variable group to register for normalization.
         loc : array_like or supports_algebraic_operations, optional
-            Mean value of the variable, by default 0.
+            Mean value of the variable, by default ``0``.
         scale : array_like or supports_algebraic_operations, optional
-            Standard deviation of the variable, by default 1.
+            Standard deviation of the variable, by default ``1``.
 
         Raises
         ------
         KeyError
-            Raises if a duplicate name is detected.
-        ValueError
+            Raises if ``name`` is duplicated.
         """
         if name in self:
             raise KeyError(f"'{name}' already registered for normalization.")
@@ -67,27 +66,27 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
         Returns
         -------
         bool
-            Whether the variable `name` has been registered.
+            Whether the variable ``name`` has been registered.
         """
         return name in self
 
     def scale(self, name: str, x: npt.ArrayLike) -> npt.ArrayLike:
-        """Scales the value `x` according to the ranges of `name`.
+        """Scales the value ``x`` according to the ranges of variable ``name``.
 
         Parameters
         ----------
         name : str
-            Variable group `x` belongs to.
+            Variable group ``x`` belongs to.
         x : array_like or supports_algebraic_operations
             Value to be scaled.
 
         Returns
         -------
         array_like or supports_algebraic_operations
-            Normalized `x`.
+            Normalized ``x``.
 
         Raises
-        -------
+        ------
         AssertionError
             Raises if the scaled output's shape does not match input's shape.
         """
@@ -97,19 +96,19 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
         return out
 
     def unscale(self, name: str, x: npt.ArrayLike) -> npt.ArrayLike:
-        """Unscales the value `x` according to the ranges of `name`.
+        """Unscales the value ``x`` according to the ranges of ``name``.
 
         Parameters
         ----------
         name : str
-            Variable group `x` belongs to.
+            Variable group ``x`` belongs to.
         x : array_like or supports_algebraic_operations
             Value to be unscaled.
 
         Returns
         -------
         array_like
-            Denormalized `x`.
+            Denormalized ``x``.
 
         Raises
         ------
@@ -129,11 +128,11 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
 
 
 class MinMaxScaler(Scaler):
-    """Class for scaling of quantities. It suffices to register the scale of each the
+    r"""Class for scaling of quantities. It suffices to register the scale of each the
     variable, and then it can be easily (un-)scaled according to
-    ```
-            x_scaled = (x - min) / (max - min)
-    ```
+
+    .. math:: x_{scaled} = \frac{x - min}{max - min}.
+
     Quantities need not be numerical, and can be of any type that supports basic
     algebraic operations.
     """
@@ -141,22 +140,21 @@ class MinMaxScaler(Scaler):
     def register(
         self, name: str, min: npt.ArrayLike = 0, max: npt.ArrayLike = 1
     ) -> None:
-        """Registers a new variable's min and max for normalization, but raises if
-        duplicates occur.
+        """Registers for the variable ``name`` a new set of ``min`` and ``max``
+        parameters for its normalization, but raises if duplicates occur.
 
         Parameters
         ----------
         name : str
             Variable group to register for normalization.
         min : array_like or supports_algebraic_operations, optional
-            Minimum of the variable, by default 0.
+            Minimum of the variable, by default ``0``.
         max : array_like or supports_algebraic_operations, optional
-            Maximum of the variable, by default 1.
+            Maximum of the variable, by default ``1``.
 
         Raises
         ------
         KeyError
-            Raises if a duplicate name is detected.
-        ValueError
+            Raises if ``name`` is duplicated.
         """
-        return super().register(name, min, max - min)  # type: ignore[operator]
+        return super().register(name, min, max - min)

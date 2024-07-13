@@ -15,7 +15,8 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 @dataclass(frozen=True, repr=False, order=True)
 class Solution(Generic[SymType]):
-    """Class containing information on the solution of an NLP solver's run."""
+    """Class containing information on the solution of a solver's run for an instance of
+    :class:`csnlp.Nlp`."""
 
     f: float
     vars: dict[str, SymType]
@@ -23,7 +24,7 @@ class Solution(Generic[SymType]):
     dual_vars: dict[str, SymType]
     dual_vals: dict[str, cs.DM]
     stats: dict[str, Any]
-    _get_value: partial  # Callable[[SymType, bool], Union[SymType, cs.DM]]
+    _get_value: partial
 
     @property
     def all_vars(self) -> SymType:
@@ -59,8 +60,8 @@ class Solution(Generic[SymType]):
         x : casadi.SX or MX
             The symbolic expression to be evaluated at the solution's values.
         eval : bool, optional
-            Evaluates numerically the new expression. By default, `True`. See
-            `csnlp.solutions.subsevalf` for more details.
+            Evaluates numerically the new expression. By default, ``True``. See
+            :meth:`csnlp.solutions.subsevalf` for more details.
 
         Returns
         -------
@@ -70,10 +71,11 @@ class Solution(Generic[SymType]):
         Raises
         ------
         RuntimeError
-            Raises if `eval=True` but there are symbolic variables that are
-            still free since they are outside the solution's variables.
+            Raises if ``eval=True`` but there are symbolic variables that are still
+            free. This can occur when there are symbols that are outside the solution's
+            variables, and thus have not been substituted by a numerical value.
         """
-        return self._get_value(x, eval=eval)  # type: ignore[call-arg]
+        return self._get_value(x, eval=eval)
 
     def __repr__(self) -> str:
         return (
@@ -159,14 +161,14 @@ def subsevalf(
     ----------
     expr : casadi.SX, MX or an array of these
         Expression for substitution and, possibly, evaluation.
-    old : casadi.SX, MX (or struct, dict, iterable of)
+    old : casadi.SX or MX or struct, dict, iterable of these
         Old variable to be substituted.
-    new : numpy.array or casadi.SX, MX, DM (or struct, dict, iterable of)
+    new : numpy.array or casadi.SX, MX, DM or struct, dict, iterable of these
         New variable that substitutes the old one. If a collection, it is
-        assumed the type is the same of `old` (so, old and new should share
+        assumed the type is the same of ``old`` (so, old and new should share
         collection type).
     eval : bool, optional
-        Evaluates numerically the new expression. By default, `True`.
+        Evaluates numerically the new expression. By default, ``True``.
 
     Returns
     -------
@@ -177,9 +179,9 @@ def subsevalf(
     Raises
     ------
     Exception
-        Raises if `old` and `new` are not compatible with `casadi.substitute`; or if
-        `eval=True` but there are symbolic variables that are still free, i.e., the
-        expression cannot be evaluated numerically since it is still (partially)
+        Raises if ``old`` and ``new`` are not compatible with :func:`casadi.substitute`;
+        or if ``eval=True`` but there are symbolic variables that are still free, i.e.,
+        the expression cannot be evaluated numerically since it is still (partially)
         symbolic.
     """
     if isinstance(expr, np.ndarray):

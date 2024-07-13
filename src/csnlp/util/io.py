@@ -1,3 +1,10 @@
+"""A collection of utilities for input/output operations. The goals of this module are:
+
+- compatibility of pickling/deepcopying with CasADi objects and classes that hold such
+  objects (since these are often not picklable).
+- saving and loading data to/from files, possibly compressed.
+"""
+
 import pickle
 from copy import _reconstruct, deepcopy
 from os.path import splitext
@@ -13,7 +20,8 @@ if TYPE_CHECKING:
 def is_casadi_object(obj: Any) -> bool:
     """Checks if the object belongs to the CasADi module.
 
-    See https://stackoverflow.com/a/52783240/19648688 for more details.
+    See `this discussion <https://stackoverflow.com/a/52783240/19648688>`_ for more
+    details.
 
     Parameters
     ----------
@@ -55,11 +63,13 @@ T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
 
 
 class SupportsDeepcopyAndPickle:
-    """Class that defines a `__getstate__` that is compatible with both `deepcopy` and
-    `pickle`, as well as any other operation that requires the instance's state.
+    """Class that defines a :meth:`__getstate__` that is compatible with both
+    :func:`deepcopy` and :mod:`pickle`, as well as any other operation that requires the
+    instance's state.
 
     When pickled, states that cannot be pickled (e.g., CasADi objects) are automatically
-    removed."""
+    removed.
+    """
 
     def copy(self: T, invalidate_caches: bool = True) -> T:
         """Creates a deepcopy of this instance.
@@ -67,13 +77,14 @@ class SupportsDeepcopyAndPickle:
         Parameters
         ----------
         invalidate_caches : bool, optional
-            If `True`, methods decorated with `csnlp.util.funcs.invalidate_cache` are
-            called to clear cached properties/lru caches in the copied instance.
-            Otherwise, caches in the copy are not invalidated. By default, `True`.
+            If ``True``, methods decorated with
+            :func:`csnlp.core.cache.invalidate_cache` are called to clear cached
+            properties/lru caches in the copied instance. Otherwise, caches in the copy
+            are not invalidated. By default, ``True``.
 
         Returns
         -------
-        `SupportsDeepcopyAndPickle` or its subclass
+        Instance of :class:`SupportsDeepcopyAndPickle` or its subclass
             A deepcopy of this instance.
         """
         new = deepcopy(self)
@@ -127,33 +138,40 @@ def save(
     **data: Any,
 ) -> str:
     """Saves data to a (possibly compressed) file. Inspired by
-     - https://stackoverflow.com/a/57983757/19648688,
-     - https://stackoverflow.com/a/8832212/19648688.
+    `this discussion <https://stackoverflow.com/a/57983757/19648688>`_
+    and `this other discussion <https://stackoverflow.com/a/8832212/19648688>`_.
 
     Parameters
     ----------
     filename : str
         The name of the file to save to. If the filename does not end in the correct
         extension, then it is automatically added. The extensions are
-         - "pickle": .pkl
-         - "lzma": .xz
-         - "bz2": .pbz2
-         - "gzip": .gz
-         - "brotli": .bt
-         - "blosc2": .bl2
-         - "matlab": .mat
-         - "numpy": .npz
+
+        - ``"pickle"``: .pkl
+        - ``"lzma"``: .xz
+        - ``"bz2"``: .pbz2
+        - ``"gzip"``: .gz
+        - ``"brotli"``: .bt
+        - ``"blosc2"``: .bl2
+        - ``"matlab"``: .mat
+        - ``"numpy"``: .npz.
     **data : dict
         Any data to be saved to a file.
     compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "npz"}
-        Type of compression to apply to the file. Note that `brotli` and `blosc2`
-        require the installation of the corresponding pip package. `matlab` requires the
-        installation of `scipy` to save as .mat file. By default, `pickle` is used.
+        Type of compression to apply to the file. By default, `pickle` is used.
 
     Returns
     -------
     filename : str
         The complete name of the file where the data was written to.
+
+    Notes
+    -----
+    Note that the compression types ``brotli`` and ``blosc2`` require the installation
+    of the corresponding pip packages (see `Brotli <https://github.com/google/brotli>`_
+    and `Blosc2 <https://www.blosc.org/python-blosc/python-blosc.html>`_).
+    ``matlab`` requires instead the installation of :mod:`scipy` to save as .mat file
+    (see :func:`scipy.io.savemat` and :func:`scipy.io.loadmat` for more details).
     """
 
     actual_ext = splitext(filename)[1]
@@ -235,14 +253,15 @@ def load(filename: str) -> dict[str, Any]:
     filename : str, optional
         The name of the file to load. If the filename does not end in a known extension,
         then it fails. The known extensions are
-         - "pickle": .pkl
-         - "lzma": .xz
-         - "bz2": .pbz2
-         - "gzip": .gz
-         - "brotli": .bt
-         - "blosc2": .bl2
-         - "matlab": .mat
-         - "numpy": .npz
+
+        - ``"pickle"``: .pkl
+        - ``"lzma"``: .xz
+        - ``"bz2"``: .pbz2
+        - ``"gzip"``: .gz
+        - ``"brotli"``: .bt
+        - ``"blosc2"``: .bl2
+        - ``"matlab"``: .mat
+        - ``"numpy"``: .npz.
 
     Returns
     -------

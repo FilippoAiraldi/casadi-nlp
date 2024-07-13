@@ -16,13 +16,17 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
-    """
-    The generic NLP class is a controller that solves a (possibly, nonlinear)
-    optimization problem to yield a (possibly, sub-) optimal solution.
+    r"""The generic NLP class is a controller that solves a (possibly, nonlinear)
+    optimization problem to yield a (possibly, sub-) optimal solution. This is a generic
+    implementation in the sense that it does not solve a particular problem, but only
+    offers the generic methods to build one (e.g., variables, constraints, objective,
+    solver).
 
-    This is a generic class in the sense that it does not solve a particular
-    problem, but only offers the generic methods to build one (e.g., variables,
-    constraints, objective, solver).
+    Notes
+    -----
+    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0`
+    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
+    to be minimized.
     """
 
     __ids: ClassVar[Iterator[int]] = count(0)
@@ -40,25 +44,27 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
 
         Parameters
         ----------
-        sym_type : "SX" or "MX", optional
-            The CasADi symbolic variable type to use in the NLP, by default "SX".
+        sym_type : {"SX", "MX"}, optional
+            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
         remove_redundant_x_bounds : bool, optional
-            If `True`, then redundant entries in `lbx` and `ubx` are removed when
-            properties `h_lbx` and `h_ubx` are called. See these two properties for more
-            details. By default, `True`.
+            If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are
+            removed when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See
+            these two properties for more details. By default, ``True``.
         cache : joblib.Memory, optional
             Optional cache to avoid computing the same exact NLP more than once. By
             default, no caching occurs.
         name : str, optional
             Name of the NLP scheme. If `None`, it is automatically assigned.
         debug : bool, optional
-            If `True`, the NLP logs in the `debug` property information regarding the
-            creation of parameters, variables and constraints. By default, `False`.
+            If ``True``, the NLP logs in the :meth:`debug` property information
+            regarding the creation of parameters, variables and constraints. By default,
+            ``False``.
 
         Raises
         ------
         AttributeError
-            Raises if the specified CasADi's symbolic type is neither "SX" nor "MX".
+            Raises if the specified CasADi's symbolic type is neither ``"SX"`` nor
+            ``"MX"``.
         """
         id = next(self.__ids)
         name = f"{self.__class__.__name__}{id}" if name is None else name
@@ -92,7 +98,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             self._debug.register("p", name, shape)
         return out
 
-    def variable(  # type: ignore[override]
+    def variable(
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
@@ -127,38 +133,39 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         name_out: Optional[Sequence[str]] = None,
         opts: Optional[dict[Any, Any]] = None,
     ) -> cs.Function:
-        """Converts the optimization problem to an MX symbolic function. If the
-        NLP is modelled in SX, the function will still be converted in MX since
-        the IPOPT interface cannot expand SX for now.
+        """Converts the optimization problem to an ``MX`` symbolic
+        :class:`casadi.Function`. If the NLP is modelled in ``SX``, the function will
+        still be converted to ``MX`` since the IPOPT interface cannot expand ``SX``
+        for now.
 
         Parameters
         ----------
         name : str
             Name of the function.
-        ins : Sequence of cs.SX or MX
+        ins : sequence of casadi.SX or MX
             Input variables of the function. These must be expressions
             providing the parameters of the NLP and the initial conditions of
-            the primal variables `x`.
-        outs : Sequence of cs.SX or MX
+            the primal variables ``x``.
+        outs : sequence of casadi.SX or MX
             Output variables of the function. These must be expressions
-            depending on the primal variable `x`, parameters `p`, and dual
-            variables `lam_g`, `lam_h`, `lam_lbx`, `lam_ubx` of the NLP.
-        name_in : Sequence of str, optional
+            depending on the primal variable ``x``, parameters ``p``, and dual
+            variables ``lam_g``, ``lam_h``, ``lam_lbx``, ``lam_ubx`` of the NLP.
+        name_in : sequence of str, optional
             Name of the inputs, by default None.
-        name_out : Sequence of str, optional
+        name_out : sequence of str, optional
             Name of the outpus, by default None.
-        opts : Dict[Any, Any], optional
-            Options to be passed to `casadi.Function`, by default None.
+        opts : dict[Any, Any], optional
+            Options to be passed to :class:`casadi.Function`, by default None.
 
         Returns
         -------
         casadi.Function
-            The NLP solver as a `casadi.Function`.
+            The NLP solver as an instance of :class:`casadi.Function`.
 
         Raises
         ------
         RuntimeError
-            Raises if the solver is uninitialized; or if the input or output expressions
+            Raises if the solver is uninitialized, or if the input or output expressions
             have free variables that are not provided or cannot be computed by the
             solver.
         """

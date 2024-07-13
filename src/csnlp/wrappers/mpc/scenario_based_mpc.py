@@ -15,12 +15,14 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class ScenarioBasedMpc(Mpc[SymType]):
-    """Implementation of the Scenario-based Model Predictive Control [1], here referred
+    """Implementation of the Scenario-based Model Predictive Control [2]_, here referred
     to as SCMPC, a well-known stochastic MPC formulation.
 
     References
     ----------
-    [1] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. The scenario
+    .. [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
+        theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
+    .. [2] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. The scenario
         approach for stochastic model predictive control with bounds on closed-loop
         constraint violations. Automatica, 50(12), pp.3009-3018.
     """
@@ -53,10 +55,10 @@ class ScenarioBasedMpc(Mpc[SymType]):
             the number of free actions along the control horizon by allowing only the
             first action every `n` to be free, and the following `n-1` to be fixed equal
             to that action (where `n` is given by `input_spacing`). By default, no
-            spacing is allowed, i.e., 1.
+            spacing is allowed, i.e., ``1``.
         shooting : 'single' or 'multi', optional
             Type of approach in the direct shooting for parametrizing the control
-            trajectory. See [1, Section 8.5]. By default, direct shooting is used.
+            trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
 
         Raises
         ------
@@ -66,8 +68,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
 
         References
         ----------
-        [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
-            theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
+
         """
         if n_scenarios < 1:
             raise ValueError("The number of scenarios must be a positive integer.")
@@ -135,16 +136,16 @@ class ScenarioBasedMpc(Mpc[SymType]):
         size : int
             Size of the state (assumed to be a vector).
         lb : array_like, casadi.DM, optional
-            Hard lower bound of the state, by default -np.inf.
+            Hard lower bound of the state, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
-            Hard upper bound of the state, by default +np.inf.
+            Hard upper bound of the state, by default ``+np.inf``.
         bound_initial : bool, optional
-            If `False`, then the upper and lower bounds on the initial state are not
-            imposed, i.e., set to `+/- np.inf` (since the initial state is constrained
+            If ``False``, then the upper and lower bounds on the initial state are not
+            imposed, i.e., set to ``+/- np.inf`` (since the initial state is constrained
             to be equal to the current state of the system, it is sometimes advantageous
-            to remove its bounds). By default `True`.
+            to remove its bounds). By default ``True``.
         bound_terminal : bool, optional
-            Same as above, but for the terminal state. By default `True`.
+            Same as above, but for the terminal state. By default ``True``.
 
         Returns
         -------
@@ -219,13 +220,13 @@ class ScenarioBasedMpc(Mpc[SymType]):
         name : str
             Name of the disturbance.
         size : int, optional
-            Size of the disturbance (assumed to be a vector). Defaults to 1.
+            Size of the disturbance (assumed to be a vector). Defaults to ``1``.
 
         Returns
         -------
         single disturbance : casadi.SX or MX
             Symbol corresponding to the disturbance of a single scenario. See the note
-            for method `state`.
+            for :meth:``state``.
         disturbances : list of casadi.SX or MX
             The symbols for the new disturbances of each scenario in the SCMPC
             controller.
@@ -255,14 +256,14 @@ class ScenarioBasedMpc(Mpc[SymType]):
         allows to define only one constraint expression for a single scenario, which is
         then automatically declined for all scenarios. The symbolical expression must
         be made up of the single scenario states and disturbances, returned as first
-        output by the methods `state` and `disturbance`, respectively.
+        output by the methods :meth:`state` and :meth:`disturbance`, respectively. Note
+        that the return types are list of symbolical variables.
 
-        Note that the return types are list of symbolical variables.
         Returns
         -------
         exprs : list of casadi.SX or MX
-            The constraint expression in canonical form, i.e., `g(x,u) = 0` or
-            `h(x,u) <= 0`, for each scenario.
+            The constraint expression in canonical form, i.e., :math:`g(x,u) = 0` or
+            :math:`h(x,u) <= 0`, for each scenario.
         lams : list of casadi.SX or MX
             The symbol corresponding to the constraint's multipliers, for each scenario.
         single slack : casadi.SX or MX
@@ -311,8 +312,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
         this method allows to define only one expression for a single scenario, which is
         then automatically declined and summed for all scenarios. The symbolical
         expression must be made up of the single scenario states, disturbances, and
-        slacks, returned as first output by the methods `state`, `disturbance`, and
-        `constraint_from_single`, respectively.
+        slacks, returned as first output by the methods :meth:`state`,
+        :meth:`disturbance`, and :meth:`constraint_from_single`, respectively.
         """
         objective_ = objective / self._n_scenarios
         return self.nlp.minimize(
