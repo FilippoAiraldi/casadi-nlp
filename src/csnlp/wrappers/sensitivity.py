@@ -22,6 +22,22 @@ class NlpSensitivity(Wrapper[SymType]):
     as an interior-point solver, guarantees that the KKT conditions at the solution are
     satisfied. This may not the case for others.
 
+    Parameters
+    ----------
+    nlp : Nlp
+        The NLP problem to be wrapped.
+    target_parameters : casadi.SX or MX, optional
+        If provided, computes the sensitibity only w.r.t. these parameters. Of course,
+        these parameters must be a subset of all of the NLP's parameters. If ``None``,
+        then the derivatives and sensitivity are computed w.r.t. all parameters. If new
+        parameters are added after wrapping the nlp in this, be sure to call
+        :meth:`set_target_parameters`` again.
+    include_barrier_term : bool, optional
+        If ``True``, includes in the KKT matrix a new symbolic variable that represents
+        the barrier function of the interior-point solver. Otherwise, no additional
+        variable is added. See property :meth:`kkt` for more details. By default,
+        ``True``.
+
     References
     ----------
     .. [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
@@ -36,25 +52,6 @@ class NlpSensitivity(Wrapper[SymType]):
         target_parameters: Optional[SymType] = None,
         include_barrier_term: bool = True,
     ) -> None:
-        """Instantiates the wrapper for performing NLP sensitivities.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            The NLP problem to be wrapped.
-        target_parameters : casadi.SX or MX, optional
-            If provided, computes the sensitibity only w.r.t. these parameters. Of
-            course, these parameters must be a subset of all of the NLP's parameters. If
-            ``None``, then the derivatives and sensitivity are computed w.r.t. all
-            parameters.
-            If new parameters are added after wrapping the nlp in this, be sure to call
-            :meth:`set_target_parameters`` again.
-        include_barrier_term : bool, optional
-            If ``True``, includes in the KKT matrix a new symbolic variable that
-            represents the barrier function of the interior-point solver. Otherwise, no
-            additional variable is added. See property :meth:`kkt` for more details. By
-            default ``True``.
-        """
         super().__init__(nlp)
         self.include_barrier_term: bool = include_barrier_term
         self.set_target_parameters(target_parameters)

@@ -22,11 +22,33 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     offers the generic methods to build one (e.g., variables, constraints, objective,
     solver).
 
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    remove_redundant_x_bounds : bool, optional
+        If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are removed
+        when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See these two
+        properties for more details. By default, ``True``.
+    cache : joblib.Memory, optional
+        Optional cache to avoid computing the same exact NLP more than once. By default,
+        no caching occurs.
+    name : str, optional
+        Name of the NLP scheme. If `None`, it is automatically assigned.
+    debug : bool, optional
+        If ``True``, the NLP logs in the :meth:`debug` property information regarding
+        the creation of parameters, variables and constraints. By default, ``False``.
+
+    Raises
+    ------
+    AttributeError
+        Raises if the specified CasADi's symbolic type is neither ``"SX"`` nor ``"MX"``.
+
     Notes
     -----
-    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0`
-    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
-    to be minimized.
+    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0` and
+    :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function to
+    be minimized.
     """
 
     __ids: ClassVar[Iterator[int]] = count(0)
@@ -40,32 +62,6 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         name: Optional[str] = None,
         debug: bool = False,
     ) -> None:
-        """Creates an NLP instance.
-
-        Parameters
-        ----------
-        sym_type : {"SX", "MX"}, optional
-            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
-        remove_redundant_x_bounds : bool, optional
-            If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are
-            removed when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See
-            these two properties for more details. By default, ``True``.
-        cache : joblib.Memory, optional
-            Optional cache to avoid computing the same exact NLP more than once. By
-            default, no caching occurs.
-        name : str, optional
-            Name of the NLP scheme. If `None`, it is automatically assigned.
-        debug : bool, optional
-            If ``True``, the NLP logs in the :meth:`debug` property information
-            regarding the creation of parameters, variables and constraints. By default,
-            ``False``.
-
-        Raises
-        ------
-        AttributeError
-            Raises if the specified CasADi's symbolic type is neither ``"SX"`` nor
-            ``"MX"``.
-        """
         id = next(self.__ids)
         name = f"{self.__class__.__name__}{id}" if name is None else name
         HasObjective.__init__(self, sym_type, remove_redundant_x_bounds, cache, name)

@@ -52,7 +52,6 @@ class NlpDebug:
     )
 
     def __init__(self) -> None:
-        """Initializes the debug information collector."""
         self._p_info: list[tuple[range, NlpDebugEntry]] = []
         self._x_info: list[tuple[range, NlpDebugEntry]] = []
         self._g_info: list[tuple[range, NlpDebugEntry]] = []

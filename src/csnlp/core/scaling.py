@@ -12,19 +12,17 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
 
     Quantities need not be numerical, and can be of any type that supports basic
     algebraic operations.
+
+    Parameters
+    ----------
+    d : dict of (str, tuple of 2 array_like), optional
+        A possible non-empty dict of variable group names with the corresponding scaling
+        parameters ``loc`` and ``scale``.
     """
 
     def __init__(
         self, d: Optional[dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]] = None
     ) -> None:
-        """Initializes the scaling class.
-
-        Parameters
-        ----------
-        d : dict of (str, tuple of 2 array_like), optional
-            A possible non-empty dict of variable group names with the corresponding
-            scaling parameters ``loc`` and ``scale``.
-        """
         super().__init__()
         if d is not None:
             for k, v in d.items():

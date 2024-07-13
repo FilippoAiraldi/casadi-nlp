@@ -20,6 +20,30 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     """A wrapper to easily turn an NLP scheme into an MPC controller. Most of the theory
     for MPC is taken from [1]_.
 
+    Parameters
+    ----------
+    nlp : Nlp
+        NLP scheme to be wrapped
+    prediction_horizon : int
+        A positive integer for the prediction horizon of the MPC controller.
+    control_horizon : int, optional
+        A positive integer for the control horizon of the MPC controller. If not given,
+        it is set equal to the control horizon.
+    input_spacing : int, optional
+        Spacing between independent input actions. This argument allows to reduce the
+        number of free actions along the control horizon by allowing only the first
+        action every ``n`` to be free, and the following ``n-1`` to be fixed equal to
+        that action (where ``n`` is given by ``input_spacing``). By default, no spacing
+        is allowed, i.e., ``1``.
+    shooting : 'single' or 'multi', optional
+        Type of approach in the direct shooting for parametrizing the control
+        trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
+
+    Raises
+    ------
+    ValueError
+        Raises if the shooting method is invalid; or if any of the horizons are invalid.
+
     References
     ----------
     .. [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
@@ -34,33 +58,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
-        """Initializes the MPC wrapper around the NLP instance.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            NLP scheme to be wrapped
-        prediction_horizon : int
-            A positive integer for the prediction horizon of the MPC controller.
-        control_horizon : int, optional
-            A positive integer for the control horizon of the MPC controller. If not
-            given, it is set equal to the control horizon.
-        input_spacing : int, optional
-            Spacing between independent input actions. This argument allows to reduce
-            the number of free actions along the control horizon by allowing only the
-            first action every ``n`` to be free, and the following ``n-1`` to be fixed
-            equal to that action (where ``n`` is given by ``input_spacing``). By
-            default, no spacing is allowed, i.e., ``1``.
-        shooting : 'single' or 'multi', optional
-            Type of approach in the direct shooting for parametrizing the control
-            trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
-
-        Raises
-        ------
-        ValueError
-            Raises if the shooting method is invalid; or if any of the horizons are
-            invalid.
-        """
         super().__init__(nlp)
 
         if not isinstance(prediction_horizon, int) or prediction_horizon <= 0:

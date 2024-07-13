@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def is_casadi_object(obj: Any) -> bool:
     """Checks if the object belongs to the CasADi module.
 
-    See `this discussion <https://stackoverflow.com/a/52783240/19648688>`_ for more
+    See `this thread <https://stackoverflow.com/a/52783240/19648688>`_ for more
     details.
 
     Parameters

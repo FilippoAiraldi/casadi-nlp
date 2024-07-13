@@ -9,16 +9,15 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 class HasVariables(HasParameters[SymType]):
     """Class for the creation and storage of symbolic variables in an NLP problem. It
-    builds on top of :class:`HasParameters`, which handles parameters."""
+    builds on top of :class:`HasParameters`, which handles parameters.
+
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    """
 
     def __init__(self, sym_type: Literal["SX", "MX"] = "SX") -> None:
-        """Instantiate the class.
-
-        Parameters
-        ----------
-        sym_type : {"SX", "MX"}, optional
-            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
-        """
         super().__init__(sym_type)
         self._vars: dict[str, SymType] = {}
         self._x = self._sym_type()

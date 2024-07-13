@@ -23,6 +23,15 @@ class HasConstraints(HasVariables[SymType]):
     mechanism to automatically remove lower and upper bounds that are redundant, i.e.,
     when the lower bound is :math:`-\infty` and the upper bound is :math:`+\infty`,
     which often create numerical issues if passed to the solver as is.
+
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    remove_redundant_x_bounds : bool, optional
+        If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are removed
+        when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See these two
+        properties for more details. By default, ``True``.
     """
 
     def __init__(
@@ -30,17 +39,6 @@ class HasConstraints(HasVariables[SymType]):
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
     ) -> None:
-        """Instantiate the class.
-
-        Parameters
-        ----------
-        sym_type : {"SX", "MX"}, optional
-            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
-        remove_redundant_x_bounds : bool, optional
-            If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are
-            removed when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See
-            these two properties for more details. By default, ``True``.
-        """
         super().__init__(sym_type)
 
         self._dual_vars: dict[str, SymType] = {}

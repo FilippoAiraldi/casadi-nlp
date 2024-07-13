@@ -7,21 +7,20 @@ import numpy.typing as npt
 
 class RandomStartPoint:
     """Class containing all the information to guide the random generation of this
-    point."""
+    point.
+
+    Parameters
+    ----------
+    method : str
+        Name of the method of :class:`numpy.random.Generator` that must be used to
+        generate random start locations for this point, e.g., ``"unform"`` for
+        :meth:`numpy.random.Generator.uniform`, ``"normal"`` for
+        :meth:`numpy.random.Generator.normal`, etc.
+    args, kwargs
+        Args and kwargs with which to call the above method.
+    """
 
     def __init__(self, method: str, *args: Any, **kwargs: Any) -> None:
-        """Creates an instance of :class:`RandomStartPoint`.
-
-        Parameters
-        ----------
-        method : str
-            Name of the method of :class:`numpy.random.Generator` that must be used to
-            generate random start locations for this point, e.g., ``"unform"`` for
-            :meth:`numpy.random.Generator.uniform`, ``"normal"`` for
-            :meth:`numpy.random.Generator.normal`, etc.
-        args, kwargs
-            Args and kwargs with which to call the above method.
-        """
         self.method = method
         self.args = args
         self.kwargs = kwargs
@@ -30,7 +29,24 @@ class RandomStartPoint:
 class RandomStartPoints:
     """Class that can be iterated to yield a set of random start points for a multistart
     NLP optimization problem (see :class:`csnlp.multistart.multistart_nlp.MultistartNlp`
-    and its subclasses)."""
+    and its subclasses).
+
+    Parameters
+    ----------
+    points : dict of (str, RandomStartPoint)
+        Dictionary containing the name of each variable, and how to generate random
+        starting points for it (in the form of a :class:`RandomStartPoint` object).
+    multistarts : int, optional
+        The number of multiple start points. Default is ``10``.
+    biases : dict of (str, array_like), optional
+        Biases to add to the generated random points under the same name. If ``None``,
+        no bias is added.
+    scales : float, or array of floats
+        Scales to multiplty the generated random points with, under the same name. If
+        ``None``, no scale is multiplied.
+    seed : None, int, array_like of ints, SeedSequence, BitGenerator, Generator
+        RNG seed.
+    """
 
     def __init__(
         self,
@@ -47,24 +63,6 @@ class RandomStartPoints:
             np.random.Generator,
         ] = None,
     ) -> None:
-        """Instantiates the generator of random start points for multistarting.
-
-        Parameters
-        ----------
-        points : dict of (str, RandomStartPoint)
-            Dictionary containing the name of each variable, and how to generate random
-            starting points for it (in the form of a :class:`RandomStartPoint` object).
-        multistarts : int, optional
-            The number of multiple start points. Default is ``10``.
-        biases : dict of (str, array_like), optional
-            Biases to add to the generated random points under the same name. If
-            ``None``, no bias is added.
-        scales : float, or array of floats
-            Scales to multiplty the generated random points with, under the same name.
-            If ``None``, no scale is multiplied.
-        seed : None, int, array_like of ints, SeedSequence, BitGenerator, Generator
-            RNG seed.
-        """
         self.points = points
         self.multistarts = multistarts
         self.biases = biases or {}
@@ -101,24 +99,20 @@ class StructuredStartPoints:
     """Class that can be iterated to yield a set of structured (deterministic) start
     points for a multistart NLP optimization problem (see
     :class:`csnlp.multistart.multistart_nlp.MultistartNlp` and its subclasses). The
-    points are linearly spaced between upper- and lower-bounds."""
+    points are linearly spaced between upper- and lower-bounds.
+
+    Parameters
+    ----------
+    points : dict of (str, StructuredStartPoint)
+        Dictionary containing the name of each variable, and how to generate structured
+        starting points for it (in the form of a :class:`StructuredStartPoint` object).
+    multistarts : int, optional
+        The number of multiple start points. Default is ``10``.
+    """
 
     def __init__(
-        self,
-        points: dict[str, StructuredStartPoint],
-        multistarts: int = 10,
+        self, points: dict[str, StructuredStartPoint], multistarts: int = 10
     ) -> None:
-        """Instantiates the generator of structured start points for multistarting.
-
-        Parameters
-        ----------
-        points : dict of (str, StructuredStartPoint)
-            Dictionary containing the name of each variable, and how to generate
-            structured starting points for it (in the form of a
-            :class:`StructuredStartPoint` object).
-        multistarts : int, optional
-            The number of multiple start points. Default is ``10``.
-        """
         self.points = points
         self.multistarts = multistarts
 

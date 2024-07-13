@@ -18,6 +18,34 @@ class ScenarioBasedMpc(Mpc[SymType]):
     """Implementation of the Scenario-based Model Predictive Control [2]_, here referred
     to as SCMPC, a well-known stochastic MPC formulation.
 
+    Parameters
+    ----------
+    nlp : Nlp
+        NLP scheme to be wrapped
+    n_scenarios : int
+        Number of scenarios to be considered in the scenario-based MPC formulation. Must
+        be a positive integer.
+    prediction_horizon : int
+        A positive integer for the prediction horizon of the MPC controller.
+    control_horizon : int, optional
+        A positive integer for the control horizon of the MPC controller. If not given,
+        it is set equal to the control horizon.
+    input_spacing : int, optional
+        Spacing between independent input actions. This argument allows to reduce the
+        number of free actions along the control horizon by allowing only the first
+        action every ``n`` to be free, and the following ``n-1`` to be fixed equal to
+        that action (where ``n`` is given by ``input_spacing``). By default, no spacing
+        is allowed, i.e., ``1``.
+    shooting : 'single' or 'multi', optional
+        Type of approach in the direct shooting for parametrizing the control
+        trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
+
+    Raises
+    ------
+    ValueError
+        Raises if the shooting method is invalid; or if any of the horizons are invalid;
+        or if the number of scenarios is not a positive integer.
+
     References
     ----------
     .. [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
@@ -36,40 +64,6 @@ class ScenarioBasedMpc(Mpc[SymType]):
         input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
-        """Initializes the Scenarion-based MPC (SCMPC) wrapper around the NLP instance.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            NLP scheme to be wrapped
-        n_scenarios : int
-            Number of scenarios to be considered in the scenario-based MPC formulation.
-            Must be a positive integer.
-        prediction_horizon : int
-            A positive integer for the prediction horizon of the MPC controller.
-        control_horizon : int, optional
-            A positive integer for the control horizon of the MPC controller. If not
-            given, it is set equal to the control horizon.
-        input_spacing : int, optional
-            Spacing between independent input actions. This argument allows to reduce
-            the number of free actions along the control horizon by allowing only the
-            first action every `n` to be free, and the following `n-1` to be fixed equal
-            to that action (where `n` is given by `input_spacing`). By default, no
-            spacing is allowed, i.e., ``1``.
-        shooting : 'single' or 'multi', optional
-            Type of approach in the direct shooting for parametrizing the control
-            trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
-
-        Raises
-        ------
-        ValueError
-            Raises if the shooting method is invalid; or if any of the horizons are
-            invalid; or if the number of scenarios is not a positive integer.
-
-        References
-        ----------
-
-        """
         if n_scenarios < 1:
             raise ValueError("The number of scenarios must be a positive integer.")
         super().__init__(

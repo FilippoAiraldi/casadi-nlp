@@ -28,11 +28,25 @@ class HasObjective(HasConstraints[SymType]):
     objective. It builds on top of :class:`HasConstraints`, which handles parameters,
     variables and constraints.
 
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    remove_redundant_x_bounds : bool, optional
+        If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are removed
+        when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See these two
+        properties for more details. By default, ``True``.
+    cache : joblib.Memory, optional
+        Optional cache to avoid computing the same exact NLP more than once. By default,
+        no caching occurs.
+    name : str, optional
+        Name of the NLP scheme. If ``None``, it is automatically assigned.
+
     Notes
     -----
-    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0`
-    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
-    to be minimized.
+    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0` and
+    :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function to
+    be minimized.
     """
 
     def __init__(
@@ -42,22 +56,6 @@ class HasObjective(HasConstraints[SymType]):
         cache: Memory = None,
         name: Optional[str] = None,
     ) -> None:
-        """Instantiate the class.
-
-        Parameters
-        ----------
-        sym_type : {"SX", "MX"}, optional
-            The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
-        remove_redundant_x_bounds : bool, optional
-            If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are
-            removed when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See
-            these two properties for more details. By default, ``True``.
-        cache : joblib.Memory, optional
-            Optional cache to avoid computing the same exact NLP more than once. By
-            default, no caching occurs.
-        name : str, optional
-            Name of the NLP scheme. If ``None``, it is automatically assigned.
-        """
         super().__init__(sym_type, remove_redundant_x_bounds)
         self.name = name
         self._f: Optional[SymType] = None

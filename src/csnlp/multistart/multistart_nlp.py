@@ -77,25 +77,24 @@ def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting. This class lays the foundation for solving
     an NLP problem (described as an instance of :class:`csnlp.Nlp`) multiple times with
-    different initial conditions."""
+    different initial conditions.
+
+    Parameters
+    ----------
+    args, kwargs
+        See inherited :meth:`csnlp.Nlp.__init__`.
+    starts : int
+        A positive integer for the number of multiple starting guesses to optimize.
+
+    Raises
+    ------
+    ValueError
+        Raises if the scenario number is invalid.
+    """
 
     is_multi: ClassVar[bool] = True
 
     def __init__(self, *args: Any, starts: int, **kwargs: Any) -> None:
-        """Initializes the multistart NLP instance.
-
-        Parameters
-        ----------
-        args, kwargs
-            See inherited :meth:`csnlp.Nlp.__init__`.
-        starts : int
-            A positive integer for the number of multiple starting guesses to optimize.
-
-        Raises
-        ------
-        ValueError
-            Raises if the scenario number is invalid.
-        """
         if starts <= 0:
             raise ValueError("Number of scenarios must be positive and > 0.")
         super().__init__(*args, **kwargs)
@@ -357,28 +356,26 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
 class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP problem multiple times, with different initial
-    starting conditions, via parallelization of the computations via :mod:`joblib`."""
+    starting conditions, via parallelization of the computations via :mod:`joblib`.
+
+    Parameters
+    ----------
+    args, kwargs
+        See inherited :meth:`csnlp.Nlp.__init__`.
+    starts : int
+        A positive integer for the number of multiple starting guesses to optimize.
+    n_jobs : int, optional
+        Number of concurrently running jobs; see ``n_job`` in :class:`joblib.Parallel`.
+
+    Raises
+    ------
+    ValueError
+        Raises if the scenario number is invalid.
+    """
 
     def __init__(
         self, *args: Any, starts: int, n_jobs: Optional[int] = None, **kwargs: Any
     ) -> None:
-        """Initializes the multistart NLP instance.
-
-        Parameters
-        ----------
-        args, kwargs
-            See inherited :meth:`csnlp.Nlp.__init__`.
-        starts : int
-            A positive integer for the number of multiple starting guesses to optimize.
-        n_jobs : int, optional
-            Number of concurrently running jobs; see ``n_job`` in
-            :class:`joblib.Parallel`.
-
-        Raises
-        ------
-        ValueError
-            Raises if the scenario number is invalid.
-        """
         super().__init__(*args, starts=starts, **kwargs)
         self._n_jobs = n_jobs
         self._parallel = Parallel(n_jobs=n_jobs, return_as="generator")
@@ -458,6 +455,24 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     See
     `this wiki <https://github.com/casadi/casadi/wiki/FAQ:-How-to-use-map%28%29-and-mapaccum%28%29-to-speed-up-calculations%3F>`_
     for more details.
+
+    Parameters
+    ----------
+    args, kwargs
+        See inherited :meth:`csnlp.Nlp.__init__`.
+    starts : int
+        A positive integer for the number of multiple starting guesses to optimize.
+    parallelization : "serial", "unroll", "inline", "thread", "openmp"
+        The type of parallelization to use (see :func:`casadi.Function.map`). By
+        default, ``"serial"`` is selected.
+    max_num_threads : int, optional
+        Maximum number of threads to use in parallelization; if ``None``, the number of
+        threads is equal to the number of starts.
+
+    Raises
+    ------
+    ValueError
+        Raises if the scenario number is invalid.
     """
 
     def __init__(
@@ -470,26 +485,6 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         max_num_threads: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
-        """Initializes the multistart NLP instance.
-
-        Parameters
-        ----------
-        args, kwargs
-            See inherited :meth:`csnlp.Nlp.__init__`.
-        starts : int
-            A positive integer for the number of multiple starting guesses to optimize.
-        parallelization : "serial", "unroll", "inline", "thread", "openmp"
-            The type of parallelization to use (see :func:`casadi.Function.map`). By
-            default, ``"serial"`` is selected.
-        max_num_threads : int, optional
-            Maximum number of threads to use in parallelization; if ``None``, the number
-            of threads is equal to the number of starts.
-
-        Raises
-        ------
-        ValueError
-            Raises if the scenario number is invalid.
-        """
         super().__init__(*args, starts=starts, **kwargs)
         self._mapped_solver: Optional[MemorizedFunc] = None
         self._parallelization = parallelization
