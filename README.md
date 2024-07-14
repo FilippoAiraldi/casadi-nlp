@@ -84,7 +84,7 @@ to create its variables and parameters and model its constraints and objective. 
 example, suppose we'd like to solve the problem
 
 $$
-\min_{x,y}{ \left\{ (1 - x)^2 + 0.2(y - x^2)^2 \,\middle\vert\ \left(\frac{p}{2}\right)^2 \le (x + 0.5)^2 + y^2 \le p^2 \right\} }
+\min_{x,y}{ \{ (1 - x)^2 + 0.2(y - x^2)^2 \mid (p/2)^2 \le (x + 0.5)^2 + y^2 \le p^2 \} }
 $$
 
 We can do so with the following code:
