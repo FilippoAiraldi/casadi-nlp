@@ -1,11 +1,17 @@
-from functools import _lru_cache_wrapper, cached_property, wraps
-from inspect import getmembers
+"""A collection of methods to handle caching in the package. In particular, it offers a
+decorator :func:`invalidate_cache` that allows to invalidate the cache of a given set of
+other cached properties or methods when the decorated method is invoked, as well as a
+function :func:`invalidate_caches_of` that allows to invalidate the cache of a given
+object on the fly."""
+
+import functools
+import inspect
 from typing import Any, Callable
 
 
 def _is_cached_property(c: Callable) -> bool:
     """Returns True if the callable is a cached property."""
-    return isinstance(c, cached_property)
+    return isinstance(c, functools.cached_property)
 
 
 def _is_lru_cache(c: Callable) -> bool:
@@ -43,15 +49,15 @@ def invalidate_cache(*callables: Callable) -> Callable:
 
     Notes
     -----
-    The wrapper can invalidate other :class:`functools.cached_property` instances, but
+    The wrapper can invalidate other :func:`functools.cached_property` instances, but
     for doing so it assumes the instance of the object (which the property to invalidate
     belongs to) is the first argument of the wrapped method. For lru caches the issue
     does not subsist.
     """
     if not callables:
         raise ValueError("No callables were passed for cache invalidation.")
-    cached_properties: list[cached_property] = []
-    lru_caches: list[_lru_cache_wrapper] = []
+    cached_properties: list[functools.cached_property] = []
+    lru_caches: list[functools._lru_cache_wrapper] = []
     for p in callables:
         if _is_cached_property(p):
             cached_properties.append(p)
@@ -98,7 +104,7 @@ def invalidate_cache(*callables: Callable) -> Callable:
                 lru_cache.cache_clear()
 
     def decorating_function(func):
-        @wraps(func)
+        @functools.wraps(func)
         def wrapper(*args, **kwargs):
             if invalidate_cached_properties is not None and args:
                 invalidate_cached_properties(args[0])
@@ -121,7 +127,7 @@ def invalidate_caches_of(obj: Any) -> None:
         The object whose caches are to be cleared.
     """
     # basically do again what csnlp.core.cache.invalidate_cache does
-    for membername, member in getmembers(
+    for membername, member in inspect.getmembers(
         type(obj), predicate=lambda m: _is_cached_property(m) or _is_lru_cache(m)
     ):
         if _is_cached_property(member):

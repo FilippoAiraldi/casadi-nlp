@@ -1,23 +1,42 @@
-from inspect import getframeinfo
-from itertools import dropwhile
-from traceback import walk_stack
-from types import MappingProxyType
-from typing import Literal, NamedTuple
+"""Contains classes for storing debug information on the parameters, variables and
+constraints in an instance of the :class:`csnlp.Nlp` class."""
 
-from numpy import prod
+from inspect import getframeinfo as _getframeinfo
+from itertools import dropwhile as _dropwhile
+from traceback import walk_stack as _walk_stack
+from types import MappingProxyType as _MappingProxyType
+from typing import Literal
+from typing import NamedTuple as _NamedTuple
+
+from numpy import prod as _prod
 
 
-class NlpDebugEntry(NamedTuple):
+class NlpDebugEntry(_NamedTuple):
     """Class representing a single entry of the debug information for an
     :class:`csnlp.Nlp` instance."""
 
     name: str
-    type: str
+    """Name of the quantity."""
+
+    type: Literal[
+        "Parameter", "Decision variable", "Equality constraint", "Inequality constraint"
+    ]
+    """Type of the quantity."""
+
     shape: tuple[int, ...]
+    """Shape of the quantity."""
+
     filename: str
+    """Name of the file where the quantity is defined."""
+
     function: str
+    """Name of the function/method where the quantity is defined."""
+
     lineno: int
+    """Line number where the quantity is defined."""
+
     context: str
+    """Context in which the quantity is defined."""
 
     def __str__(self) -> str:
         shape = "x".join(str(d) for d in self.shape)
@@ -42,7 +61,7 @@ class NlpDebug:
     - the inequality constraints ``h``.
     """
 
-    types = MappingProxyType(
+    _types = _MappingProxyType(
         {
             "p": "Parameter",
             "x": "Decision variable",
@@ -50,6 +69,7 @@ class NlpDebug:
             "h": "Inequality constraint",
         }
     )
+    """Possible types of quantities and their definition."""
 
     def __init__(self) -> None:
         self._p_info: list[tuple[range, NlpDebugEntry]] = []
@@ -162,19 +182,19 @@ class NlpDebug:
         AttributeError
             Raises in case the given group is invalid.
         """
-        stack = dropwhile(
-            lambda f: f[0].f_globals["__name__"].startswith("csnlp."), walk_stack(None)
+        stack = _dropwhile(
+            lambda f: f[0].f_globals["__name__"].startswith("csnlp."), _walk_stack(None)
         )
         frame, lineno = next(stack)
-        traceback = getframeinfo(frame, context=3)
+        traceback = _getframeinfo(frame, context=3)
         info: list[tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
             (
-                range(last, last + prod(shape)),
+                range(last, last + _prod(shape)),
                 NlpDebugEntry(
                     name,
-                    self.types[group],
+                    self._types[group],
                     shape,
                     traceback.filename,
                     traceback.function,

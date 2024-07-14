@@ -6,11 +6,11 @@ functions are taken from the
 repository by the Rawlings' group.
 """
 
-from collections import namedtuple
-from contextlib import suppress
-from itertools import dropwhile
+import collections
+import contextlib
+import itertools
+import warnings
 from typing import Any, Callable
-from warnings import warn
 
 import casadi as cs
 
@@ -30,7 +30,7 @@ class _LambdaType:
         return repr(self)
 
 
-_DocCell = namedtuple("_DocCell", ["id", "default", "doc"])
+_DocCell = collections.namedtuple("_DocCell", ["id", "default", "doc"])
 _TABLE_START = "+="  # string prefix that starts the table
 _CELL_END = "+-"  # string prefix that ends the cell
 _CELL_CONTENTS = "|"  # string prefix that continues the cell
@@ -74,20 +74,20 @@ def _get_doc_cell(lines) -> _DocCell:
         except (ValueError, TypeError):
             includetype = True
             if default in ("None", "GenericType()"):
-                default = None  # type: ignore[assignment]
+                default = None
             elif typefunc is int:
-                with suppress(ValueError, TypeError):
-                    default = int(float(default))  # type: ignore[assignment]
+                with contextlib.suppress(ValueError, TypeError):
+                    default = int(float(default))
                     includetype = False
             if includetype:
-                default = (default, typefunc)  # type: ignore[assignment]
+                default = (default, typefunc)
     else:
-        warn(f"Unknown type for '{id}', '{type}'.")
+        warnings.warn(f"Unknown type for '{id}', '{type}'.")
     return _DocCell(id, default, doc)
 
 
 def _get_doc_dict(docstring: str) -> dict[str, tuple[Any, str]]:
-    lineiter = dropwhile(
+    lineiter = itertools.dropwhile(
         lambda x: not x.startswith(_TABLE_START), docstring.split("\n")
     )
     try:

@@ -1,10 +1,11 @@
+from functools import cached_property
 from typing import Literal, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ..core.cache import cached_property, invalidate_cache
+from ..core.cache import invalidate_cache
 from .variables import HasVariables
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)

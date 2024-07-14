@@ -4,12 +4,12 @@ not optimized for performance. They are meant to be used as a fallback when the 
 really does not provide the required functionality.
 """
 
-from math import sqrt
+from math import sqrt as _sqrt
 from typing import Literal, Union
 
 import casadi as cs
 
-SQRT2 = sqrt(2)
+SQRT2 = _sqrt(2)
 
 
 def log(

@@ -1,30 +1,50 @@
-from collections.abc import Iterable
-from dataclasses import dataclass
-from functools import partial
-from itertools import product
-from typing import Any, Generic, TypeVar, Union
+"""Contains classes and methods to store the solution of an NLP problem after a call
+to :meth:`csnlp.Nlp.solve` or :meth:`csnlp.multistart.MultistartNlp.solve_multi`."""
+
+from collections.abc import Iterable as _Iterable
+from dataclasses import dataclass as _dataclass
+from functools import partial as _partial
+from itertools import product as _product
+from typing import Any
+from typing import Generic as _Generic
+from typing import TypeVar as _TypeVar
+from typing import Union
 
 import casadi as cs
 import numpy as np
-from casadi.tools.structure3 import CasadiStructured, DMStruct
+from casadi.tools.structure3 import CasadiStructured as _CasadiStructured
+from casadi.tools.structure3 import DMStruct as _DMStruct
 
-from .data import array2cs, cs2array
+from .data import array2cs as _array2cs
+from .data import cs2array as _cs2array
 
-SymType = TypeVar("SymType", cs.SX, cs.MX)
+SymType = _TypeVar("SymType", cs.SX, cs.MX)
 
 
-@dataclass(frozen=True, repr=False, order=True)
-class Solution(Generic[SymType]):
+@_dataclass(frozen=True, repr=False, order=True)
+class Solution(_Generic[SymType]):
     """Class containing information on the solution of a solver's run for an instance of
     :class:`csnlp.Nlp`."""
 
     f: float
+    """Optimal value of the objective function."""
+
     vars: dict[str, SymType]
+    """Symbolical primal variables."""
+
     vals: dict[str, cs.DM]
+    """Optimal values of the primal variables."""
+
     dual_vars: dict[str, SymType]
+    """Symbolical dual variables."""
+
     dual_vals: dict[str, cs.DM]
+    """Optimal values of the dual variables."""
+
     stats: dict[str, Any]
-    _get_value: partial
+    """Statistics of the solver for this solution's run."""
+
+    _get_value: _partial
 
     @property
     def all_vars(self) -> SymType:
@@ -86,19 +106,19 @@ class Solution(Generic[SymType]):
 
 def _internal_subsevalf_cs(
     expr: SymType,
-    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
     eval: bool,
 ) -> Union[SymType, cs.DM]:
     """Internal utility for substituting and evaluting casadi objects."""
-    if isinstance(expr, (cs.DM, DMStruct)):
+    if isinstance(expr, (cs.DM, _DMStruct)):
         return expr
 
     if isinstance(old, dict):
         for name, o in old.items():
             expr = cs.substitute(expr, o, new[name])  # type: ignore[index]
-    elif isinstance(old, Iterable) and not isinstance(
-        old, (cs.SX, cs.MX, CasadiStructured)
+    elif isinstance(old, _Iterable) and not isinstance(
+        old, (cs.SX, cs.MX, _CasadiStructured)
     ):
         for o, n in zip(old, new):
             expr = cs.substitute(expr, o, n)
@@ -112,8 +132,8 @@ def _internal_subsevalf_cs(
 
 def _internal_subsevalf_np(
     expr: np.ndarray,
-    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
     eval: bool,
 ) -> Union[SymType, np.ndarray, cs.DM]:
     """Internal utility for substituting and evaluting arrays of casadi objects."""
@@ -123,7 +143,7 @@ def _internal_subsevalf_np(
 
     # up to 2D, we can get away with only one substitution
     if expr.ndim <= 2:
-        return _internal_subsevalf_cs(array2cs(expr), old, new, eval)
+        return _internal_subsevalf_cs(_array2cs(expr), old, new, eval)
 
     # for tensors, check if the right end or the left is bigger, then loop over the
     # rest while substituing in the right/left end of the array
@@ -134,9 +154,9 @@ def _internal_subsevalf_np(
         expr = expr.transpose()
     out = np.empty(shape, object)
     shape_iter, shape_cs = shape[:-2], shape[-2:]
-    for i in product(*map(range, shape_iter)):
-        out[i] = cs2array(
-            _internal_subsevalf_cs(array2cs(expr[i]), old, new, eval)
+    for i in _product(*map(range, shape_iter)):
+        out[i] = _cs2array(
+            _internal_subsevalf_cs(_array2cs(expr[i]), old, new, eval)
         ).reshape(shape_cs)
     if transposed:
         out = out.transpose()
@@ -149,8 +169,8 @@ def _internal_subsevalf_np(
 
 def subsevalf(
     expr: Union[SymType, np.ndarray],
-    old: Union[SymType, dict[str, SymType], Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], Iterable[SymType]],
+    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
     """

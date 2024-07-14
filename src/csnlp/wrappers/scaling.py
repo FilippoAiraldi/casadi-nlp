@@ -183,7 +183,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         return_all_sols: bool = False,
         return_stacked_sol: bool = False,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        """See :meth:`csnlp.multistart.MultistartNlp.solve_multi`."""
+        """See :meth:`csnlp.MultistartNlp.solve_multi`."""
         assert self.nlp.is_multi and hasattr(
             self.nlp, "solve_multi"
         ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."

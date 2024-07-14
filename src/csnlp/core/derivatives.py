@@ -1,10 +1,17 @@
-from itertools import product
+"""A collection of two methods for computing higher-order sensitivities (i.e., Jacobian
+and Hessian) w.r.t. CasADi symbolic variables. Natively, CasADi does not support
+jacobian or hessian for matrices (or at least, they will be flattened). These
+"higher-order" functions allows to compute the jacobian and hessian of a matrix w.r.t.
+another matrix."""
+
+from itertools import product as _product
 from typing import Union
 
 import casadi as cs
 import numpy as np
 
-from .data import array2cs, cs2array
+from .data import array2cs as _array2cs
+from .data import cs2array as _cs2array
 
 
 def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
@@ -23,7 +30,7 @@ def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
         A 4D array of objects, where each entry ``(i,j,k,m)`` is the derivative
         of ``ex[i,j]`` w.r.t. ``x[k,m]``.
     """
-    return cs2array(cs.jacobian(cs.vec(ex), cs.vec(x))).reshape(
+    return _cs2array(cs.jacobian(cs.vec(ex), cs.vec(x))).reshape(
         ex.shape + x.shape, order="F"
     )
 
@@ -56,6 +63,6 @@ def hohessian(
         y = x
     J = hojacobian(ex, x)
     H = np.empty(ex.shape + x.shape + y.shape, object)
-    for i in product(*map(range, ex.shape)):
-        H[i] = hojacobian(array2cs(J[i]), y)
+    for i in _product(*map(range, ex.shape)):
+        H[i] = hojacobian(_array2cs(J[i]), y)
     return H, J

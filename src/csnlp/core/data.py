@@ -1,4 +1,8 @@
-from itertools import product
+"""A collection of functions for manipulating data in CasADi, in particular, on how
+to convert to and from numpy arrays and CasADi symbolic variables, and how to find
+the indices of a symbolic variable in a vector of symbols."""
+
+import itertools
 from typing import Union
 
 import casadi as cs
@@ -42,7 +46,7 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         indices = range(x.shape[0])
         shape = (x.shape[0], 1)
     elif ndim == 2:
-        indices = product(range(x.shape[0]), range(x.shape[1]))
+        indices = itertools.product(range(x.shape[0]), range(x.shape[1]))
         shape = x.shape
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
@@ -76,7 +80,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
     shape = x.shape
     y = np.empty(shape, object)
-    indices = product(range(shape[0]), range(shape[1]))
+    indices = itertools.product(range(shape[0]), range(shape[1]))
     for idx in indices:
         y[idx] = x[idx]
     return y
@@ -97,7 +101,7 @@ def find_index_in_vector(
     Returns
     -------
     array of integers
-        The indices of `a` in `V`.
+        The indices of ``a`` in ``V``.
 
     Raises
     ------

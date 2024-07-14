@@ -1,10 +1,11 @@
+from functools import cached_property
 from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ..core.cache import cached_property, invalidate_cache
+from ..core.cache import invalidate_cache
 from ..core.data import array2cs, cs2array, find_index_in_vector
 from ..core.derivatives import hohessian, hojacobian
 from ..core.solutions import Solution

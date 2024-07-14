@@ -6,12 +6,14 @@
 """
 
 import pickle
-from copy import _reconstruct, deepcopy
-from os.path import splitext
-from pickletools import optimize
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, TypeVar
+from copy import _reconstruct
+from copy import deepcopy as _deepcopy
+from os.path import splitext as _splitext
+from pickletools import optimize as _optimize
+from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TypeVar as _TypeVar
 
-from ..core.cache import invalidate_caches_of
+from ..core.cache import invalidate_caches_of as _invalidate_caches_of
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
@@ -59,7 +61,7 @@ def is_pickleable(obj: Any) -> bool:
         return False
 
 
-T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
+T = _TypeVar("T", bound="SupportsDeepcopyAndPickle")
 
 
 class SupportsDeepcopyAndPickle:
@@ -87,9 +89,9 @@ class SupportsDeepcopyAndPickle:
         Instance of :class:`SupportsDeepcopyAndPickle` or its subclass
             A deepcopy of this instance.
         """
-        new = deepcopy(self)
+        new = _deepcopy(self)
         if invalidate_caches:
-            invalidate_caches_of(new)
+            _invalidate_caches_of(new)
         return new
 
     def __deepcopy__(self: T, memo: Optional[dict[int, list[Any]]] = None) -> T:
@@ -174,7 +176,7 @@ def save(
     (see :func:`scipy.io.savemat` and :func:`scipy.io.loadmat` for more details).
     """
 
-    actual_ext = splitext(filename)[1]
+    actual_ext = _splitext(filename)[1]
     if compression is None:
         compression = _COMPRESSION_EXTS.get(actual_ext)
 
@@ -238,7 +240,7 @@ def save(
     # address all other cases that do adhere to the open/compress scheme
     else:
         pickled = pickle.dumps(data)
-        optimized = optimize(pickled)
+        optimized = _optimize(pickled)
         compressed = compress_fun(optimized)
         with open_fun(filename, "wb") as f:
             f.write(compressed)
@@ -268,7 +270,7 @@ def load(filename: str) -> dict[str, Any]:
     data : dict
         The saved data in the shape of a dictionary.
     """
-    ext = splitext(filename)[1]
+    ext = _splitext(filename)[1]
     compression = _COMPRESSION_EXTS[ext]
 
     open_fun: Callable

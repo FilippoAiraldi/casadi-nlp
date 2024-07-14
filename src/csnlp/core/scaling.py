@@ -1,3 +1,7 @@
+"""A collection of classes to perform scaling of variables in an :class:`csnlp.Nlp`
+instance wrapped with :class:`csnlp.wrappers.NlpScaling`. The classes in this module
+inform the wrapper on which variables or parameters to scale and how to scale them."""
+
 from typing import Optional
 
 import numpy as np

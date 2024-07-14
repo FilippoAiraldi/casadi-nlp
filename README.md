@@ -51,6 +51,8 @@ multiple initial conditions, as well as for building MPC controllers.
 
 ## Installation
 
+### Using `pip`
+
 You can use `pip` to install **csnlp** with the command
 
 ```bash
@@ -64,7 +66,9 @@ pip install csnlp
 - [CasADi](https://pypi.org/project/casadi/)
 - [Joblib](https://joblib.readthedocs.io/en/latest/)
 
-For playing around with the source code instead, run
+### Using source code
+
+If you'd like to play around with the source code instead, run
 
 ```bash
 git clone https://github.com/FilippoAiraldi/casadi-nlp.git
@@ -72,16 +76,23 @@ git clone https://github.com/FilippoAiraldi/casadi-nlp.git
 
 The `main` branch contains the main releases of the packages (and the occasional post
 release). The `experimental` branch is reserved for the implementation and test of new
-features and hosts the release candidates.
+features and hosts the release candidates. You can then install the package to edit it
+as you wish as
+
+```bash
+pip install -e /path/to/casadi-nlp
+```
 
 ---
 
 ## Motivating example
 
 Here we provide a compact example on how **csnlp** can be employed to build and solve
-an optimization problem. Similar to [Opti](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html), we instantiate a class which represents the NLP and allows us
-to create its variables and parameters and model its constraints and objective. For
-example, suppose we'd like to solve the problem
+an optimization problem. Similar to
+[Opti](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html), we instantiate
+a class which represents the NLP and allows us to create its variables and parameters
+and model its constraints and objective. For example, suppose we'd like to solve the
+problem
 
 $$
 \min_{x,y}{ (1 - x)^2 + 0.2(y - x^2)^2 \text{ s.t. } (p/2)^2 \le (x + 0.5)^2 + y^2 \le p^2 }
@@ -118,7 +129,9 @@ module offers various solutions to parallelize the computations (see, e.g.,
 set of wrappers that can be used to augment the NLP with additional capabilities without
 modifying the original NLP instance: as of now, wrappers have been implemented for
 
-The package also allows to enhance the NLP with different capabilities with, e.g., multistart (see `csnlp.MultistartNlp`) or by wrapping it. As of now, wrappers have been implemented for
+The package also allows to enhance the NLP with different capabilities with, e.g.,
+multistart (see `csnlp.MultistartNlp`) or by wrapping it. As of now, wrappers have been
+implemented for
 
 - sensitivity analysis (see `csnlp.wrappers.NlpSensitivity` [[3]](#3))
 - Model Predictive Control (see `csnlp.wrappers.Mpc` [[4]](#4) and
@@ -173,7 +186,8 @@ this repository.
 [Filippo Airaldi](https://www.tudelft.nl/staff/f.airaldi/), PhD Candidate
 [f.airaldi@tudelft.nl | filippoairaldi@gmail.com]
 
-> [Delft Center for Systems and Control](https://www.tudelft.nl/en/me/about/departments/delft-center-for-systems-and-control/) in [Delft University of Technology](https://www.tudelft.nl/en/)
+> [Delft Center for Systems and Control](https://www.tudelft.nl/en/me/about/departments/delft-center-for-systems-and-control/)
+in [Delft University of Technology](https://www.tudelft.nl/en/)
 
 Copyright (c) 2024 Filippo Airaldi.
 
@@ -186,18 +200,26 @@ Prof. Dr. Ir. Fred van Keulen, Dean of ME.
 ## References
 
 <a id="1">[1]</a>
-Andersson, J.A.E., Gillis, J., Horn, G., Rawlings, J.B., and Diehl, M. (2019). [CasADi: a software framework for nonlinear optimization and optimal control](https://link.springer.com/article/10.1007/s12532-018-0139-4). Mathematical Programming Computation, 11(1), 1–36.
+Andersson, J.A.E., Gillis, J., Horn, G., Rawlings, J.B., and Diehl, M. (2019).
+[CasADi: a software framework for nonlinear optimization and optimal control](https://link.springer.com/article/10.1007/s12532-018-0139-4).
+Mathematical Programming Computation, 11(1), 1–36.
 
 <a id="2">[2]</a>
-Wachter, A. and Biegler, L.T. (2006). [On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming](https://link.springer.com/article/10.1007/s10107-004-0559-y). Mathematical Programming, 106(1), 25–57.
+Wachter, A. and Biegler, L.T. (2006).
+[On the implementation of an interior-point filter line-search algorithm for large-scale nonlinear programming](https://link.springer.com/article/10.1007/s10107-004-0559-y).
+Mathematical Programming, 106(1), 25–57.
 
 <a id="3">[3]</a>
-Büskens, C. and Maurer, H. (2001). [Sensitivity analysis and real-time optimization of parametric nonlinear programming problems](https://link.springer.com/chapter/10.1007/978-3-662-04331-8_1). In M. Grötschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16. Springer, Berlin, Heidelberg
+Büskens, C. and Maurer, H. (2001).
+[Sensitivity analysis and real-time optimization of parametric nonlinear programming problems](https://link.springer.com/chapter/10.1007/978-3-662-04331-8_1).
+In M. Grötschel, S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16. Springer, Berlin, Heidelberg
 
 <a id="4">[4]</a>
-Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. [Model Predictive Control: theory, computation, and design (Vol. 2)](https://sites.engineering.ucsb.edu/~jbraw/mpc/). Madison, WI: Nob Hill Publishing.
+Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017.
+[Model Predictive Control: theory, computation, and design (Vol. 2)](https://sites.engineering.ucsb.edu/~jbraw/mpc/).
+Madison, WI: Nob Hill Publishing.
 
 <a id="5">[5]</a>
-Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. [The scenario
- approach for stochastic model predictive control with bounds on closed-loop constraint
- violations](https://www.sciencedirect.com/science/article/pii/S0005109814004166). Automatica, 50(12), pp.3009-3018.
+Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014.
+[The Scenario Approach for stochastic Model Predictive Control with bounds on closed-loop constraint violations](https://www.sciencedirect.com/science/article/pii/S0005109814004166).
+Automatica, 50(12), pp.3009-3018.

@@ -46,13 +46,14 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
 
     Notes
     -----
-    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0` and
-    :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function to
-    be minimized.
+    Constraints are internally handled in their canonical form, i.e., :math:`g(x,p) = 0`
+    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
+    to be minimized.
     """
 
     __ids: ClassVar[Iterator[int]] = count(0)
     is_multi: ClassVar[bool] = False
+    """Flag to indicate that this is not a multistart NLP."""
 
     def __init__(
         self,

@@ -16,7 +16,7 @@ from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.scaling import MinMaxScaler, Scaler
 from csnlp.core.solutions import Solution, subsevalf
 
-GROUPS = set(NlpDebug.types.keys())
+GROUPS = set(NlpDebug._types.keys())
 
 
 class Dummy:
@@ -126,7 +126,7 @@ class TestNlpDebug(unittest.TestCase):
             self.assertEqual(info[0], range(shape[0] * shape[1]))
             self.assertEqual(info[1].name, name)
             self.assertEqual(info[1].shape, shape)
-            self.assertEqual(info[1].type, NlpDebug.types[group])
+            self.assertEqual(info[1].type, NlpDebug._types[group])
 
     def test_register__raises__with_invalid_group(self):
         debug = NlpDebug()

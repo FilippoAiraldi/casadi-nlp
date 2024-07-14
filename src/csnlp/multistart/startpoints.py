@@ -28,8 +28,8 @@ class RandomStartPoint:
 
 class RandomStartPoints:
     """Class that can be iterated to yield a set of random start points for a multistart
-    NLP optimization problem (see :class:`csnlp.multistart.multistart_nlp.MultistartNlp`
-    and its subclasses).
+    NLP optimization problem (see :class:`csnlp.multistart.MultistartNlp` and its
+    subclasses).
 
     Parameters
     ----------
@@ -98,8 +98,8 @@ class StructuredStartPoint(NamedTuple):
 class StructuredStartPoints:
     """Class that can be iterated to yield a set of structured (deterministic) start
     points for a multistart NLP optimization problem (see
-    :class:`csnlp.multistart.multistart_nlp.MultistartNlp` and its subclasses). The
-    points are linearly spaced between upper- and lower-bounds.
+    :class:`csnlp.multistart.MultistartNlp` and its subclasses). The points are linearly
+    spaced between upper- and lower-bounds.
 
     Parameters
     ----------

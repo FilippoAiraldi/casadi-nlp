@@ -44,9 +44,9 @@ class HasObjective(HasConstraints[SymType]):
 
     Notes
     -----
-    Constraints are handled in their canonical form, i.e., :math:`g(x,p) = 0` and
-    :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function to
-    be minimized.
+    Constraints are internally handled in their canonical form, i.e., :math:`g(x,p) = 0`
+    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
+    to be minimized.
     """
 
     def __init__(

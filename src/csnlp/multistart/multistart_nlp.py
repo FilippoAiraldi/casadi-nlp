@@ -77,7 +77,8 @@ def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting. This class lays the foundation for solving
     an NLP problem (described as an instance of :class:`csnlp.Nlp`) multiple times with
-    different initial conditions.
+    different initial conditions, and requires subclasses to implement the actual
+    multistarting logic in :meth:`solve_multi`.
 
     Parameters
     ----------
@@ -93,6 +94,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """
 
     is_multi: ClassVar[bool] = True
+    """Flag to indicate that this is a multistart NLP."""
 
     def __init__(self, *args: Any, starts: int, **kwargs: Any) -> None:
         if starts <= 0:
@@ -454,7 +456,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     See
     `this wiki <https://github.com/casadi/casadi/wiki/FAQ:-How-to-use-map%28%29-and-mapaccum%28%29-to-speed-up-calculations%3F>`_
-    for more details.
+    for more details on how to enable parallelization via mapping in CasADi.
 
     Parameters
     ----------

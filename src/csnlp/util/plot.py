@@ -7,13 +7,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from cycler import cycler
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from matplotlib.image import AxesImage
-from matplotlib.lines import Line2D
+from cycler import cycler as _cycler
+from matplotlib.axes import Axes as _Axes
+from matplotlib.figure import Figure as _Figure
+from matplotlib.image import AxesImage as _AxesImage
+from matplotlib.lines import Line2D as _Line2D
 
-from ..core.data import array2cs
+from ..core.data import array2cs as _array2cs
 
 MATLAB_COLORS = [
     "#0072BD",
@@ -26,7 +26,7 @@ MATLAB_COLORS = [
 ]
 
 
-def save2tikz(*figs: Figure) -> None:
+def save2tikz(*figs: _Figure) -> None:
     """Saves the figure to a tikz file (``.tex`` extension). See
     `tikzplotlib <https://pypi.org/project/tikzplotlib/>`_ for more details.
 
@@ -51,8 +51,8 @@ def save2tikz(*figs: Figure) -> None:
 
 
 def spy(
-    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: Axes = None, **spy_kwargs: Any
-) -> Union[AxesImage, Line2D]:
+    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: _Axes = None, **spy_kwargs: Any
+) -> Union[_AxesImage, _Line2D]:
     """Implementation equivalent to :func:`matplotlib.pyplot.spy` that works also with
     CasADi symbolic matrices.
 
@@ -70,7 +70,7 @@ def spy(
     AxesImage or Line2D
         Same return types of :func:`matplotlib.pyplot.spy`.
     """
-    H = array2cs(H)
+    H = _array2cs(H)
     try:
         # try convert to numerical; if it fails, use symbolic method from cs
         H = np.asarray(H, dtype=float)
@@ -131,4 +131,4 @@ def set_mpl_defaults(
     mpl.rcParams["lines.markersize"] = markersize
     mpl.rcParams["savefig.dpi"] = savefig_dpi
     if matlab_colors:
-        mpl.rcParams["axes.prop_cycle"] = cycler("color", MATLAB_COLORS)
+        mpl.rcParams["axes.prop_cycle"] = _cycler("color", MATLAB_COLORS)
