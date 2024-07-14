@@ -8,9 +8,27 @@ optimization.
 
 While it is similar in functionality (and was inspired by) the CasADi's
 [Opti Stack](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html) (see
-[this blog post](https://web.casadi.org/blog/opti/) for example), it is more focused on
-research purposes as it provides a more flexible and modular way to handle NLPs and
-their constituent parts, such as constraints and associated dual variables.
+[this blog post](https://web.casadi.org/blog/opti/) for example), it is
+more tailored to research as
+
+1. it is more flexible, since it is written in Python and allows the user to easily
+   access all the constituents of the optimization problem (e.g. the objective function,
+   constraints, dual variables, bounds, etc.)
+
+2. it is more modular, since it allows the base `csnlp.Nlp` class to be wrapped with
+   additional functionality (e.g. sensitivity, Model Predictive Control, etc.), and it
+   provides parallel implementations in case of multistarting in the `csnlp.multistart`
+   module.
+
+The library is not meant to be a faster alternative to :class:`casadi.Opti`, but rather
+a more flexible and modular one for research purposes.
+
+> |   |   |
+> |---|---|
+> | **Documentation:** | In progress                                         |
+> | **Download:**      | https://pypi.python.org/pypi/csnlp#downloads        |
+> | **Source code:**   | https://github.com/FilippoAiraldi/casadi-nlp/       |
+> | **Report issues:** | https://github.com/FilippoAiraldi/casadi-nlp/issues |
 
 As aforementioned, **csnlp** builds on top of the [CasADi](https://web.casadi.org/)
 framework [[1]](#1) to model the optimization problems and perform symbolic
@@ -64,11 +82,9 @@ Here we provide a compact example on how **csnlp** can be employed to build and 
 an optimization problem. Similar to [Opti](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html), we instantiate a class which represents the NLP and allows us
 to create its variables and parameters and model its constraints and objective. For
 example, suppose we'd like to solve the problem
+
 $$
-\begin{aligned}
-    \min_{x,y} \quad & (1 - x)^2 + 0.2(y - x^2)^2 \\
-    \text{s.t.} \quad & \left(\frac{p}{2}\right)^2 \le (x + 0.5)^2 + y^2 \le p^2.
-\end{aligned}
+\min_{x,y}{ \left\{ (1 - x)^2 + 0.2(y - x^2)^2 \,\middle\vert\ \left(\frac{p}{2}\right)^2 \le (x + 0.5)^2 + y^2 \le p^2 \right\} }
 $$
 
 We can do so with the following code:
@@ -134,6 +150,8 @@ demanding) or numerically (more stable and reliable).
 Similarly, a `csnlp.Nlp` instance can be wrapped in a `csnlp.wrappers.Mpc` wrapper
 that makes it easier to build such finite-horizon optimal controllers for model-based
 control applications.
+
+---
 
 ## Examples
 
