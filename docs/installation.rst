@@ -1,6 +1,5 @@
-Installating csnlp
-==================
-
+Installation
+============
 
 Using `pip`
 ------------

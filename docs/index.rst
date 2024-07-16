@@ -1,15 +1,18 @@
-CasADi-NLP: NonLinear Programming with CasADi
-=================================================
-
-Introduction
-------------
+=================================
+NonLinear Programming with CasADi
+=================================
 
 .. automodule:: csnlp
 .. include:: banners.rst
+.. include:: features.rst
+.. include:: installation.rst
+.. include:: author.rst
+
+User manual
+-----------
 
 .. toctree::
    :maxdepth: 2
-   :caption: User manual
 
    installation
    motivating-example

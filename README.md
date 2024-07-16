@@ -1,17 +1,39 @@
-# CasADi-NLP: NonLinear Programming with CasADi
+# NonLinear Programming with CasADi
 
 **C**a**s**ADi-**NLP** (**csnlp**, for short) is a library that provides classes
-and utilities to model, solve and analyse nonlinear (but not only) programmes (NLPs) in
-optimization. **csnlp** builds on top of the [CasADi](https://web.casadi.org/)
+and utilities to model, solve and analyse nonlinear (but not only) programmes (NLPs) for
+optimization purposes.
+
+> |   |   |
+> |---|---|
+> | **Documentation** | In progress                                            |
+> | **Download**      | <https://pypi.python.org/pypi/csnlp/>                  |
+> | **Source code**   | <https://github.com/FilippoAiraldi/casadi-nlp/>        |
+> | **Report issues** | <https://github.com/FilippoAiraldi/casadi-nlp/issues/> |
+
+[![PyPI version](https://badge.fury.io/py/csnlp.svg)](https://badge.fury.io/py/csnlp)
+[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
+![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
+
+[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml)
+[![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
+[![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
+[![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+
+---
+
+## Features
+
+**csnlp** builds on top of the [CasADi](https://web.casadi.org/)
 framework [[1]](#1) to model the optimization problems and perform symbolic
 differentiation, and heavily relies on the [IPOPT](https://github.com/coin-or/Ipopt)
 solver [[2]](#2) (though the package allows the user to seamlessly switch to other
-solvers supported by CasADi).
-
-While it is similar in functionality (and was inspired by) the CasADi's
+solvers supported by CasADi). While it is similar in functionality (and was inspired by)
+the CasADi's
 [Opti Stack](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html) (see
-[this blog post](https://web.casadi.org/blog/opti/) for example), it is
-more tailored to research as
+[this blog post](https://web.casadi.org/blog/opti/) for example), it is more tailored to
+research as
 
 1. it is more flexible, since it is written in Python and allows the user to easily
    access all the constituents of the optimization problem (e.g. the objective function,
@@ -26,23 +48,6 @@ The package offers also tools for the sensitivity analysis of NLPs, solving them
 multiple initial conditions, as well as for building MPC controllers. The library is not
 meant to be a faster alternative to `casadi.Opti`, but rather a more flexible and
 modular one for research purposes.
-
-> |   |   |
-> |---|---|
-> | **Documentation:** | In progress                                            |
-> | **Download:**      | <https://pypi.python.org/pypi/csnlp/>                  |
-> | **Source code:**   | <https://github.com/FilippoAiraldi/casadi-nlp/>        |
-> | **Report issues:** | <https://github.com/FilippoAiraldi/casadi-nlp/issues/> |
-
-[![PyPI version](https://badge.fury.io/py/csnlp.svg)](https://badge.fury.io/py/csnlp)
-[![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
-![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
-
-[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml)
-[![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
-[![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ---
 
