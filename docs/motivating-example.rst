@@ -51,9 +51,10 @@ offers instead a set of wrappers that can be used to augment the NLP with additi
 capabilities, without modifying the original NLP instance: as of now, wrappers have been
 implemented for
 
-- sensitivity analysis (see :class:`csnlp.wrappers.NlpSensitivity` [1]_)
-- Model Predictive Control (see :class:`csnlp.wrappers.Mpc` [2]_ and
-  :class:`csnlp.wrappers.ScenarioBasedMpc` [3]_)
+- sensitivity analysis (see :class:`csnlp.wrappers.NlpSensitivity`
+  :cite:`buskens_sensitivity_2001`)
+- Model Predictive Control (see :class:`csnlp.wrappers.Mpc` :cite:`rawlings_model_2017`
+  and :class:`csnlp.wrappers.ScenarioBasedMpc` :cite:`schildbach_scenario_2014`)
 - NLP scaling (see :class:`csnlp.wrappers.NlpScaling` and :mod:`csnlp.core.scaling`).
 
 For example, if we'd like to compute the sensitivity
@@ -83,19 +84,3 @@ demanding) or numerically (more stable and reliable).
 Similarly, a :class:`csnlp.Nlp` can be wrapped in a :class:`csnlp.wrappers.Mpc` wrapper
 that makes it easier to build such finite-horizon optimal controllers for model-based
 control applications.
-
-
-References
-----------
-
-.. [1] Büskens, C. and Maurer, H. (2001). *Sensitivity analysis and real-time
- optimization of parametric nonlinear programming problems*. In M. Grötschel, S.O.
- Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16.
- Springer, Berlin, Heidelberg
-
-.. [2] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. *Model Predictive Control:
- theory, computation, and design (Vol. 1)*. Madison, WI: Nob Hill Publishing.
-
-.. [3] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. *The scenario
- approach for stochastic model predictive control with bounds on closed-loop constraint
- violations*. Automatica, 50(12), pp.3009-3018.

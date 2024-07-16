@@ -1,6 +1,11 @@
 r"""**C**\ a\ **s**\ ADi-**NLP**\  (**csnlp**, for short) is a library that provides
 classes and utilities to model, solve and analyse nonlinear (but not only) programmes
-(NLPs) in optimization.
+(NLPs) in optimization. **csnlp** builds on top of the
+`CasADi <https://web.casadi.org/>`_ framework :cite:`andersson_casadi_2019` to model
+the optimization problems and perform symbolic differentiation, and heavily relies on
+the `IPOPT <https://github.com/coin-or/Ipopt>`_ solver
+:cite:`wachter_implementation_2006` (though the package allows the user to seamlessly
+switch to other solvers supported by CasADi).
 
 While it is similar in functionality (and was inspired by) the :class:`casadi.Opti`
 stack (see `this blog post <https://web.casadi.org/blog/opti/>`_ for example), it is
@@ -11,22 +16,24 @@ more tailored to research as
    constraints, dual variables, bounds, etc.)
 
 2. it is more modular, since it allows the base :class:`csnlp.Nlp` class to be wrapped
-    with additional functionality (e.g. sensitivity, Model Predictive Control, etc.),
-    and it provides parallel implementations in case of multistarting in the
-    :mod:`csnlp.multistart` module.
+   with additional functionality (e.g. sensitivity, Model Predictive Control, etc.),
+   and it provides parallel implementations in case of multistarting in the
+   :mod:`csnlp.multistart` module.
 
-The library is not meant to be a faster alternative to :class:`casadi.Opti`, but rather
-a more flexible and modular one for research purposes.
+The package offers also tools for the sensitivity analysis of NLPs, solving them with
+multiple initial conditions, as well as for building MPC controllers. The library is not
+meant to be a faster alternative to :class:`casadi.Opti`, but rather a more flexible and
+modular one for research purposes.
 
-    ==================== ========================================================
-    **Documentation:**       In progress
+==================== ========================================================
+**Documentation:**       In progress
 
-    **Download:**            https://pypi.python.org/pypi/csnlp/
+**Download:**            https://pypi.python.org/pypi/csnlp/
 
-    **Source code:**         https://github.com/FilippoAiraldi/casadi-nlp/
+**Source code:**         https://github.com/FilippoAiraldi/casadi-nlp/
 
-    **Report issues:**       https://github.com/FilippoAiraldi/casadi-nlp/issues/
-    ==================== ========================================================
+**Report issues:**       https://github.com/FilippoAiraldi/casadi-nlp/issues/
+==================== ========================================================
 """
 
 __version__ = "1.5.10.post2"

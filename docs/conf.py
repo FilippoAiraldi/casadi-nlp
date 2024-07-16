@@ -28,6 +28,7 @@ extensions = [
     "numpydoc",
     "sphinx_autodoc_typehints",
     "sphinx_gallery.gen_gallery",
+    "sphinxcontrib.bibtex",
 ]
 templates_path = ["_templates"]
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
@@ -52,6 +53,9 @@ sphinx_gallery_conf = {
     "filename_pattern": "",
     "default_thumb_file": "_static/csnlp.logo.examples.png",
 }
+
+# for references
+bibtex_bibfiles = ["references.bib"]
 
 # other options
 add_function_parentheses = False

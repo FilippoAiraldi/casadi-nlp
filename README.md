@@ -1,10 +1,12 @@
 # CasADi-NLP: NonLinear Programming with CasADi
 
-## Introduction
-
 **C**a**s**ADi-**NLP** (**csnlp**, for short) is a library that provides classes
 and utilities to model, solve and analyse nonlinear (but not only) programmes (NLPs) in
-optimization.
+optimization. **csnlp** builds on top of the [CasADi](https://web.casadi.org/)
+framework [[1]](#1) to model the optimization problems and perform symbolic
+differentiation, and heavily relies on the [IPOPT](https://github.com/coin-or/Ipopt)
+solver [[2]](#2) (though the package allows the user to seamlessly switch to other
+solvers supported by CasADi).
 
 While it is similar in functionality (and was inspired by) the CasADi's
 [Opti Stack](https://web.casadi.org/api/html/dd/dc6/classcasadi_1_1Opti.html) (see
@@ -20,22 +22,17 @@ more tailored to research as
    provides parallel implementations in case of multistarting in the `csnlp.multistart`
    module.
 
-The library is not meant to be a faster alternative to :class:`casadi.Opti`, but rather
-a more flexible and modular one for research purposes.
+The package offers also tools for the sensitivity analysis of NLPs, solving them with
+multiple initial conditions, as well as for building MPC controllers. The library is not
+meant to be a faster alternative to `casadi.Opti`, but rather a more flexible and
+modular one for research purposes.
 
 > |   |   |
 > |---|---|
-> | **Documentation:** | In progress                                          |
-> | **Download:**      | https://pypi.python.org/pypi/csnlp/                  |
-> | **Source code:**   | https://github.com/FilippoAiraldi/casadi-nlp/        |
-> | **Report issues:** | https://github.com/FilippoAiraldi/casadi-nlp/issues/ |
-
-As aforementioned, **csnlp** builds on top of the [CasADi](https://web.casadi.org/)
-framework [[1]](#1) to model the optimization problems and perform symbolic
-differentiation, as well as the [IPOPT](https://github.com/coin-or/Ipopt) solver
-[[2]](#2) (though the package can be adapted to other solvers pretty easily). The
-package offers also tools for the sensitivity analysis of NLPs, solving them with
-multiple initial conditions, as well as for building MPC controllers.
+> | **Documentation:** | In progress                                            |
+> | **Download:**      | <https://pypi.python.org/pypi/csnlp/>                  |
+> | **Source code:**   | <https://github.com/FilippoAiraldi/casadi-nlp/>        |
+> | **Report issues:** | <https://github.com/FilippoAiraldi/casadi-nlp/issues/> |
 
 [![PyPI version](https://badge.fury.io/py/csnlp.svg)](https://badge.fury.io/py/csnlp)
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
@@ -85,7 +82,7 @@ pip install -e /path/to/casadi-nlp
 
 ---
 
-## Motivating example
+## Getting started
 
 Here we provide a compact example on how **csnlp** can be employed to build and solve
 an optimization problem. Similar to

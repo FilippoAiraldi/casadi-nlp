@@ -32,26 +32,11 @@ The following wrappers are provided in this module:
   variables and expressions automatically (:mod:`csnlp.scaling` provides also classes to
   inform this wrapper on how to scale the quantities)
 - :class:`csnlp.wrappers.NlpSensitivity`: a wrapper that computes the sensitivity of the
-  NLP solution with respect to the parameters [1]_
+  NLP solution with respect to the parameters :cite:`buskens_sensitivity_2001`
 - :class:`csnlp.wrappers.Mpc`: a wrapper that facilities the creation of MPC
-  optimization problems [2]_
+  optimization problems :cite:`rawlings_model_2017`
 - :class:`csnlp.wrappers.ScenarioBasedMpc`: a wrapper that facilities the creation of
-  MPC controllers based on the Scenario Approach [3]_.
-
-References
-==========
-
-.. [1] Büskens, C. and Maurer, H. (2001). *Sensitivity analysis and real-time
- optimization of parametric nonlinear programming problems*. In M. Grötschel, S.O.
- Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16.
- Springer, Berlin, Heidelberg
-
-.. [2] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. *Model Predictive Control:
- theory, computation, and design (Vol. 1)*. Madison, WI: Nob Hill Publishing.
-
-.. [3] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. *The scenario
- approach for stochastic model predictive control with bounds on closed-loop constraint
- violations*. Automatica, 50(12), pp.3009-3018.
+  MPC controllers based on the Scenario Approach :cite:`schildbach_scenario_2014`.
 """
 
 __all__ = [

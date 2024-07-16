@@ -47,16 +47,15 @@ Other components
    csnlp.nlps
    csnlp.util
 
-.. Examples
-.. --------
-
-.. Module reference
-.. ----------------
-
-
 Indices and tables
 ==================
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
+
+References
+==========
+
+.. bibliography:: references.bib
+   :style: plain

@@ -4,13 +4,8 @@ Scenario-based MPC
 
 In this example, we demonstrate how to build a scenario-based model predictive control
 (SCMPC) using :class:`csnlp.wrappers.ScenarioBasedMpc`. The problem is inspired by the
-numerical results of [1]_ shown in Tables 1 and 2, for R = R_1 = R_2 = 0.
-
-References
-----------
-.. [1] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. The scenario approach
-    for stochastic model predictive control with bounds on closed-loop constraint
-    violations. Automatica, 50(12), pp.3009-3018.
+numerical results of :cite:`schildbach_scenario_2014` shown in Tables 1 and 2, for
+:math:`R = R_1 = R_2 = 0`.
 """
 
 # %%

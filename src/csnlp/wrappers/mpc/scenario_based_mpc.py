@@ -15,8 +15,9 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class ScenarioBasedMpc(Mpc[SymType]):
-    """Implementation of the Scenario-based Model Predictive Control [2]_, here referred
-    to as SCMPC, a well-known stochastic MPC formulation.
+    """Implementation of the Scenario-based Model Predictive Control
+    :cite:`schildbach_scenario_2014`, here referred to as SCMPC, a well-known stochastic
+    MPC formulation.
 
     Parameters
     ----------
@@ -38,21 +39,14 @@ class ScenarioBasedMpc(Mpc[SymType]):
         is allowed, i.e., ``1``.
     shooting : 'single' or 'multi', optional
         Type of approach in the direct shooting for parametrizing the control
-        trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
+        trajectory. See Section 8.5 in :cite:`rawlings_model_2017`. By default, direct
+        shooting is used.
 
     Raises
     ------
     ValueError
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer.
-
-    References
-    ----------
-    .. [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
-        theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
-    .. [2] Schildbach, G., Fagiano, L., Frei, C. and Morari, M., 2014. The scenario
-        approach for stochastic model predictive control with bounds on closed-loop
-        constraint violations. Automatica, 50(12), pp.3009-3018.
     """
 
     def __init__(

@@ -18,7 +18,7 @@ def _n(statename: str) -> str:
 
 class Mpc(NonRetroactiveWrapper[SymType]):
     """A wrapper to easily turn an NLP scheme into an MPC controller. Most of the theory
-    for MPC is taken from [1]_.
+    for MPC is taken from :cite:`rawlings_model_2017`.
 
     Parameters
     ----------
@@ -37,17 +37,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         is allowed, i.e., ``1``.
     shooting : 'single' or 'multi', optional
         Type of approach in the direct shooting for parametrizing the control
-        trajectory. See Section 8.5 in [1]_. By default, direct shooting is used.
+        trajectory. See Section 8.5 in :cite:`rawlings_model_2017`. By default, direct
+        shooting is used.
 
     Raises
     ------
     ValueError
         Raises if the shooting method is invalid; or if any of the horizons are invalid.
-
-    References
-    ----------
-    .. [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
-        theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
     """
 
     def __init__(

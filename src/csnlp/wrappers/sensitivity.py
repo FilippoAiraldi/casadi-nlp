@@ -17,11 +17,12 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class NlpSensitivity(Wrapper[SymType]):
     """Wraps an instance of :class:`csnlp.Nlp` to allow to perform symbolical and
     numerical sensitivity analysis and compute its derivates w.r.t. to different
-    quantities, including primal variables and parameters. See [1]_ for nonlinear
-    programming sensitivity analysis. The computations are tailored to the IPOPT solver,
-    so no guarantees are provided for other solvers. This is due to the fact that IPOPT,
-    as an interior-point solver, guarantees that the KKT conditions at the solution are
-    satisfied. This may not the case for others.
+    quantities, including primal variables and parameters. See
+    :cite:`buskens_sensitivity_2001` for nonlinear programming sensitivity analysis. The
+    computations are tailored to the IPOPT solver, so no guarantees are provided for
+    other solvers. This is due to the fact that IPOPT, as an interior-point solver,
+    guarantees that the KKT conditions at the solution are satisfied. This may not the
+    case for others.
 
     Parameters
     ----------
@@ -38,13 +39,6 @@ class NlpSensitivity(Wrapper[SymType]):
         the barrier function of the interior-point solver. Otherwise, no additional
         variable is added. See property :meth:`kkt` for more details. By default,
         ``True``.
-
-    References
-    ----------
-    .. [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
-        optimization of parametric nonlinear programming problems. In M. Grotschel, S.O.
-        Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16.
-        Springer, Berlin, Heidelberg.
     """
 
     def __init__(
@@ -212,7 +206,7 @@ class NlpSensitivity(Wrapper[SymType]):
         second_order: bool = False,
     ) -> Union[tuple[SymType, Optional[SymType]], tuple[cs.DM, Optional[cs.DM]]]:
         r"""Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
-        parametrization, according to [1]_.
+        parametrization, according to :cite:`buskens_sensitivity_2001`.
 
         Parameters
         ----------
@@ -240,13 +234,6 @@ class NlpSensitivity(Wrapper[SymType]):
         ------
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
-
-        References
-        ----------
-        .. [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
-            optimization of parametric nonlinear programming problems. In M. Grotschel,
-            S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale
-            Systems, 3–16. Springer, Berlin, Heidelberg.
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
         d: Callable[[SymType], Union[SymType, cs.DM]] = (
