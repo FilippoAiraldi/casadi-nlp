@@ -240,6 +240,13 @@ class NlpSensitivity(Wrapper[SymType]):
         ------
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
+
+        References
+        ----------
+        .. [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
+            optimization of parametric nonlinear programming problems. In M. Grotschel,
+            S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale
+            Systems, 3–16. Springer, Berlin, Heidelberg.
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
         d: Callable[[SymType], Union[SymType, cs.DM]] = (

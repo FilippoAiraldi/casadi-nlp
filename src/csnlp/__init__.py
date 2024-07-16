@@ -18,15 +18,15 @@ more tailored to research as
 The library is not meant to be a faster alternative to :class:`casadi.Opti`, but rather
 a more flexible and modular one for research purposes.
 
-    ==================== =======================================================
+    ==================== ========================================================
     **Documentation:**       In progress
 
-    **Download:**            https://pypi.python.org/pypi/csnlp#downloads
+    **Download:**            https://pypi.python.org/pypi/csnlp/
 
     **Source code:**         https://github.com/FilippoAiraldi/casadi-nlp/
 
-    **Report issues:**       https://github.com/FilippoAiraldi/casadi-nlp/issues
-    ==================== =======================================================
+    **Report issues:**       https://github.com/FilippoAiraldi/casadi-nlp/issues/
+    ==================== ========================================================
 """
 
 __version__ = "1.5.10.post2"
