@@ -1,29 +1,36 @@
-from math import sqrt
-from typing import Optional, Union
+"""A collection of stand-alone functions that implement some of the basic mathematical
+operations that are not available in CasADi. The implementations are simple and thus
+not optimized for performance. They are meant to be used as a fallback when the CasADi
+really does not provide the required functionality.
+"""
+
+from math import sqrt as _sqrt
+from typing import Literal, Union
 
 import casadi as cs
 
-SQRT2 = sqrt(2)
+SQRT2 = _sqrt(2)
 
 
 def log(
     x: Union[cs.SX, cs.MX, cs.DM], base: Union[None, cs.SX, cs.MX, cs.DM] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Logarithm. With one argument, return the natural logarithm of `x` (to base `e`).
-    With two arguments, return the logarithm of x to the given base, calculated as
-    `log(x) / log(base)`.
+    r"""Computes the logarithm. With one argument, return the natural logarithm of
+    :math:`x` (to base :math:`e`). With two arguments, return the logarithm of :math:`x`
+    to the given base :math:`b`, calculated as :math:`\frac{\log x}{\log b}`.
 
     Parameters
     ----------
-    x : Union[cs.SX, cs.MX, cs.DM]
+    x : casadi.SX, MX or DM
         Value to compute the logarithm of.
-    base : Union[None, cs.SX, cs.MX, cs.DM], optional
-        Base of the logarithm, by default `None`
+    base : casadi.SX, MX or DM, optional
+        Base of the logarithm, by default ``None``, so that the natural logarithm is
+        computed.
 
     Returns
     -------
-    Union[cs.SX, cs.MX, cs.DM]
-        The logarithm. of `x` with base `base`.
+    casadi.SX, MX or DM
+        The logarithm of ``x`` with base ``base``, i.e., :math:`\log_{base} x`.
     """
     if base is None:
         return cs.log(x)
@@ -33,23 +40,24 @@ def log(
 
 
 def prod(
-    x: Union[cs.SX, cs.MX, cs.DM], axis: Optional[int] = None
+    x: Union[cs.SX, cs.MX, cs.DM], axis: Literal[0, 1, None, -1, -2] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Computes the product of all the elements in `x` (CasADi version of `numpy.prod`).
+    r"""Computes the product of all the elements in ``x`` (CasADi version of
+    :func:`numpy.prod`).
 
     Parameters
     ----------
-    x : Union[cs.SX, cs.MX, cs.DM]
+    x : casadi.SX, MX or DM
         The variable whose entries must be multiplied together.
     axis : {0, 1, None, -1, -2}
-        Axis or along which a product is performed. The default, `axis=None`, will
+        Axis or along which a product is performed. The default, ``axis=None``, will
         calculate the product of all the elements in the matrix. If axis is negative it
         counts from the last to the first axis.
 
     Returns
     -------
-    Union[cs.SX, cs.MX, cs.DM]
-        Product of the elements.
+    casadi.SX, MX or DM
+        Product of the elements, i.e., :math:`\prod_{i=1}^{|x|}{x_i}`.
     """
     # sourcery skip: merge-comparisons
     if axis is None:
@@ -76,23 +84,24 @@ def prod(
 
 def norm_cdf(
     x: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
-    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1),
+    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
+    scale: Union[cs.SX, cs.MX, cs.DM] = 1,
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Computes the cdf of a normal distribution. See `scipy.stats.norm.cdf`.
+    """Computes the cdf of a normal distribution (CasADi version of
+    :data:`scipy.stats.norm`'s ``cdf`` method).
 
     Parameters
     ----------
-    x : Union[cs.SX, cs.MX, cs.DM]
+    x : casadi.SX, MX or DM
         The value at which the cdf is computed.
-    loc : Union[cs.SX, cs.MX, cs.DM], optional
-        Mean of the normal distribution. By default, `loc=0`.
-    scale : Union[cs.SX, cs.MX, cs.DM], optional
-        Standard deviation of the normal distribution. By default, `scale=0`.
+    loc : casadi.SX, MX or DM, optional
+        Mean of the normal distribution. By default, ``loc=0``.
+    scale : casadi.SX, MX or DM, optional
+        Standard deviation of the normal distribution. By default, ``scale=0``.
 
     Returns
     -------
-    Union[cs.SX, cs.MX, cs.DM]
+    casadi.SX, MX or DM
         The cdf of the normal distribution.
     """
     return 0.5 * (1 + cs.erf((x - loc) / SQRT2 / scale))
@@ -100,24 +109,24 @@ def norm_cdf(
 
 def norm_ppf(
     p: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = cs.DM(0),
-    scale: Union[cs.SX, cs.MX, cs.DM] = cs.DM(1),
+    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
+    scale: Union[cs.SX, cs.MX, cs.DM] = 1,
 ) -> Union[cs.SX, cs.MX, cs.DM]:
-    """Computes the quantile (invese of cdf) of a normal distribution. See
-    `scipy.stats.norm.ppf`.
+    """Computes the quantile (invese of :func:`norm_cdf`) of a normal distribution
+    (CasADi version of :data:`scipy.stats.norm`'s ``ppf`` method).
 
     Parameters
     ----------
-    x : Union[cs.SX, cs.MX, cs.DM]
+    x : casadi.SX, MX or DM
         The value at which the quantile is computed.
-    loc : Union[cs.SX, cs.MX, cs.DM], optional
-        Mean of the normal distribution. By default, `loc=0`.
-    scale : Union[cs.SX, cs.MX, cs.DM], optional
-        Standard deviation of the normal distribution. By default, `scale=0`.
+    loc : casadi.SX, MX or DM, optional
+        Mean of the normal distribution. By default, ``loc=0``.
+    scale : casadi.SX, MX or DM, optional
+        Standard deviation of the normal distribution. By default, ``scale=0``.
 
     Returns
     -------
-    Union[cs.SX, cs.MX, cs.DM]
+    casadi.SX, MX or DM
         The quantile of the normal distribution.
     """
     return SQRT2 * scale * cs.erfinv(2 * p - 1) + loc
@@ -132,12 +141,12 @@ def repeat(
     ----------
     a : casadi.SX or MX or DM
         The array/matrix whose elements are to be repeated.
-    repeats : int or tuple[int, int]
+    repeats : int or tuple of 2 ints
         The number of repeats, in the first and/or second axis.
 
     Returns
     -------
-    Union[cs.SX, cs.MX, cs.DM]
+    casadi.SX, MX or DM
         Output array with repeated elements.
     """
     return cs.kron(a, cs.GenDM_ones(repeats))

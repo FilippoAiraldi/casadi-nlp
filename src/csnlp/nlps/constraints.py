@@ -1,33 +1,45 @@
+from functools import cached_property
 from typing import Literal, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ..core.cache import cached_property, invalidate_cache
+from ..core.cache import invalidate_cache
 from .variables import HasVariables
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class HasConstraints(HasVariables[SymType]):
-    """Class for creating and storing symbolic constraints for an NLP problem."""
+    r"""Class for the creation and storage symbolic constraints for an NLP problem. It
+    builds on top of :class:`HasVariables`, which handles both parameters and variables.
+
+    Constraints are stored and managed in the canonical way. Equality constraints are
+    in the form :math:`g(x,p) = 0` or :math:`G(x,p) = 0`, whereas inequality constraints
+    are in the form :math:`h(x,p) \le 0` or :math:`H(x,p) \le 0`. Separated from the
+    latter are the lower and upper bounds of the primary variables, which are also
+    inequalities, i.e., :math:`lbx - x \le 0` and :math:`x - ubx \le 0`, but are passed
+    differently to the CasADi solver interface. Moreover, the class is equipped with a
+    mechanism to automatically remove lower and upper bounds that are redundant, i.e.,
+    when the lower bound is :math:`-\infty` and the upper bound is :math:`+\infty`,
+    which often create numerical issues if passed to the solver as is.
+
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    remove_redundant_x_bounds : bool, optional
+        If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are removed
+        when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See these two
+        properties for more details. By default, ``True``.
+    """
 
     def __init__(
         self,
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
     ) -> None:
-        """Instantiate the class.
-
-        Parameters
-        ----------
-        sym_type : "SX" or "MX", optional
-            The CasADi symbolic variable type to use in the NLP, by default "SX".
-        remove_redundant_x_bounds : bool, optional
-            If `True`, then redundant entries in `lbx` and `ubx` are masked out, e.g.,
-            when computing `h_lbx` and `h_ubx`. By default, `True`.
-        """
         super().__init__(sym_type)
 
         self._dual_vars: dict[str, SymType] = {}
@@ -112,7 +124,7 @@ class HasConstraints(HasVariables[SymType]):
 
     @cached_property
     def nonmasked_lbx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
-        """Gets the indices of non-masked entries in `lbx` (or the full slice)."""
+        """Gets the indices of non-masked entries in :meth:`lbx` (or the full slice)."""
         return (
             slice(None)
             if np.ma.getmask(self._lbx) is np.ma.nomask
@@ -121,7 +133,7 @@ class HasConstraints(HasVariables[SymType]):
 
     @cached_property
     def nonmasked_ubx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
-        """Gets the indices of non-masked entries in `ubx` (or the full slice)."""
+        """Gets the indices of non-masked entries in :meth:`ubx` (or the full slice)."""
         return (
             slice(None)
             if np.ma.getmask(self._ubx) is np.ma.nomask
@@ -130,13 +142,13 @@ class HasConstraints(HasVariables[SymType]):
 
     @cached_property
     def h_lbx(self) -> SymType:
-        """Gets the inequalities due to `lbx`."""
+        """Gets the inequalities cor to :meth:`lbx`, i.e., :math:`lbx - x`."""
         idx = self.nonmasked_lbx_idx
         return self._lbx.data[idx, None] - self._x[idx, :]
 
     @cached_property
     def h_ubx(self) -> SymType:
-        """Gets the inequalities due to `ubx`."""
+        """Gets the inequalities due to :meth:`ubx`, i.e., :math:`x - ubx`."""
         idx = self.nonmasked_ubx_idx
         return self._x[idx, :] - self._ubx.data[idx, None]
 
@@ -144,20 +156,21 @@ class HasConstraints(HasVariables[SymType]):
     def lam(self) -> SymType:
         """Gets the dual variables of the NLP scheme in vector form.
 
-        Note
-        ----
+        Notes
+        -----
         The dual variables are vertically concatenated in the following order:
-        `lam_g, lam_h, lam_lbx, lam_ubx`.
+        :meth:`lam_g`, :meth:`lam_h`, :meth:`lam_lbx`, :meth:`lam_ubx`.
         """
         return cs.vertcat(self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx)
 
     @cached_property
     def primal_dual(self) -> SymType:
-        """Gets the collection of primal-dual variables (usually, denoted as `y`)
-        ```
-                    y = [x^T, lam^T]^T
-        ```
-        where `x` are the primal variables, and `lam` the dual variables."""
+        r"""Gets the collection of primal-dual variables (usually, denoted as ``y``)
+
+        .. math:: y = \begin{bmatrix} x \\ \lambda \end{bmatrix},
+
+        where :math:`x` are the primal variables, and :math:`\lambda` the dual
+        variables (see :meth:`x` and :meth:`lam`, respectively)."""
         return cs.vertcat(self._x, self.lam)
 
     @invalidate_cache(
@@ -170,14 +183,13 @@ class HasConstraints(HasVariables[SymType]):
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
-        """
-        Adds a variable to the NLP problem.
+        r"""Adds a variable to the NLP problem.
 
         Parameters
         ----------
         name : str
             Name of the new variable. Must not be already in use.
-        shape : tuple[int, int], optional
+        shape : tuple of 2 ints, optional
             Shape of the new variable. By default, a scalar.
         lb, ub: array_like, optional
             Lower and upper bounds of the new variable. By default, unbounded. If
@@ -190,9 +202,9 @@ class HasConstraints(HasVariables[SymType]):
         lam_lb : casadi.SX or MX
             The symbol corresponding to the new variable lower bound constraint's
             multipliers. The shape of the multiplier is equal to the number of relevant
-            lower bounds (i.e., `!=-np.inf`), so it may differ from the shape of the
-            variable itself. This behaviour can be disabled by setting
-            `remove_redundant_x_bounds=False`.
+            lower bounds (i.e., :math:`\neq \pm \infty`), so it may differ from the
+            shape of the variable itself. This behaviour can be disabled by setting
+            ``remove_redundant_x_bounds=False``.
         lam_ub : casadi.SX or MX
             Same as above, for upper bound.
 
@@ -241,7 +253,7 @@ class HasConstraints(HasVariables[SymType]):
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
-        """Adds a constraint to the NLP problem, e.g., `lhs <= rhs`.
+        r"""Adds a constraint to the NLP problem, e.g., :math:`lhs \le rhs`.
 
         Parameters
         ----------
@@ -249,28 +261,28 @@ class HasConstraints(HasVariables[SymType]):
             Name of the new constraint. Must not be already in use.
         lhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the left-hand term of the constraint.
-        op: str, {'==' '>=', '<='}
+        op: {"==", ">=", "<="}
             Operator relating the two terms.
         rhs : casadi.SX, MX, DM or numerical
             Symbolic expression of the right-hand term of the constraint.
         soft : bool, optional
-            If `True`, then a slack variable with appropriate size is added to the NLP
+            If ``True``, then a slack variable with appropriate size is added to the NLP
             to make the inequality constraint soft, and returned. This slack is
             automatically lower-bounded by 0, but remember to manually penalize its
             magnitude in the objective. Slacks are not supported for equality
-            constraints. Defaults to `False`.
+            constraints. Defaults to ``False``.
         simplify : bool, optional
             Optionally simplies the constraint expression, but can be disabled.
 
         Returns
         -------
         expr : casadi.SX or MX
-            The constraint expression in canonical form, i.e., `g(x,u) = 0` or
-            `h(x,u) <= 0`.
+            The constraint expression in canonical form, i.e., :math:`g(x,p) = 0` or
+            :math:`h(x,p) \le 0`.
         lam : casadi.SX or MX
             The symbol corresponding to the constraint's multipliers.
         slack : casadi.SX or MX, optional
-            The slack variable in case of `soft=True`; otherwise, only a 2-tuple is
+            The slack variable in case of ``soft=True``; otherwise, only a 2-tuple is
             returned.
 
         Raises
@@ -339,11 +351,11 @@ class HasConstraints(HasVariables[SymType]):
             Which bound to modify.
         idx : tuple[int, int] or a list of, optional
             A 2D index, or a list of 2D indices, of the variable entries whose
-            corresponding lower/upper bounds must be removed, i.e., set to -/+ inf. If
-            not provided, then all the bounds for that variable are removed.
+            corresponding lower/upper bounds must be removed, i.e., set to ``-/+ inf``.
+            If not provided, then all the bounds for that variable are removed.
 
-        Note
-        ----
+        Notes
+        -----
         This is a somewhat costly operation, so it is preferable to avoid creating
         in the first place constraints that will need to be eliminated. Moreover, this
         operation may compromise the results already obtained in, e.g., sensitivity
@@ -413,12 +425,12 @@ class HasConstraints(HasVariables[SymType]):
         name : str
             Name of the constraint to be removed. The name will be used to identify if
             the constraint is an inequality or an equality constraint.
-        idx : tuple[int, int] or a list of, optional
+        idx : tuple of 2 ints or a list of, optional
             A 2D index, or a list of 2D indices, of the constraint entries that
             must be removed. If not provided, then the constraint is removed entirely.
 
-        Note
-        ----
+        Notes
+        -----
         This is a somewhat costly operation, so it is preferable to avoid creating
         in the first place constraints that will need to be eliminated. Moreover, this
         operation may compromise the results already obtained in, e.g., sensitivity

@@ -1,17 +1,12 @@
+"""A collection of stand-alone functions for plotting purposes."""
+
 from typing import Any, Union
 
 import casadi as cs
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-from cycler import cycler
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
-from matplotlib.image import AxesImage
-from matplotlib.lines import Line2D
 
-from ..core.data import array2cs
+from ..core.data import array2cs as _array2cs
 
 MATLAB_COLORS = [
     "#0072BD",
@@ -24,16 +19,17 @@ MATLAB_COLORS = [
 ]
 
 
-def save2tikz(*figs: Figure) -> None:
-    """Saves the figure to a tikz file (`.tex` extension). See
-    https://pypi.org/project/tikzplotlib/ for more details.
+def save2tikz(*figs) -> None:
+    """Saves the figure to a tikz file (``.tex`` extension). See
+    `tikzplotlib <https://pypi.org/project/tikzplotlib/>`_ for more details.
 
     Parameters
     ----------
-    figs : matplotlib Figures
+    figs : :class:`matplotlib.figure.Figure`
         One or more matplotlib figures to be converted to tikz files. These
         files will be named based on the number of the corresponding figure.
     """
+    import matplotlib as mpl
     import tikzplotlib
 
     # monkey patching to fix some issues with tikzplotlib
@@ -48,27 +44,27 @@ def save2tikz(*figs: Figure) -> None:
         )
 
 
-def spy(
-    H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax: Axes = None, **spy_kwargs: Any
-) -> Union[AxesImage, Line2D]:
-    """Equivalent of `matplotlib.pyplot.spy` that works also with casadi
-    matrices.
+def spy(H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax=None, **spy_kwargs: Any):
+    """Implementation equivalent to :func:`matplotlib.pyplot.spy` that works also with
+    CasADi symbolic matrices.
 
     Parameters
     ----------
     H : casadi SX, MX, DM or array_like
         The matrix to spy.
-    ax : Axes, optional
-        The axis to draw the result on. If `None`, creates a new axis.
+    ax : :class:`matplotlib.axes.Axes`, optional
+        The axis to draw the result on. If ``None``, creates a new axis.
     spy_kwargs
-        Other arguments passed directly to `matplotlib.pyplot.spy`.
+        Other arguments passed directly to :func:`matplotlib.pyplot.spy`.
 
     Returns
     -------
-    AxesImage or Line2D
-        Same return types of `matplotlib.pyplot.spy`.
+    :class:`matplotlib.image.AxesImage` or :class:`matplotlib.lines.Line2D`
+        Same return types of :func:`matplotlib.pyplot.spy`.
     """
-    H = array2cs(H)  # type: ignore[arg-type]
+    import matplotlib.pyplot as plt
+
+    H = _array2cs(H)
     try:
         # try convert to numerical; if it fails, use symbolic method from cs
         H = np.asarray(H, dtype=float)
@@ -103,25 +99,27 @@ def set_mpl_defaults(
     np_print_precision: int = 4,
     matlab_colors: bool = False,
 ) -> None:
-    """Sets some default parameters for `numpy` and `matplotlib` for printing
+    """Sets some default parameters for :mod:`numpy` and :mod:`matplotlib` for printing
     and plotting.
 
     Parameters
     ----------
     mpl_style : str, optional
-        `matplotlib` plotting style, by default 'bmh'.
+        :mod:`matplotlib` plotting style, by default ``"bmh"``.
     linewidth : float, optional
-        `matplotlib` default linewidth, by default 1.5.
+        :mod:`matplotlib` default linewidth, by default ``1.5``.
     markersize : float, optional
-        `matplotlib` default markersize, by default 2.
+        :mod:`matplotlib` default markersize, by default ``2``.
     savefig_dpi : int, optional
-        `matplotlib` savefig dpi, by default 600.
+        :mod:`matplotlib` savefig dpi, by default ``600``.
     np_print_precision : int, optional
-        `numpy` printing precision, by default 4.
+        :mod:`numpy` printing precision, by default ``4``.
     matlab_colors : bool, optional
-        Whether `matplotlib` should use Matlab colors for plotting, by default
-        `False`.
+        Whether :mod:`matplotlib` should use Matlab colors for plotting, by default
+        ``False``.
     """
+    import matplotlib as mpl
+
     np.set_printoptions(precision=np_print_precision)
     mpl.style.use(mpl_style)  # 'seaborn-darkgrid'
     mpl.rcParams["lines.solid_capstyle"] = "round"
@@ -129,4 +127,6 @@ def set_mpl_defaults(
     mpl.rcParams["lines.markersize"] = markersize
     mpl.rcParams["savefig.dpi"] = savefig_dpi
     if matlab_colors:
+        from cycler import cycler
+
         mpl.rcParams["axes.prop_cycle"] = cycler("color", MATLAB_COLORS)

@@ -1,19 +1,31 @@
-import pickle
-from copy import _reconstruct, deepcopy
-from os.path import splitext
-from pickletools import optimize
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional, TypeVar
+"""A collection of utilities for input/output operations. The goals of this module are:
 
-from ..core.cache import invalidate_caches_of
+- compatibility of pickling/deepcopying with CasADi objects and classes that hold such
+  objects (since these are often not picklable).
+- saving and loading data to/from files, possibly compressed.
+"""
+
+import pickle
+from copy import _reconstruct
+from copy import deepcopy as _deepcopy
+from os.path import splitext as _splitext
+from pickletools import optimize as _optimize
+from typing import TYPE_CHECKING
+from typing import Any as _Any
+from typing import Callable, Literal, Optional
+from typing import TypeVar as _TypeVar
+
+from ..core.cache import invalidate_caches_of as _invalidate_caches_of
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
 
 
-def is_casadi_object(obj: Any) -> bool:
+def is_casadi_object(obj: _Any) -> bool:
     """Checks if the object belongs to the CasADi module.
 
-    See https://stackoverflow.com/a/52783240/19648688 for more details.
+    See `this thread <https://stackoverflow.com/a/52783240/19648688>`_ for more
+    details.
 
     Parameters
     ----------
@@ -31,7 +43,7 @@ def is_casadi_object(obj: Any) -> bool:
     return module == "casadi"
 
 
-def is_pickleable(obj: Any) -> bool:
+def is_pickleable(obj: _Any) -> bool:
     """Checks whether the object is pickeable.
 
     Parameters
@@ -51,15 +63,17 @@ def is_pickleable(obj: Any) -> bool:
         return False
 
 
-T = TypeVar("T", bound="SupportsDeepcopyAndPickle")
+T = _TypeVar("T", bound="SupportsDeepcopyAndPickle")
 
 
 class SupportsDeepcopyAndPickle:
-    """Class that defines a `__getstate__` that is compatible with both `deepcopy` and
-    `pickle`, as well as any other operation that requires the instance's state.
+    """Class that defines a :meth:`__getstate__` that is compatible with both
+    :func:`deepcopy` and :mod:`pickle`, as well as any other operation that requires the
+    instance's state.
 
     When pickled, states that cannot be pickled (e.g., CasADi objects) are automatically
-    removed."""
+    removed.
+    """
 
     def copy(self: T, invalidate_caches: bool = True) -> T:
         """Creates a deepcopy of this instance.
@@ -67,21 +81,22 @@ class SupportsDeepcopyAndPickle:
         Parameters
         ----------
         invalidate_caches : bool, optional
-            If `True`, methods decorated with `csnlp.util.funcs.invalidate_cache` are
-            called to clear cached properties/lru caches in the copied instance.
-            Otherwise, caches in the copy are not invalidated. By default, `True`.
+            If ``True``, methods decorated with
+            :func:`csnlp.core.cache.invalidate_cache` are called to clear cached
+            properties/lru caches in the copied instance. Otherwise, caches in the copy
+            are not invalidated. By default, ``True``.
 
         Returns
         -------
-        `SupportsDeepcopyAndPickle` or its subclass
+        Instance of :class:`SupportsDeepcopyAndPickle` or its subclass
             A deepcopy of this instance.
         """
-        new = deepcopy(self)
+        new = _deepcopy(self)
         if invalidate_caches:
-            invalidate_caches_of(new)
+            _invalidate_caches_of(new)
         return new
 
-    def __deepcopy__(self: T, memo: Optional[dict[int, list[Any]]] = None) -> T:
+    def __deepcopy__(self: T, memo: Optional[dict[int, list[_Any]]] = None) -> T:
         """Returns a deepcopy of the object."""
         rv = self.__reduce_ex__(4)
         if isinstance(rv, str):
@@ -92,7 +107,7 @@ class SupportsDeepcopyAndPickle:
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 
-    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, Any]]:
+    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, _Any]]:
         """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
         if not (hasattr(self, "__dict__") and self.__dict__.keys()):
@@ -124,39 +139,46 @@ def save(
     compression: Optional[
         Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
     ] = None,
-    **data: Any,
+    **data: _Any,
 ) -> str:
     """Saves data to a (possibly compressed) file. Inspired by
-     - https://stackoverflow.com/a/57983757/19648688,
-     - https://stackoverflow.com/a/8832212/19648688.
+    `this discussion <https://stackoverflow.com/a/57983757/19648688>`_
+    and `this other discussion <https://stackoverflow.com/a/8832212/19648688>`_.
 
     Parameters
     ----------
     filename : str
         The name of the file to save to. If the filename does not end in the correct
         extension, then it is automatically added. The extensions are
-         - "pickle": .pkl
-         - "lzma": .xz
-         - "bz2": .pbz2
-         - "gzip": .gz
-         - "brotli": .bt
-         - "blosc2": .bl2
-         - "matlab": .mat
-         - "numpy": .npz
+
+        - ``"pickle"``: .pkl
+        - ``"lzma"``: .xz
+        - ``"bz2"``: .pbz2
+        - ``"gzip"``: .gz
+        - ``"brotli"``: .bt
+        - ``"blosc2"``: .bl2
+        - ``"matlab"``: .mat
+        - ``"numpy"``: .npz.
     **data : dict
         Any data to be saved to a file.
     compression : {"lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "npz"}
-        Type of compression to apply to the file. Note that `brotli` and `blosc2`
-        require the installation of the corresponding pip package. `matlab` requires the
-        installation of `scipy` to save as .mat file. By default, `pickle` is used.
+        Type of compression to apply to the file. By default, `pickle` is used.
 
     Returns
     -------
     filename : str
         The complete name of the file where the data was written to.
+
+    Notes
+    -----
+    Note that the compression types ``brotli`` and ``blosc2`` require the installation
+    of the corresponding pip packages (see `Brotli <https://github.com/google/brotli>`_
+    and `Blosc2 <https://www.blosc.org/python-blosc/python-blosc.html>`_).
+    ``matlab`` requires instead the installation of :mod:`scipy` to save as .mat file
+    (see :func:`scipy.io.savemat` and :func:`scipy.io.loadmat` for more details).
     """
 
-    actual_ext = splitext(filename)[1]
+    actual_ext = _splitext(filename)[1]
     if compression is None:
         compression = _COMPRESSION_EXTS.get(actual_ext)
 
@@ -220,14 +242,14 @@ def save(
     # address all other cases that do adhere to the open/compress scheme
     else:
         pickled = pickle.dumps(data)
-        optimized = optimize(pickled)
+        optimized = _optimize(pickled)
         compressed = compress_fun(optimized)
         with open_fun(filename, "wb") as f:
             f.write(compressed)
     return filename
 
 
-def load(filename: str) -> dict[str, Any]:
+def load(filename: str) -> dict[str, _Any]:
     """Loads data from a (possibly compressed) file.
 
     Parameters
@@ -235,21 +257,22 @@ def load(filename: str) -> dict[str, Any]:
     filename : str, optional
         The name of the file to load. If the filename does not end in a known extension,
         then it fails. The known extensions are
-         - "pickle": .pkl
-         - "lzma": .xz
-         - "bz2": .pbz2
-         - "gzip": .gz
-         - "brotli": .bt
-         - "blosc2": .bl2
-         - "matlab": .mat
-         - "numpy": .npz
+
+        - ``"pickle"``: .pkl
+        - ``"lzma"``: .xz
+        - ``"bz2"``: .pbz2
+        - ``"gzip"``: .gz
+        - ``"brotli"``: .bt
+        - ``"blosc2"``: .bl2
+        - ``"matlab"``: .mat
+        - ``"numpy"``: .npz.
 
     Returns
     -------
     data : dict
         The saved data in the shape of a dictionary.
     """
-    ext = splitext(filename)[1]
+    ext = _splitext(filename)[1]
     compression = _COMPRESSION_EXTS[ext]
 
     open_fun: Callable

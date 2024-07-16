@@ -30,8 +30,30 @@ def _solve_and_get_stats(
 
 
 class HasObjective(HasConstraints[SymType]):
-    """Class for creating an NLP problem with parameters, variables, constraints and an
-    objective."""
+    r"""Class for creating an NLP problem with parameters, variables, constraints and an
+    objective. It builds on top of :class:`HasConstraints`, which handles parameters,
+    variables and constraints.
+
+    Parameters
+    ----------
+    sym_type : {"SX", "MX"}, optional
+        The CasADi symbolic variable type to use in the NLP, by default ``"SX"``.
+    remove_redundant_x_bounds : bool, optional
+        If ``True``, then redundant entries in :meth:`lbx` and :meth:`ubx` are removed
+        when properties :meth:`h_lbx` and :meth:`h_ubx` are called. See these two
+        properties for more details. By default, ``True``.
+    cache : joblib.Memory, optional
+        Optional cache to avoid computing the same exact NLP more than once. By default,
+        no caching occurs.
+    name : str, optional
+        Name of the NLP scheme. If ``None``, it is automatically assigned.
+
+    Notes
+    -----
+    Constraints are internally handled in their canonical form, i.e., :math:`g(x,p) = 0`
+    and :math:`h(x,p) \leq 0`. The objective :math:`f(x,p)` is always a scalar function
+    to be minimized.
+    """
 
     def __init__(
         self,
@@ -40,22 +62,6 @@ class HasObjective(HasConstraints[SymType]):
         cache: Memory = None,
         name: Optional[str] = None,
     ) -> None:
-        """Instantiate the class.
-
-        Parameters
-        ----------
-        sym_type : "SX" or "MX", optional
-            The CasADi symbolic variable type to use in the NLP, by default "SX".
-        remove_redundant_x_bounds : bool, optional
-            If `True`, then redundant entries in `lbx` and `ubx` are removed when
-            properties `h_lbx` and `h_ubx` are called. See these two properties for more
-            details. By default, `True`.
-        cache : joblib.Memory, optional
-            Optional cache to avoid computing the same exact NLP more than once. By
-            default, no caching occurs.
-        name : str, optional
-            Name of the NLP scheme. If `None`, it is automatically assigned.
-        """
         super().__init__(sym_type, remove_redundant_x_bounds)
         self.name = name
         self._f: Optional[SymType] = None
@@ -66,20 +72,20 @@ class HasObjective(HasConstraints[SymType]):
 
     @property
     def f(self) -> Optional[SymType]:
-        """Gets the objective of the NLP scheme, which is `None` if not set previously
-        set via the `minimize` method."""
+        """Gets the objective of the NLP scheme, which is ``None`` if not set previously
+        set via the :meth:`minimize` method."""
         return self._f
 
     @property
     def solver(self) -> Optional[cs.Function]:
-        """Gets the NLP optimization solver. Can be `None`, if the solver is not set
-        with method `init_solver`."""
+        """Gets the NLP optimization solver. Can be ``None``, if the solver is not set
+        with method :meth:`init_solver`."""
         return self._solver.func if self._solver is not None else None
 
     @property
     def solver_opts(self) -> dict[str, Any]:
         """Gets the NLP optimization solver options. The dict is empty, if the solver
-        options are not set with method `init_solver`."""
+        options are not set with method :meth:`init_solver`."""
         return self._solver_opts
 
     @property
@@ -97,23 +103,24 @@ class HasObjective(HasConstraints[SymType]):
 
         Parameters
         ----------
-        opts : Dict[str, Any], optional
+        opts : dict[str, Any], optional
             Options to be passed to the CasADi interface to the solver.
         solver : str, optional
-            Type of solver to instantiate. For example, `"ipopt"` and `"sqpmethod"`
-            trigger the instantiation of an NLP problem, while, e.g., `"qrqp"`,
-            `"osqp"`, and `"qpoases"` a conic one. However, the solver type can be
-            overruled with the `type` argument. By default, `"ipopt"` is
+            Type of solver to instantiate. For example, ``"ipopt"`` and ``"sqpmethod"``
+            trigger the instantiation of an NLP problem, while, e.g., ``"qrqp"``,
+            ``"osqp"``, and ``"qpoases"`` of a conic one. However, the solver type can
+            be overruled with the ``type`` argument. By default, ``"ipopt"`` is
             selected.
         type : "auto", "nlp", "conic", optional
-            Type of problem to instantiate. If `"nlp"`, then the problem is forced to be
-            instantiated with `cs.nlpsol`. If `"conic"`, then `cs.qpsol` is forced
-            instead. If `"auto"`, then the problem type is selected automatically.
+            Type of problem to instantiate. If ``"nlp"``, then the problem is forced to
+            be instantiated with :func:`casadi.nlpsol`. If ``"conic"``, then
+            :func:`casadi.qpsol` is forced instead. If ``"auto"``, then the problem type
+            is selected automatically.
 
         Raises
         ------
         RuntimeError
-            Raises if the objective has not yet been specified with `minimize`.
+            Raises if the objective has not yet been specified with :meth:`minimize`.
         """
         if type == "conic" or (type == "auto" and cs.has_conic(solver)):
             func = cs.qpsol
@@ -200,8 +207,8 @@ class HasObjective(HasConstraints[SymType]):
         Raises
         ------
         RuntimeError
-            Raises if the solver is un-initialized (see `init_solver`); or if not all
-            the parameters are not provided with a numerical value.
+            Raises if the solver is un-initialized (see :meth:`init_solver`); or if not
+            all the parameters are not provided with a numerical value.
         """
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
@@ -243,7 +250,8 @@ class HasObjective(HasConstraints[SymType]):
         return kwargs
 
     def _process_solver_sol(self, sol: dict[str, Any]) -> Solution:
-        """Internal utility to convert the solver sol dict to a Solution instance."""
+        """Internal utility to convert the solver sol dict to a :class:`Solution`
+        instance."""
         # objective
         f = float(sol["f"])
 

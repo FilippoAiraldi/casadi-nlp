@@ -1,10 +1,11 @@
+from functools import cached_property
 from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ..core.cache import cached_property, invalidate_cache
+from ..core.cache import invalidate_cache
 from ..core.data import array2cs, cs2array, find_index_in_vector
 from ..core.derivatives import hohessian, hojacobian
 from ..core.solutions import Solution
@@ -14,19 +15,30 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class NlpSensitivity(Wrapper[SymType]):
-    """
-    Wraps an NLP to allow to perform numerical sensitivity analysis and compute its
-    derivates. See [1] for nonlinear programming sensitivity analysis. The computations
-    are tailored to IPOPT as solver, so no guarantees are provided for other solvers.
-    This is due to the fact that IPOPT, as an interior-point solver, guarantees that the
-    KKT conditions at the solution are satisfied. This may not the case for others.
+    """Wraps an instance of :class:`csnlp.Nlp` to allow to perform symbolical and
+    numerical sensitivity analysis and compute its derivates w.r.t. to different
+    quantities, including primal variables and parameters. See
+    :cite:`buskens_sensitivity_2001` for nonlinear programming sensitivity analysis. The
+    computations are tailored to the IPOPT solver, so no guarantees are provided for
+    other solvers. This is due to the fact that IPOPT, as an interior-point solver,
+    guarantees that the KKT conditions at the solution are satisfied. This may not the
+    case for others.
 
-    References
+    Parameters
     ----------
-    [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
-        optimization of parametric nonlinear programming problems. In M. Grotschel, S.O.
-        Krumke, and J. Rambau (eds.), Online Optimization of Large Scale Systems, 3–16.
-        Springer, Berlin, Heidelberg.
+    nlp : Nlp
+        The NLP problem to be wrapped.
+    target_parameters : casadi.SX or MX, optional
+        If provided, computes the sensitibity only w.r.t. these parameters. Of course,
+        these parameters must be a subset of all of the NLP's parameters. If ``None``,
+        then the derivatives and sensitivity are computed w.r.t. all parameters. If new
+        parameters are added after wrapping the nlp in this, be sure to call
+        :meth:`set_target_parameters`` again.
+    include_barrier_term : bool, optional
+        If ``True``, includes in the KKT matrix a new symbolic variable that represents
+        the barrier function of the interior-point solver. Otherwise, no additional
+        variable is added. See property :meth:`kkt` for more details. By default,
+        ``True``.
     """
 
     def __init__(
@@ -35,25 +47,6 @@ class NlpSensitivity(Wrapper[SymType]):
         target_parameters: Optional[SymType] = None,
         include_barrier_term: bool = True,
     ) -> None:
-        """Instantiates the wrapper for performing NLP sensitivities.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            The NLP problem to be wrapped.
-        target_parameters : casadi.SX or MX, optional
-            If provided, computes the sensitibity only w.r.t. these parameters. Of
-            course, these parameters must be a subset of all the NLP's parameters. If
-            `None`, then the derivatives and sensitivity are computed w.r.t. all
-            parameters.
-            If new parameters are added after wrapping the nlp in this, be sure to call
-            `set_target_parameters` again.
-        include_barrier_term : bool, optional
-            If `True`, includes in the KKT matrix a new symbolic variable that
-            represents the barrier function of the interior-point solver. Otherwise, no
-            additional variable is added. See property `kkt` for more details. By
-            default `True`.
-        """
         super().__init__(nlp)
         self.include_barrier_term: bool = include_barrier_term
         self.set_target_parameters(target_parameters)
@@ -67,7 +60,7 @@ class NlpSensitivity(Wrapper[SymType]):
 
     @cached_property
     def lagrangian(self) -> SymType:
-        """Gets the Lagrangian of the NLP problem (usually, `L`)."""
+        """Gets the Lagrangian of the NLP problem (usually denoted as ``L``)."""
         return (
             self.nlp.f
             + cs.dot(self.nlp.lam_g, self.nlp.g)
@@ -78,23 +71,29 @@ class NlpSensitivity(Wrapper[SymType]):
 
     @cached_property
     def kkt(self) -> tuple[SymType, Optional[SymType]]:
-        """Gets the KKT conditions of the NLP problem in vector form, i.e.,
-        ```
-                            |      dLdx     |
-                        K = |       G       |
-                            | diag(lam_h)*H |
-        ```
-        where `dLdx` is the gradient of the lagrangian w.r.t. the primal variables `x`,
-        `G` collects the equality constraints, `H` collects the inequality constraints
-        and `lam_h` its corresponding dual variables.
+        r"""Gets the KKT conditions of the NLP problem in vector form, i.e.,
 
-        If `include_barrier_term=True`, the inequalities include an additional barrier
-        term `tau`, so that
-        ```
-                            diag(lam_h)*H + tau
-        ```
-        which is also returned as the second element of the tuple. Otherwise, `tau` is
-        `None`."""
+        .. math::
+            K = \begin{bmatrix}
+                \frac{\partial L}{\partial x} \\
+                G \\
+                \text{diag}(\lambda_h) \cdot H \\
+            \end{bmatrix}
+
+        where :math:`\frac{\partial L}{\partial x}` is the gradient of the lagrangian
+        w.r.t. the primal variables :math:`x`, :math:`G` collects the equality
+        constraints, :math:`H` collects the inequality constraints and :math:`\lambda_h`
+        its corresponding dual variables.
+
+        If ``include_barrier_term=True``, the inequalities include an additional barrier
+        term ``tau``, so that
+
+        .. math::
+                            \text{diag}(\lambda_h) \cdot H + \tau
+
+        which is also returned as the second element of the tuple. Otherwise, ``tau`` is
+        ``None``.
+        """
         tau = self._tau if self._tau is not None else 0
         kkt = cs.vertcat(
             cs.jacobian(self.lagrangian, self.nlp.x).T,
@@ -109,12 +108,13 @@ class NlpSensitivity(Wrapper[SymType]):
     def jacobians(self) -> dict[str, SymType]:
         """Computes various partial derivatives, which are then grouped in a dict with
         the following entries
-            - `L-x`: lagrangian w.r.t. primal variables
-            - `L-p`: lagrangian w.r.t. parameters
-            - `g-x`: equality constraints w.r.t. primal variables
-            - `h-x`: inequality constraints w.r.t. primal variables
-            - `K-p`: kkt conditions w.r.t. parameters
-            - `K-y`: kkt conditions w.r.t. primal-dual variables
+
+        - ``L-x``: lagrangian w.r.t. primal variables
+        - ``L-p``: lagrangian w.r.t. parameters
+        - ``g-x``: equality constraints w.r.t. primal variables
+        - ``h-x``: inequality constraints w.r.t. primal variables
+        - ``K-p``: kkt conditions w.r.t. parameters
+        - ``K-y``: kkt conditions w.r.t. primal-dual variables.
         """
         L = self.lagrangian
         K = self.kkt[0]
@@ -134,9 +134,10 @@ class NlpSensitivity(Wrapper[SymType]):
     def hessians(self) -> dict[str, SymType]:
         """Computes various partial hessians, which are then grouped in a dict with the
         following entries
-            - `L-pp`: lagrangian w.r.t. parameters (twice)
-            - `L-xx`: lagrangian w.r.t. primal variables (twice)
-            - `L-px`: lagrangian w.r.t. parameters and then primal variables
+
+        - ``L-pp``: lagrangian w.r.t. parameters (twice)
+        - ``L-xx``: lagrangian w.r.t. primal variables (twice)
+        - ``L-px``: lagrangian w.r.t. parameters and then primal variables
         """
         x = self.nlp.x
         p, p_idx = self._p_idx
@@ -152,10 +153,11 @@ class NlpSensitivity(Wrapper[SymType]):
     def hojacobians(self) -> dict[str, np.ndarray]:
         """Computes various 3D jacobians, which are then grouped in a dict with the
         following entries
-            - `K-pp`: kkt conditions w.r.t. parameters (twice)
-            - `K-yp`: kkt conditions w.r.t. parameters and primal variables
-            - `K-yy`: kkt conditions w.r.t. primal variables (twice)
-            - `K-py`: kkt conditions w.r.t. primal variables and parameters
+
+        - ``K-pp``: kkt conditions w.r.t. parameters (twice)
+        - ``K-yp``: kkt conditions w.r.t. parameters and primal variables
+        - ``K-yy``: kkt conditions w.r.t. primal variables (twice)
+        - ``K-py``: kkt conditions w.r.t. primal variables and parameters
         """
         jacobians = self.jacobians
         Kp = jacobians["K-p"]
@@ -171,18 +173,24 @@ class NlpSensitivity(Wrapper[SymType]):
 
     @property
     def licq(self) -> SymType:
-        """Gets the symbolic matrix for LICQ, defined as
-        ```
-                    LICQ = [ dg dx, dh dx, dh_lbx dx, dh_ubx dx ]
-        ```
+        r"""Gets the symbolic matrix for the LICQ, defined as
+
+        .. math::
+            LICQ = \begin{bmatrix}
+                \frac{\partial g}{\partial x} \\
+                \frac{\partial h}{\partial x} \\
+                \frac{\partial h_{lbx}}{\partial x} \\
+                \frac{\partial h_{ubx}}{\partial x}
+            \end{bmatrix}
+
         If the matrix is linear independent, then the NLP satisfies the Linear
         Independence Constraint Qualification.
 
-        Note
+        Notes
         -----
-        The LICQ is computed for only the active inenquality constraints. Since this is
-        a symbolic representation, all constraints are included, and it's up to the user
-        to eliminate the inactive ones.
+        Theoretically, the LICQ is computed for only the active inenquality constraints.
+        Since this is merely a symbolic representation, all constraints are included,
+        and it's up to the user to eliminate the inactive ones.
         """
         return cs.vertcat(
             self.jacobians["g-x"],
@@ -197,22 +205,22 @@ class NlpSensitivity(Wrapper[SymType]):
         solution: Optional[Solution[SymType]] = None,
         second_order: bool = False,
     ) -> Union[tuple[SymType, Optional[SymType]], tuple[cs.DM, Optional[cs.DM]]]:
-        """Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
-        parametrization, according to [1].
+        r"""Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
+        parametrization, according to :cite:`buskens_sensitivity_2001`.
 
         Parameters
         ----------
         expr : casadi.SX or MX, optional
             If provided, computes the sensitivity of this expression (which must be
             dependent on the primal-dual variables and/or parameters of the NLP) w.r.t.
-            the NLP parameters. If `None`, then the sensitivity of the primal-dual
+            the NLP parameters. If ``None``, then the sensitivity of the primal-dual
             variables is returned.
         solution : Solution, optional
             If a solution is passed, then the sensitivity is numerically computed for
             that solution; otherwise, the sensitivity is carried out symbolically
             (however, this is much more computationally intensive).
         second_order : bool, optional
-            If `second_order=False`, the analysis is stopped at the first order;
+            If ``second_order=False``, the analysis is stopped at the first order;
             otherwise, also second-order information is computed.
 
         Returns
@@ -220,19 +228,12 @@ class NlpSensitivity(Wrapper[SymType]):
         2-element tuple of casadi.SX, or MX, or DM
             The 1st and 2nd-order NLP parametric sensitivity in the form of an array/DM,
             if a solution is passed, or a symbolic vector SX/MX. When
-            `second_order=False` the second element in the tuple is `None`.
+            ``second_order=False`` the second element in the tuple is ``None``.
 
         Raises
         ------
         numpy.linalg.LinAlgError
             Raises if the KKT conditions lead to a singular matrix.
-
-        References
-        ----------
-        [1] Buskens, C. and Maurer, H. (2001). Sensitivity analysis and real-time
-            optimization of parametric nonlinear programming problems. In M. Grotschel,
-            S.O. Krumke, and J. Rambau (eds.), Online Optimization of Large Scale
-            Systems, 3–16. Springer, Berlin, Heidelberg.
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
         d: Callable[[SymType], Union[SymType, cs.DM]] = (
@@ -297,7 +298,7 @@ class NlpSensitivity(Wrapper[SymType]):
         second_order: bool,
         d: Callable[[SymType], Union[SymType, cs.DM]],
     ) -> Union[tuple[SymType, np.ndarray, SymType], tuple[cs.DM, np.ndarray, cs.DM]]:
-        """Internal utility to compute the sensitivity of y w.r.t. p."""
+        """Internal utility to compute the sensitivity of ``y`` w.r.t. ``p``."""
         # first order sensitivity, a.k.a., dydp
         Ky = d(self.jacobians["K-y"])
         Kp = d(self.jacobians["K-p"])
@@ -324,7 +325,7 @@ class NlpSensitivity(Wrapper[SymType]):
 
     @invalidate_cache(jacobians, hessians, hojacobians)
     def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
-        """See `Nlp.parameter` method."""
+        """See :meth:`csnlp.Nlp.parameter`."""
         return self.nlp.parameter(name, shape)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
@@ -335,7 +336,7 @@ class NlpSensitivity(Wrapper[SymType]):
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
-        """See `Nlp.variable` method."""
+        """See :meth:`csnlp.Nlp.variable`."""
         return self.nlp.variable(name, shape, lb, ub)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
@@ -348,12 +349,12 @@ class NlpSensitivity(Wrapper[SymType]):
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
-        """See `Nlp.constraint` method."""
+        """See :meth:`csnlp.Nlp.constraint`."""
         return self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
 
     @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
     def minimize(self, objective: SymType) -> None:
-        """See `Nlp.minimize` method."""
+        """See :meth:`csnlp.Nlp.minimize`."""
         return self.nlp.minimize(objective)
 
     @invalidate_cache(jacobians, hessians, hojacobians)
@@ -363,8 +364,8 @@ class NlpSensitivity(Wrapper[SymType]):
         Parameters
         ----------
         parameters : casadi.MX or SX or None
-            New parameters to target during the sensitivity analyses. If `None`, all NLP
-            parameters are included.
+            New parameters to target during the sensitivity analyses. If ``None``, all
+            NLP parameters are included.
         """
         if parameters is None:
             self._p_idx_internal = None, slice(None)
@@ -377,8 +378,8 @@ class NlpSensitivity(Wrapper[SymType]):
 
     @property
     def _p_idx(self) -> tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
-        """Internal utility to return the indices of p from all the NLP pars. While SX
-        is fine with computing jacobians with indexed variables, MX requires purely
+        """Internal utility to return the indices of ``p`` from all the NLP pars. While
+        SX is fine with computing jacobians with indexed variables, MX requires purely
         symbolic variables. So, for MX, jacobians need to be computed for all elements
         and then indexed."""
         p = self._p_idx_internal[0]

@@ -1,22 +1,42 @@
-from inspect import getframeinfo
-from itertools import dropwhile
-from traceback import walk_stack
-from types import MappingProxyType
-from typing import NamedTuple
+"""Contains classes for storing debug information on the parameters, variables and
+constraints in an instance of the :class:`csnlp.Nlp` class."""
 
-from numpy import prod
+from inspect import getframeinfo as _getframeinfo
+from itertools import dropwhile as _dropwhile
+from traceback import walk_stack as _walk_stack
+from types import MappingProxyType as _MappingProxyType
+from typing import Literal
+from typing import NamedTuple as _NamedTuple
+
+from numpy import prod as _prod
 
 
-class NlpDebugEntry(NamedTuple):
-    """Class representing a single entry of debug information for the NLP."""
+class NlpDebugEntry(_NamedTuple):
+    """Class representing a single entry of the debug information for an
+    :class:`csnlp.Nlp` instance."""
 
     name: str
-    type: str
+    """Name of the quantity."""
+
+    type: Literal[
+        "Parameter", "Decision variable", "Equality constraint", "Inequality constraint"
+    ]
+    """Type of the quantity."""
+
     shape: tuple[int, ...]
+    """Shape of the quantity."""
+
     filename: str
+    """Name of the file where the quantity is defined."""
+
     function: str
+    """Name of the function/method where the quantity is defined."""
+
     lineno: int
+    """Line number where the quantity is defined."""
+
     context: str
+    """Context in which the quantity is defined."""
 
     def __str__(self) -> str:
         shape = "x".join(str(d) for d in self.shape)
@@ -32,15 +52,16 @@ class NlpDebugEntry(NamedTuple):
 
 
 class NlpDebug:
-    """
-    NLP debug class for information about variables and constraints. In
-    particular, it records information on
-     - the decision variable `x`
-     - the equality constraints `g`
-     - the inequality constraints `h`
+    """NLP debug class for information about variables and constraints in an instance
+    of the :class:`csnlp.Nlp` class. In particular, it records information on
+
+    - the parameters ``p``
+    - the decision variable ``x``
+    - the equality constraints ``g``
+    - the inequality constraints ``h``.
     """
 
-    types = MappingProxyType(
+    _types = _MappingProxyType(
         {
             "p": "Parameter",
             "x": "Decision variable",
@@ -48,16 +69,16 @@ class NlpDebug:
             "h": "Inequality constraint",
         }
     )
+    """Possible types of quantities and their definition."""
 
     def __init__(self) -> None:
-        """Initializes the debug information collector."""
         self._p_info: list[tuple[range, NlpDebugEntry]] = []
         self._x_info: list[tuple[range, NlpDebugEntry]] = []
         self._g_info: list[tuple[range, NlpDebugEntry]] = []
         self._h_info: list[tuple[range, NlpDebugEntry]] = []
 
     def p_describe(self, index: int) -> NlpDebugEntry:
-        """Returns debug information on the parameter at the given `index`.
+        """Returns debug information on the parameter at the given ``index``.
 
         Parameters
         ----------
@@ -78,7 +99,7 @@ class NlpDebug:
         return self.__describe(self._p_info, index)
 
     def x_describe(self, index: int) -> NlpDebugEntry:
-        """Returns debug information on the variable at the given `index`.
+        """Returns debug information on the variable at the given ``index``.
 
         Parameters
         ----------
@@ -99,7 +120,7 @@ class NlpDebug:
         return self.__describe(self._x_info, index)
 
     def g_describe(self, index: int) -> NlpDebugEntry:
-        """Returns debug information on the constraint at the given `index`.
+        """Returns debug information on the constraint at the given ``index``.
 
         Parameters
         ----------
@@ -120,7 +141,7 @@ class NlpDebug:
         return self.__describe(self._g_info, index)
 
     def h_describe(self, index: int) -> NlpDebugEntry:
-        """Returns debug information on the constraint at the given `index`.
+        """Returns debug information on the constraint at the given ``index``.
 
         Parameters
         ----------
@@ -140,13 +161,15 @@ class NlpDebug:
         """
         return self.__describe(self._h_info, index)
 
-    def register(self, group: str, name: str, shape: tuple[int, ...]) -> None:
+    def register(
+        self, group: Literal["p", "x", "g", "h"], name: str, shape: tuple[int, ...]
+    ) -> None:
         """Registers debug information on new object name under the specific
         group.
 
         Parameters
         ----------
-        group : {'p', 'x', 'g', 'h'}
+        group : {"p", "x", "g", "h"}
             Indentifies the group the object belongs to: parameters, variables,
             equality constraints or inequality constraints.
         name : str
@@ -159,19 +182,19 @@ class NlpDebug:
         AttributeError
             Raises in case the given group is invalid.
         """
-        stack = dropwhile(
-            lambda f: f[0].f_globals["__name__"].startswith("csnlp."), walk_stack(None)
+        stack = _dropwhile(
+            lambda f: f[0].f_globals["__name__"].startswith("csnlp."), _walk_stack(None)
         )
         frame, lineno = next(stack)
-        traceback = getframeinfo(frame, context=3)
+        traceback = _getframeinfo(frame, context=3)
         info: list[tuple[range, NlpDebugEntry]] = getattr(self, f"_{group}_info")
         last = info[-1][0].stop if info else 0
         info.append(
             (
-                range(last, last + prod(shape)),
+                range(last, last + _prod(shape)),
                 NlpDebugEntry(
                     name,
-                    self.types[group],
+                    self._types[group],
                     shape,
                     traceback.filename,
                     traceback.function,

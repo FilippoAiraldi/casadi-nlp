@@ -17,13 +17,33 @@ def _n(statename: str) -> str:
 
 
 class Mpc(NonRetroactiveWrapper[SymType]):
-    """A wrapper to easily turn the NLP scheme into an MPC controller. Most of the
-    theory for MPC is taken from [1].
+    """A wrapper to easily turn an NLP scheme into an MPC controller. Most of the theory
+    for MPC is taken from :cite:`rawlings_model_2017`.
 
-    References
+    Parameters
     ----------
-    [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
-        theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
+    nlp : Nlp
+        NLP scheme to be wrapped
+    prediction_horizon : int
+        A positive integer for the prediction horizon of the MPC controller.
+    control_horizon : int, optional
+        A positive integer for the control horizon of the MPC controller. If not given,
+        it is set equal to the control horizon.
+    input_spacing : int, optional
+        Spacing between independent input actions. This argument allows to reduce the
+        number of free actions along the control horizon by allowing only the first
+        action every ``n`` to be free, and the following ``n-1`` to be fixed equal to
+        that action (where ``n`` is given by ``input_spacing``). By default, no spacing
+        is allowed, i.e., ``1``.
+    shooting : 'single' or 'multi', optional
+        Type of approach in the direct shooting for parametrizing the control
+        trajectory. See Section 8.5 in :cite:`rawlings_model_2017`. By default, direct
+        shooting is used.
+
+    Raises
+    ------
+    ValueError
+        Raises if the shooting method is invalid; or if any of the horizons are invalid.
     """
 
     def __init__(
@@ -34,38 +54,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
-        """Initializes the MPC wrapper around the NLP instance.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            NLP scheme to be wrapped
-        prediction_horizon : int
-            A positive integer for the prediction horizon of the MPC controller.
-        control_horizon : int, optional
-            A positive integer for the control horizon of the MPC controller. If not
-            given, it is set equal to the control horizon.
-        input_spacing : int, optional
-            Spacing between independent input actions. This argument allows to reduce
-            the number of free actions along the control horizon by allowing only the
-            first action every `n` to be free, and the following `n-1` to be fixed equal
-            to that action (where `n` is given by `input_spacing`). By default, no
-            spacing is allowed, i.e., 1.
-        shooting : 'single' or 'multi', optional
-            Type of approach in the direct shooting for parametrizing the control
-            trajectory. See [1, Section 8.5]. By default, direct shooting is used.
-
-        Raises
-        ------
-        ValueError
-            Raises if the shooting method is invalid; or if any of the horizons are
-            invalid.
-
-        References
-        ----------
-        [1] Rawlings, J.B., Mayne, D.Q. and Diehl, M., 2017. Model Predictive Control:
-            theory, computation, and design (Vol. 2). Madison, WI: Nob Hill Publishing.
-        """
         super().__init__(nlp)
 
         if not isinstance(prediction_horizon, int) or prediction_horizon <= 0:
@@ -171,10 +159,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     @property
     def dynamics(self) -> Optional[cs.Function]:
         """Dynamics of the controller's prediction model, i.e., a CasADi function of the
-        form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where `x,u,d` are the state, action,
-        disturbances respectively, and `x+` is the next state. The function can have
-        multiple outputs, in which case `x+` is assumed to be the first one.
-        """
+        form :math:`x_+ = F(x,u)` or :math:`x+ = F(x,u,d)`, where :math:`x,u,d` are the
+        state, action, disturbances respectively, and :math:`x_+` is the next state. The
+        function can have multiple outputs, in which case :math:`x_+` is assumed to be
+        the first one."""
         return self._dynamics
 
     def state(
@@ -197,22 +185,22 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         size : int
             Size of the state (assumed to be a vector).
         lb : array_like, casadi.DM, optional
-            Hard lower bound of the state, by default -np.inf.
+            Hard lower bound of the state, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
-            Hard upper bound of the state, by default +np.inf.
+            Hard upper bound of the state, by default ``+np.inf``.
         bound_initial : bool, optional
-            If `False`, then the upper and lower bounds on the initial state are not
-            imposed, i.e., set to `+/- np.inf` (since the initial state is constrained
+            If ``False``, then the upper and lower bounds on the initial state are not
+            imposed, i.e., set to ``+/- np.inf`` (since the initial state is constrained
             to be equal to the current state of the system, it is sometimes advantageous
-            to remove its bounds). By default `True`.
+            to remove its bounds). By default ``True``.
         bound_terminal : bool, optional
-            Same as above, but for the terminal state. By default `True`.
+            Same as above, but for the terminal state. By default ``True``.
 
         Returns
         -------
         state : casadi.SX or MX or None
-            The state symbolic variable. If `shooting=single`, then `None` is returned
-            since the state will only be available once the dynamics are set.
+            The state symbolic variable. If ``shooting=single``, then ``None`` is
+            returned since the state will only be available once the dynamics are set.
         initial state : casadi.SX or MX
             The initial state symbolic parameter.
 
@@ -223,7 +211,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         RuntimeError
             Raises in single shooting if lower or upper bounds have been specified,
             since these can only be set after the dynamics have been set via the
-            `constraint` method.
+            :meth:`constraint` method.
         """
         x0_name = _n(name)
         if self._is_multishooting:
@@ -269,11 +257,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         name : str
             Name of the control action.
         size : int, optional
-            Size of the control action (assumed to be a vector). Defaults to 1.
+            Size of the control action (assumed to be a vector). Defaults to ``1``.
         lb : array_like, casadi.DM, optional
-            Hard lower bound of the control action, by default -np.inf.
+            Hard lower bound of the control action, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
-            Hard upper bound of the control action, by default +np.inf.
+            Hard upper bound of the control action, by default ``+np.inf``.
 
         Returns
         -------
@@ -308,7 +296,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         name : str
             Name of the disturbance.
         size : int, optional
-            Size of the disturbance (assumed to be a vector). Defaults to 1.
+            Size of the disturbance (assumed to be a vector). Defaults to ``1``.
 
         Returns
         -------
@@ -328,7 +316,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
-        """See `Nlp.constraint` method."""
+        """See :meth:`csnlp.Nlp.constraint`."""
         out = self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
         if soft:
             self._slacks[f"slack_{name}"] = out[2]
@@ -349,10 +337,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         Parameters
         ----------
         F : casadi.Function or callable
-            A CasADi function of the form `x+ = F(x,u)` or `x+ = F(x,u,d)`, where
-            `x, u, d` are the state, action, disturbances respectively, and `x+` is the
-            next state. The function can have multiple outputs, in which case `x+` is
-            assumed to be the first one.
+            A CasADi function of the form :math:`x_+ = F(x,u)` or :math:`x+ = F(x,u,d)`,
+            where :math:`x,u,d` are the state, action, disturbances respectively, and
+            :math:`x_+` is the next state. The function can have multiple outputs, in
+            which case :math:`x_+` is assumed to be the first one.
         n_in : int, optional
             In case a callable is passed instead of a casadi.Function, then the number
             of inputs must be manually specified via this argument.
@@ -365,7 +353,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             When setting, raises if the dynamics do not accept 2 or 3 input arguments.
         RuntimeError
             When setting, raises if the dynamics have been already set; or if the
-            function `F` does not take accept the expected input sizes.
+            function ``F`` does not take accept the expected input sizes.
         """
         if self._dynamics is not None:
             raise RuntimeError("Dynamics were already set.")

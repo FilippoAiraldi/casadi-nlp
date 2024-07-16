@@ -1,13 +1,13 @@
-name: Test-Dev
+name: Test-Main
 
 on:
   push:
     branches:
-      - dev
+      - main
 
 jobs:
 
-  test-dev:
+  test-main:
 
     runs-on: ubuntu-latest
     strategy:

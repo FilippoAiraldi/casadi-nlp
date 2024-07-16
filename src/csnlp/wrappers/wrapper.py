@@ -12,23 +12,23 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
-    """Wraps an NLP to allow a modular transformation of its methods. This class is the
-    base class for all wrappers. The subclass could override some methods to change the
-    behavior of the original environment without touching the original code.
+    """Wraps an instance of :class:`csnlp.Nlp` to allow a modular transformation of its
+    methods. This class is the base class for all wrappers. The subclass can then
+    override some methods to change the behavior of the original environment without
+    touching the original code.
 
     The base class is retroactive, in the sense that it can be applied to any NLP
     instance that already defines variables, parameters, and/or objective. Use
-    `NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is defined.
+    :class:`NonRetroactiveWrapper` for wrappers that need to wrap an NLP before it is
+    defined.
+
+    Parameters
+    ----------
+    nlp : Nlp or subclass
+        The NLP to wrap.
     """
 
     def __init__(self, nlp: Nlp[SymType]) -> None:
-        """Wraps an NLP instance.
-
-        Parameters
-        ----------
-        nlp : Nlp or subclass
-            The NLP to wrap.
-        """
         super().__init__()
         self.nlp = nlp
 
@@ -48,7 +48,8 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
         Returns
         -------
         bool
-            `True` if wrapped by an instance of `wrapper_type`; `False`, otherwise.
+            ``True`` if wrapped by an instance of ``wrapper_type``; ``False``,
+            otherwise.
         """
         if isinstance(self, wrapper_type):
             return True
@@ -89,24 +90,23 @@ class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
 
 
 class NonRetroactiveWrapper(Wrapper[SymType], Generic[SymType]):
-    """Same as `Wrapper`, but the wrapped NLP instance must have no variable, parameter
-    or objective specified; in other words, the wrapper must wrap the NLP before it gets
-    defined."""
+    """Same as :class:`Wrapper`, but the wrapped NLP instance must have no variable,
+    parameter or objective specified; in other words, the wrapper must wrap the NLP
+    before it gets defined.
+
+    Parameters
+    ----------
+    nlp : Nlp
+        The NLP instance to be wrapped.
+
+    Raises
+    ------
+    ValueError
+        Raises if the objective, variables, dual variables, parameters or constraints
+        are already defined in this NLP instance.
+    """
 
     def __init__(self, nlp: Nlp[SymType]) -> None:
-        """Initializes the non-retroactive wrapper around an NLP.
-
-        Parameters
-        ----------
-        nlp : Nlp
-            The NLP instance to be wrapped.
-
-        Raises
-        ------
-        ValueError
-            Raises if the objective, variables, dual variables, parameters or
-            constraints are already defined in this NLP instance.
-        """
         super().__init__(nlp)
         unlp = nlp.unwrapped
         if (

@@ -1,4 +1,19 @@
-__version__ = "1.5.11rc4"
+r"""**C**\ a\ **s**\ ADi-**NLP**\  (**csnlp**, for short) is a library that provides
+classes and utilities to model, solve and analyse nonlinear (but not only) programmes
+(NLPs) for optimization purposes.
+
+==================== ========================================================
+**Documentation**        https://casadi-nlp.readthedocs.io/en/latest/
+
+**Download**             https://pypi.python.org/pypi/csnlp/
+
+**Source code**          https://github.com/FilippoAiraldi/casadi-nlp/
+
+**Report issues**        https://github.com/FilippoAiraldi/casadi-nlp/issues/
+==================== ========================================================
+"""
+
+__version__ = "1.5.10.post2"
 
 __all__ = ["Nlp", "Solution", "multistart", "scaling"]
 
