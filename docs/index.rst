@@ -14,6 +14,7 @@ NonLinear Programming with CasADi
    Getting started <getting-started>
    Module reference <module-reference>
    Examples <auto_examples/index>
+   Changelog <https://github.com/FilippoAiraldi/casadi-nlp/releases>
 
 Indices and tables
 ==================
