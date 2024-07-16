@@ -13,6 +13,9 @@
 .. |Tests| image:: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg
    :target: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml
    :alt: Tests
+.. |Docs| image:: https://readthedocs.org/projects/casadi-nlp/badge/?version=latest
+    :target: https://casadi-nlp.readthedocs.io/en/latest/?badge=latest
+    :alt: Docs
 .. |Downloads| image:: https://static.pepy.tech/badge/csnlp
    :target: https://www.pepy.tech/projects/csnlp
    :alt: Downloads

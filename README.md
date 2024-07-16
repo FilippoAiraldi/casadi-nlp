@@ -6,7 +6,7 @@ optimization purposes.
 
 > |   |   |
 > |---|---|
-> | **Documentation** | In progress                                            |
+> | **Documentation** | <https://casadi-nlp.readthedocs.io/en/latest/>         |
 > | **Download**      | <https://pypi.python.org/pypi/csnlp/>                  |
 > | **Source code**   | <https://github.com/FilippoAiraldi/casadi-nlp/>        |
 > | **Report issues** | <https://github.com/FilippoAiraldi/casadi-nlp/issues/> |
@@ -16,6 +16,7 @@ optimization purposes.
 ![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
 
 [![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml)
+[![Docs](https://readthedocs.org/projects/casadi-nlp/badge/?version=latest)](https://casadi-nlp.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
