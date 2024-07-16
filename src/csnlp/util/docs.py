@@ -10,7 +10,8 @@ import collections
 import contextlib
 import itertools
 import warnings
-from typing import Any, Callable
+from typing import Any as _Any
+from typing import Callable
 
 import casadi as cs
 
@@ -86,7 +87,7 @@ def _get_doc_cell(lines) -> _DocCell:
     return _DocCell(id, default, doc)
 
 
-def _get_doc_dict(docstring: str) -> dict[str, tuple[Any, str]]:
+def _get_doc_dict(docstring: str) -> dict[str, tuple[_Any, str]]:
     lineiter = itertools.dropwhile(
         lambda x: not x.startswith(_TABLE_START), docstring.split("\n")
     )
@@ -161,7 +162,9 @@ def list_available_solvers() -> dict[str, list[str]]:
     }
 
 
-def get_solver_options(solver: str, display: bool = True) -> dict[str, tuple[Any, str]]:
+def get_solver_options(
+    solver: str, display: bool = True
+) -> dict[str, tuple[_Any, str]]:
     """Returns the solver-specific options, with default value and description whenever
     available.
 
@@ -189,7 +192,7 @@ def get_solver_options(solver: str, display: bool = True) -> dict[str, tuple[Any
         docstring = cs.doc_conic(solver)
     else:
         raise ValueError(f"Unknown solver: '{solver}'.")
-    options: dict[str, tuple[Any, str]] = _get_doc_dict(docstring)
+    options = _get_doc_dict(docstring)
     if display:
         print("Available options [default] for %s:\n" % solver)
         for k in sorted(options.keys()):

@@ -10,7 +10,9 @@ from copy import _reconstruct
 from copy import deepcopy as _deepcopy
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING
+from typing import Any as _Any
+from typing import Callable, Literal, Optional
 from typing import TypeVar as _TypeVar
 
 from ..core.cache import invalidate_caches_of as _invalidate_caches_of
@@ -19,7 +21,7 @@ if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
 
 
-def is_casadi_object(obj: Any) -> bool:
+def is_casadi_object(obj: _Any) -> bool:
     """Checks if the object belongs to the CasADi module.
 
     See `this thread <https://stackoverflow.com/a/52783240/19648688>`_ for more
@@ -41,7 +43,7 @@ def is_casadi_object(obj: Any) -> bool:
     return module == "casadi"
 
 
-def is_pickleable(obj: Any) -> bool:
+def is_pickleable(obj: _Any) -> bool:
     """Checks whether the object is pickeable.
 
     Parameters
@@ -94,7 +96,7 @@ class SupportsDeepcopyAndPickle:
             _invalidate_caches_of(new)
         return new
 
-    def __deepcopy__(self: T, memo: Optional[dict[int, list[Any]]] = None) -> T:
+    def __deepcopy__(self: T, memo: Optional[dict[int, list[_Any]]] = None) -> T:
         """Returns a deepcopy of the object."""
         rv = self.__reduce_ex__(4)
         if isinstance(rv, str):
@@ -105,7 +107,7 @@ class SupportsDeepcopyAndPickle:
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 
-    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, Any]]:
+    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, _Any]]:
         """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
         if not (hasattr(self, "__dict__") and self.__dict__.keys()):
@@ -137,7 +139,7 @@ def save(
     compression: Optional[
         Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
     ] = None,
-    **data: Any,
+    **data: _Any,
 ) -> str:
     """Saves data to a (possibly compressed) file. Inspired by
     `this discussion <https://stackoverflow.com/a/57983757/19648688>`_
@@ -247,7 +249,7 @@ def save(
     return filename
 
 
-def load(filename: str) -> dict[str, Any]:
+def load(filename: str) -> dict[str, _Any]:
     """Loads data from a (possibly compressed) file.
 
     Parameters

@@ -6,7 +6,7 @@ object on the fly."""
 
 import functools
 import inspect
-from typing import Any, Callable
+from typing import Callable
 
 
 def _is_cached_property(c: Callable) -> bool:
@@ -117,7 +117,7 @@ def invalidate_cache(*callables: Callable) -> Callable:
     return decorating_function
 
 
-def invalidate_caches_of(obj: Any) -> None:
+def invalidate_caches_of(obj) -> None:
     """Similar to the decorator :func:`invalidate_cache`, but clears the case of
     the given object only once.
 

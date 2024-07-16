@@ -5,7 +5,7 @@ from collections.abc import Iterable as _Iterable
 from dataclasses import dataclass as _dataclass
 from functools import partial as _partial
 from itertools import product as _product
-from typing import Any
+from typing import Any as _Any
 from typing import Generic as _Generic
 from typing import TypeVar as _TypeVar
 from typing import Union
@@ -41,7 +41,7 @@ class Solution(_Generic[SymType]):
     dual_vals: dict[str, cs.DM]
     """Optimal values of the dual variables."""
 
-    stats: dict[str, Any]
+    stats: dict[str, _Any]
     """Statistics of the solver for this solution's run."""
 
     _get_value: _partial
