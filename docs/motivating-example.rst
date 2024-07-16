@@ -1,8 +1,5 @@
-Motivating example
-==================
-
 A simple optimization problem
------------------------------
+=============================
 
 Here we provide a compact example on how **csnlp** can be employed to build and solve
 an optimization problem. Similar to :class:`casadi.Opti`, we instantiate a class which
@@ -40,7 +37,7 @@ We can do so with the following code:
 
 
 Enhancing the NLP class
------------------------
+=======================
 
 However, the package also allows to seamlessly enhance the standard :class:`csnlp.Nlp`
 with different capabilities. For instance, when the problem is highly nonlinear and

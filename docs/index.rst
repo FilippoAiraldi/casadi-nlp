@@ -8,47 +8,12 @@ NonLinear Programming with CasADi
 .. include:: installation.rst
 .. include:: author.rst
 
-User manual
------------
-
 .. toctree::
-   :maxdepth: 2
+   :hidden:
 
-   installation
-   motivating-example
-   auto_examples/index
-
-.. currentmodule:: csnlp
-
-Main components
----------------
-
-.. autosummary::
-   :toctree: generated
-   :template: class.rst
-   :caption: Main components
-
-   csnlp.Nlp
-   csnlp.Solution
-
-.. autosummary::
-   :toctree: generated
-   :template: module.rst
-
-   csnlp.multistart
-   csnlp.wrappers
-
-Other components
-----------------
-
-.. autosummary::
-   :toctree: generated
-   :template: module.rst
-   :caption: Other components
-
-   csnlp.core
-   csnlp.nlps
-   csnlp.util
+   Getting started <getting-started>
+   Module reference <module-reference>
+   Examples <auto_examples/index>
 
 Indices and tables
 ==================

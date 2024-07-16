@@ -69,10 +69,28 @@ numpydoc_show_inherited_class_members = True
 
 html_static_path = ["_static"]
 html_logo = "_static/csnlp.logo.png"
-html_theme = "alabaster"
+html_theme = "pydata_sphinx_theme"
 html_theme_options = {
+    "icon_links": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/FilippoAiraldi/casadi-nlp",
+            "icon": "fa-brands fa-github",
+        },
+        {
+            "name": "PyPI",
+            "url": "https://pypi.org/project/csnlp/",
+            "icon": "fa-solid fa-box",
+        },
+    ],
+    "logo": {"text": "csnlp"},
+    "use_edit_page_button": True,
+    "footer_start": ["copyright"],
+    "footer_center": ["sphinx-version"],
+}
+html_context = {
     "github_user": "FilippoAiraldi",
     "github_repo": "casadi-nlp",
-    "github_button": "true",
-    "link": "#aa560c",
+    "github_version": "main",
+    "doc_path": "docs",
 }
