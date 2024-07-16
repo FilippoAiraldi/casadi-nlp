@@ -111,7 +111,9 @@ plt.show()
 n_multistarts = 4
 nlp = ms.StackedMultistartNlp[cs.SX](starts=n_multistarts)
 # nlp = ms.MappedMultistartNlp[cs.SX](starts=n_multistarts, parallelization="thread")
-# nlp = ms.ParallelMultistartNlp[cs.SX](starts=n_multistarts, n_jobs=n_multistarts)
+# nlp = ms.ParallelMultistartNlp[cs.SX](
+#     starts=n_multistarts, parallel_kwargs={"n_jobs": n_multistarts}
+# )
 x = nlp.variable("x", lb=LB, ub=UB)[0]
 p0 = nlp.parameter("p0")
 p1 = nlp.parameter("p1")

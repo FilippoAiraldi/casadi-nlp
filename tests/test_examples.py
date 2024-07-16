@@ -65,7 +65,9 @@ class TestExamples(unittest.TestCase):
 
         nlps: list[MultistartNlp] = [
             StackedMultistartNlp(starts=N, sym_type=self.sym_type),
-            ParallelMultistartNlp(starts=N, n_jobs=N, sym_type=self.sym_type),
+            ParallelMultistartNlp(
+                starts=N, sym_type=self.sym_type, parallel_kwargs={"n_jobs": N}
+            ),
         ]
         sols = []
         for nlp in nlps:
@@ -78,11 +80,10 @@ class TestExamples(unittest.TestCase):
 
             best_sol: Solution = nlp.solve_multi(*args)
             all_sols: list[Solution] = nlp.solve_multi(*args, return_all_sols=True)
-            fs = [all_sol.f for all_sol in all_sols]
-            self.assertEqual(best_sol.f, min(fs))
-            np.testing.assert_allclose(fs, RESULTS["multistart_nlp_fs"])
-
             all_sols.sort()
+            fs = [all_sol.f for all_sol in all_sols]
+            self.assertEqual(best_sol.f, fs[0])
+            np.testing.assert_allclose(fs, np.sort(RESULTS["multistart_nlp_fs"]))
             sols.append(all_sols)
 
         for sol1, sol2 in zip(*sols):
@@ -215,7 +216,11 @@ class TestExamples(unittest.TestCase):
         alpha = 1 / (300 * g)
         seed = 69
         rng = np.random.default_rng(seed)
-        kwargs = {"n_jobs": -1} if multinlp_cls is ParallelMultistartNlp else {}
+        kwargs = (
+            {"parallel_kwargs": {"n_jobs": -1}}
+            if multinlp_cls is ParallelMultistartNlp
+            else {}
+        )
         nlp = multinlp_cls(sym_type="SX", starts=K, **kwargs)
 
         y_nom = 1e5
