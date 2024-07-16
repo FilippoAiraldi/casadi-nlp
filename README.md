@@ -25,10 +25,10 @@ a more flexible and modular one for research purposes.
 
 > |   |   |
 > |---|---|
-> | **Documentation:** | In progress                                         |
-> | **Download:**      | https://pypi.python.org/pypi/csnlp#downloads        |
-> | **Source code:**   | https://github.com/FilippoAiraldi/casadi-nlp/       |
-> | **Report issues:** | https://github.com/FilippoAiraldi/casadi-nlp/issues |
+> | **Documentation:** | In progress                                          |
+> | **Download:**      | https://pypi.python.org/pypi/csnlp/                  |
+> | **Source code:**   | https://github.com/FilippoAiraldi/casadi-nlp/        |
+> | **Report issues:** | https://github.com/FilippoAiraldi/casadi-nlp/issues/ |
 
 As aforementioned, **csnlp** builds on top of the [CasADi](https://web.casadi.org/)
 framework [[1]](#1) to model the optimization problems and perform symbolic

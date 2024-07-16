@@ -1,0 +1,4 @@
+sphinx==7.3.7
+numpydoc==1.7.0
+sphinx_autodoc_typehints==2.2.2
+sphinx-gallery==0.16.0
