@@ -15,7 +15,7 @@ Main classes and submodules
    :template: class.rst
    :caption: Main components
 
-   nlps.nlp.Nlp
+   Nlp
    Solution
 
 .. autosummary::
