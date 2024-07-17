@@ -1,0 +1,11 @@
+[
+    {
+        "version": "stable",
+        "url": "https://casadi-nlp.readthedocs.io/en/stable/",
+        "preferred": true
+    },
+    {
+        "version": "latest",
+        "url": "https://casadi-nlp.readthedocs.io/en/latest/"
+    }
+]
