@@ -67,6 +67,16 @@ numpydoc_show_inherited_class_members = True
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
+# decide which version of the docs is being built
+version_match = os.environ.get("READTHEDOCS_VERSION")
+if (
+    not version_match or version_match.isdigit() or version_match == "latest"
+) and "rc" in release:
+    version_match = "latest"
+else:
+    version_match = "stable"
+
+# options for the html output and theme
 html_static_path = ["_static"]
 html_logo = "_static/csnlp.logo.png"
 html_theme = "pydata_sphinx_theme"
@@ -83,10 +93,15 @@ html_theme_options = {
             "icon": "fa-solid fa-box",
         },
     ],
+    "navbar_end": ["theme-switcher", "version-switcher", "navbar-icon-links"],
     "logo": {"text": "csnlp"},
     "use_edit_page_button": True,
     "footer_start": ["copyright"],
     "footer_center": ["sphinx-version"],
+    "switcher": {
+        "json_url": "https://casadi-nlp.readthedocs.io/en/latest/_static/switcher.json",
+        "version_match": version_match,
+    },
 }
 html_context = {
     "github_user": "FilippoAiraldi",
