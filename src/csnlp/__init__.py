@@ -3,7 +3,7 @@ classes and utilities to model, solve and analyse nonlinear (but not only) progr
 (NLPs) for optimization purposes.
 
 ==================== ========================================================
-**Documentation**        https://casadi-nlp.readthedocs.io/en/latest/
+**Documentation**        https://casadi-nlp.readthedocs.io/en/stable/
 
 **Download**             https://pypi.python.org/pypi/csnlp/
 
