@@ -15,7 +15,7 @@ You can use `pip` to install **csnlp** with the command
 -  Python 3.9 or higher
 -  `NumPy <https://pypi.org/project/numpy/>`__
 -  `CasADi <https://pypi.org/project/casadi/>`__
--  `Joblib <https://joblib.readthedocs.io/en/latest/>`__
+-  `Joblib <https://joblib.readthedocs.io/>`__
 
 
 Using source code

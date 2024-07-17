@@ -67,7 +67,7 @@ pip install csnlp
 - Python 3.9 or higher
 - [NumPy](https://pypi.org/project/numpy/)
 - [CasADi](https://pypi.org/project/casadi/)
-- [Joblib](https://joblib.readthedocs.io/en/latest/)
+- [Joblib](https://joblib.readthedocs.io/)
 
 ### Using source code
 
