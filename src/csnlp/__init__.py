@@ -9,8 +9,8 @@ classes and utilities to model, solve and analyse nonlinear (but not only) progr
 
 **Source code**          https://github.com/FilippoAiraldi/casadi-nlp/
 
-**Report issues**        https://github.com/FilippoAiraldi/casadi-nlp/issues/
-==================== ========================================================
+**Report issues**        https://github.com/FilippoAiraldi/casadi-nlp/issues
+==================== =======================================================
 """
 
 __version__ = "1.6.0"

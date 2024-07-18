@@ -15,6 +15,7 @@ project = csnlp.__name__
 copyright = "2024, Filippo Airaldi"
 author = "Filippo Airaldi"
 version = release = csnlp.__version__
+github_repo = "casadi-nlp"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -39,6 +40,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "scipy": ("https://docs.scipy.org/doc/scipy/", None),
     "matplotlib": ("https://matplotlib.org/stable/", None),
+    "joblib": ("https://joblib.readthedocs.io/en/stable/", None),
 }
 
 # The name of the Pygments (syntax highlighting) style to use.
@@ -47,11 +49,11 @@ highlight_language = "python3"
 
 # config for the sphinx gallery of examples
 sphinx_gallery_conf = {
-    "doc_module": "csnlp",
+    "doc_module": project,
     "backreferences_dir": os.path.join("generated/generated"),
-    "reference_url": {"csnlp": None},
+    "reference_url": {project: None},
     "filename_pattern": "",
-    "default_thumb_file": "_static/csnlp.logo.examples.png",
+    "default_thumb_file": f"_static/{project}.logo.examples.png",
 }
 
 # for references
@@ -78,34 +80,35 @@ else:
 
 # options for the html output and theme
 html_static_path = ["_static"]
-html_logo = "_static/csnlp.logo.png"
+html_logo = f"_static/{project}.logo.png"
 html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "icon_links": [
         {
             "name": "GitHub",
-            "url": "https://github.com/FilippoAiraldi/casadi-nlp",
+            "url": f"https://github.com/FilippoAiraldi/{github_repo}",
             "icon": "fa-brands fa-github",
         },
         {
             "name": "PyPI",
-            "url": "https://pypi.org/project/csnlp/",
+            "url": f"https://pypi.org/project/{project}/",
             "icon": "fa-solid fa-box",
         },
     ],
     "navbar_end": ["theme-switcher", "version-switcher", "navbar-icon-links"],
-    "logo": {"text": "csnlp"},
+    "logo": {"text": project},
     "use_edit_page_button": True,
     "footer_start": ["copyright"],
     "footer_center": ["sphinx-version"],
     "switcher": {
-        "json_url": "https://casadi-nlp.readthedocs.io/en/latest/_static/switcher.json",
+        "json_url": f"https://{github_repo}.readthedocs.io/en/latest/_static/switcher.json",
         "version_match": version_match,
     },
+    "show_version_warning_banner": True,
 }
 html_context = {
     "github_user": "FilippoAiraldi",
-    "github_repo": "casadi-nlp",
+    "github_repo": github_repo,
     "github_version": "main",
     "doc_path": "docs",
 }
