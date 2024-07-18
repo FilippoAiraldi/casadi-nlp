@@ -1,6 +1,6 @@
 |PyPI version| |Source Code License| |Python 3.9|
 
-|Tests| |Downloads| |Maintainability| |Test Coverage| |Code style: black|
+|Tests| |Docs| |Downloads| |Maintainability| |Test Coverage| |Code style: black|
 
 .. |PyPI version| image:: https://badge.fury.io/py/csnlp.svg
    :target: https://badge.fury.io/py/csnlp
