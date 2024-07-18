@@ -103,6 +103,7 @@ html_theme_options = {
         "json_url": f"https://{github_repo}.readthedocs.io/en/latest/_static/switcher.json",
         "version_match": version_match,
     },
+    "show_version_warning_banner": True,
 }
 html_context = {
     "github_user": "FilippoAiraldi",
