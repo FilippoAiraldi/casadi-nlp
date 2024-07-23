@@ -3,7 +3,7 @@
 Motivation
 ==========
 
-The standard class :class:`csnlp.Mpc` provides a way to solve NLP problems; however, it
+The standard class :class:`csnlp.Nlp` provides a way to solve NLP problems; however, it
 lacks many features that are useful in practice in different fields. For instance, it
 does not provide a way to scale the problem, in cases where the primal variables have
 widely different orders of magnitude and convergence is difficult to numerically
@@ -12,8 +12,8 @@ with respect to the problem's parameters, which is useful in differentiating thr
 the optimization problems.
 
 To address this, inspired by the approach adopted by the
-`gymnasium <https://gymnasium.farama.org/>` package, we provide a way to wrap instances
-of the basic :class:`csnlp.Mpc` class with wrapper classes that can add desired
+`gymnasium <https://gymnasium.farama.org/>`_ package, we provide a way to wrap instances
+of the basic :class:`csnlp.Nlp` class with wrapper classes that can add desired
 features.
 
 Overview
