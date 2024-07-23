@@ -1,4 +1,4 @@
-from functools import cached_property
+from functools import cache, cached_property
 from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
@@ -89,7 +89,7 @@ class NlpSensitivity(Wrapper[SymType]):
         term ``tau``, so that
 
         .. math::
-                            \text{diag}(\lambda_h) \cdot H + \tau
+            \text{diag}(\lambda_h) \cdot H + \tau
 
         which is also returned as the second element of the tuple. Otherwise, ``tau`` is
         ``None``.
@@ -104,72 +104,108 @@ class NlpSensitivity(Wrapper[SymType]):
         )
         return kkt, self._tau
 
-    @cached_property
-    def jacobians(self) -> dict[str, SymType]:
-        """Computes various partial derivatives, which are then grouped in a dict with
-        the following entries
+    @cache
+    def jacobian(
+        self, which: Literal["L-x", "L-p", "g-x", "h-x", "K-p", "K-y"]
+    ) -> SymType:
+        """Computes a jacobian of one of the NLP problem's quantity w.r.t. another one.
 
-        - ``L-x``: lagrangian w.r.t. primal variables
-        - ``L-p``: lagrangian w.r.t. parameters
-        - ``g-x``: equality constraints w.r.t. primal variables
-        - ``h-x``: inequality constraints w.r.t. primal variables
-        - ``K-p``: kkt conditions w.r.t. parameters
-        - ``K-y``: kkt conditions w.r.t. primal-dual variables.
+        Parameters
+        ----------
+        which : {"L-x", "L-p", "g-x", "h-x", "K-p", "K-y"}
+            Indicates which jacobian to compute. The possible values are:
+
+            - ``"L-x"``: jacobian of the lagrangian w.r.t. primal variables
+            - ``"L-p"``: jacobian of the lagrangian w.r.t. parameters
+            - ``"g-x"``: jacobian of the equality constraints w.r.t. primal variables
+            - ``"h-x"``: jacobian of the inequality constraints w.r.t. primal variables
+            - ``"K-p"``: jacobian of the kkt conditions w.r.t. parameters
+            - ``"K-y"``: jacobian of the kkt conditions w.r.t. primal-dual variables.
+
+        Returns
+        -------
+        SymType
+            The requested jacobian, in the form of a symbolic variable.
         """
-        L = self.lagrangian
-        K = self.kkt[0]
-        x = self.nlp.x
-        y = self.nlp.primal_dual
-        p, p_idx = self._p_idx
-        return {
-            "L-x": cs.jacobian(L, x).T,
-            "L-p": cs.jacobian(L, p)[:, p_idx].T,
-            "g-x": cs.jacobian(self.nlp.g, x),
-            "h-x": cs.jacobian(self.nlp.h, x),
-            "K-p": cs.jacobian(K, p)[:, p_idx],
-            "K-y": cs.jacobian(K, y),
-        }
+        if which == "L-x":
+            return cs.jacobian(self.lagrangian, self.nlp.x).T
+        if which == "L-p":
+            p, p_idx = self._p_idx
+            return cs.jacobian(self.lagrangian, p)[:, p_idx].T
+        if which == "g-x":
+            return cs.jacobian(self.nlp.g, self.nlp.x)
+        if which == "h-x":
+            return cs.jacobian(self.nlp.h, self.nlp.x)
+        if which == "K-p":
+            p, p_idx = self._p_idx
+            return cs.jacobian(self.kkt[0], p)[:, p_idx]
+        if which == "K-y":
+            return cs.jacobian(self.kkt[0], self.nlp.primal_dual)
 
-    @cached_property
-    def hessians(self) -> dict[str, SymType]:
-        """Computes various partial hessians, which are then grouped in a dict with the
-        following entries
+    @cache
+    def hessian(self, which: Literal["L-pp", "L-xx", "L-px"]) -> SymType:
+        """Computes a hessian of the NLP problem's Lagrangian w.r.t. the primal
+        variables, the parameters, or both.
 
-        - ``L-pp``: lagrangian w.r.t. parameters (twice)
-        - ``L-xx``: lagrangian w.r.t. primal variables (twice)
-        - ``L-px``: lagrangian w.r.t. parameters and then primal variables
+        Parameters
+        ----------
+        which : {"L-pp", "L-xx", "L-px"}
+            Indicates which hessian to compute. The possible values are:
+
+            - ``"L-pp"``: hessian of the lagrangian w.r.t. parameters (twice)
+            - ``"L-xx"``: hessian of the lagrangian w.r.t. primal variables (twice)
+            - ``"L-px"``: hessian of the lagrangian w.r.t. parameters and then primal
+              variables
+
+        Returns
+        -------
+        SymType
+            The requested hessian, in the form of a symbolic variable.
         """
-        x = self.nlp.x
-        p, p_idx = self._p_idx
-        Lx = self.jacobians["L-x"]
-        Lp = self.jacobians["L-p"]
-        return {
-            "L-xx": cs.jacobian(Lx, x),
-            "L-pp": cs.jacobian(Lp, p)[:, p_idx],
-            "L-px": cs.jacobian(Lp, x),
-        }
+        if which == "L-pp":
+            p, p_idx = self._p_idx
+            return cs.jacobian(self.jacobian("L-p"), p)[:, p_idx]
+        if which == "L-xx":
+            return cs.jacobian(self.jacobian("L-x"), self.nlp.x)
+        if which == "L-px":
+            return cs.jacobian(self.jacobian("L-p"), self.nlp.x)
 
-    @cached_property
-    def hojacobians(self) -> dict[str, np.ndarray]:
-        """Computes various 3D jacobians, which are then grouped in a dict with the
-        following entries
+    @cache
+    def hojacobian(self, which: Literal["K-pp", "K-yp", "K-yy", "K-py"]) -> np.ndarray:
+        """Computes a higher-order jacobian of NLP problem's KKT conditions w.r.t. the
+        primal-dual variables, the parameters, or both. See
+        :func:`csnlp.core.derivatives.hojacobian` for more information on higher-order
+        jacobians.
 
-        - ``K-pp``: kkt conditions w.r.t. parameters (twice)
-        - ``K-yp``: kkt conditions w.r.t. parameters and primal variables
-        - ``K-yy``: kkt conditions w.r.t. primal variables (twice)
-        - ``K-py``: kkt conditions w.r.t. primal variables and parameters
+        Parameters
+        ----------
+        which : {"K-pp", "K-yp", "K-yy", "K-py"}
+            Indicates which hessian to compute. The possible values are:
+
+            - ``"K-pp"``: higher-order jacobian of the KKT conditions w.r.t. parameters
+              (twice)
+            - ``"K-yp"``: higher-order jacobian of the KKT conditions w.r.t. primal-dual
+              variables and then parameters
+            - ``"K-yy"``: higher-order jacobian of the KKT conditions w.r.t. primal-dual
+              variables (twice)
+            - ``"K-py"``: higher-order jacobian of the KKT conditions w.r.t. parameters
+              and then primal-dual variables
+
+        Returns
+        -------
+        SymType
+            The requested higher-order jacobian, in the form of a symbolic variable.
         """
-        jacobians = self.jacobians
-        Kp = jacobians["K-p"]
-        Ky = jacobians["K-y"]
-        y = self.nlp.primal_dual
-        p, p_idx = self._p_idx
-        return {
-            "K-pp": hojacobian(Kp, p)[..., p_idx, 0],
-            "K-yp": hojacobian(Ky, p)[..., p_idx, 0],
-            "K-yy": hojacobian(Ky, y)[..., 0],
-            "K-py": hojacobian(Kp, y)[..., 0],
-        }
+        if which == "K-pp":
+            p, p_idx = self._p_idx
+            return hojacobian(self.jacobian("K-p"), p)[..., p_idx, 0]
+        if which == "K-yp":
+            p, p_idx = self._p_idx
+            return hojacobian(self.jacobian("K-y"), p)[..., p_idx, 0]
+        if which == "K-yy":
+            return hojacobian(self.jacobian("K-y"), self.nlp.primal_dual)[..., 0]
+        if which == "K-py":
+            return hojacobian(self.jacobian("K-p"), self.nlp.primal_dual)[..., 0]
 
     @property
     def licq(self) -> SymType:
@@ -193,8 +229,8 @@ class NlpSensitivity(Wrapper[SymType]):
         and it's up to the user to eliminate the inactive ones.
         """
         return cs.vertcat(
-            self.jacobians["g-x"],
-            self.jacobians["h-x"],
+            self.jacobian("g-x"),
+            self.jacobian("h-x"),
             cs.jacobian(self.nlp.h_lbx, self.nlp.x),
             cs.jacobian(self.nlp.h_ubx, self.nlp.x),
         )
@@ -300,18 +336,18 @@ class NlpSensitivity(Wrapper[SymType]):
     ) -> Union[tuple[SymType, np.ndarray, SymType], tuple[cs.DM, np.ndarray, cs.DM]]:
         """Internal utility to compute the sensitivity of ``y`` w.r.t. ``p``."""
         # first order sensitivity, a.k.a., dydp
-        Ky = d(self.jacobians["K-y"])
-        Kp = d(self.jacobians["K-p"])
+        Ky = d(self.jacobian("K-y"))
+        Kp = d(self.jacobian("K-p"))
         dydp = (cs.solve if solution is None else np.linalg.solve)(-Ky, Kp)
         if not second_order:
             return dydp, None, None  # type: ignore[return-value]
 
         # second order sensitivity, a.k.a., d2ydp2
         dydp_ = cs2array(dydp)
-        Kpp = d(self.hojacobians["K-pp"])
-        Kpy = d(self.hojacobians["K-py"])
-        Kyp = d(self.hojacobians["K-yp"])
-        Kyy = d(self.hojacobians["K-yy"])
+        Kpp = d(self.hojacobian("K-pp"))
+        Kpy = d(self.hojacobian("K-py"))
+        Kyp = d(self.hojacobian("K-yp"))
+        Kyy = d(self.hojacobian("K-yy"))
         M = (
             Kpp
             + (Kpy.transpose((0, 2, 1)) + Kyp + (Kyy @ dydp_)).transpose((0, 2, 1))
@@ -323,12 +359,12 @@ class NlpSensitivity(Wrapper[SymType]):
             d2ydp2 = -np.linalg.solve(Ky, M).transpose((1, 2, 0))
         return dydp, dydp_, d2ydp2
 
-    @invalidate_cache(jacobians, hessians, hojacobians)
+    @invalidate_cache(jacobian, hessian, hojacobian)
     def parameter(self, name: str, shape: tuple[int, int] = (1, 1)) -> SymType:
         """See :meth:`csnlp.Nlp.parameter`."""
         return self.nlp.parameter(name, shape)
 
-    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobian, hessian, hojacobian)
     def variable(
         self,
         name: str,
@@ -339,7 +375,7 @@ class NlpSensitivity(Wrapper[SymType]):
         """See :meth:`csnlp.Nlp.variable`."""
         return self.nlp.variable(name, shape, lb, ub)
 
-    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobian, hessian, hojacobian)
     def constraint(
         self,
         name: str,
@@ -352,12 +388,12 @@ class NlpSensitivity(Wrapper[SymType]):
         """See :meth:`csnlp.Nlp.constraint`."""
         return self.nlp.constraint(name, lhs, op, rhs, soft, simplify)
 
-    @invalidate_cache(lagrangian, kkt, jacobians, hessians, hojacobians)
+    @invalidate_cache(lagrangian, kkt, jacobian, hessian, hojacobian)
     def minimize(self, objective: SymType) -> None:
         """See :meth:`csnlp.Nlp.minimize`."""
         return self.nlp.minimize(objective)
 
-    @invalidate_cache(jacobians, hessians, hojacobians)
+    @invalidate_cache(jacobian, hessian, hojacobian)
     def set_target_parameters(self, parameters: Optional[SymType]) -> None:
         """Sets the target parameters of the sensitivity wrapper.
 
