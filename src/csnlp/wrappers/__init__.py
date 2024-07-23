@@ -19,12 +19,12 @@ features.
 Overview
 ========
 
-The basic idea is to create a base class :class:`csnlp.Wrapper` that can be subclassed
-to implement the desired features. The base class provides the same interface as
-:class:`csnlp.Mpc`, so that the user can interact with the wrapped instance in the same
-way as with the basic NLP instance. We also provide a
-:class:`csnlp.NonRetroactiveWrapper`, which is a special wrapper that can only wrap
-instances of :class:`csnlp.Nlp` before any variable, parameters, etc. is defined.
+The basic idea is to create a base class :class:`csnlp.wrappers.Wrapper` that can be
+subclassed to implement the desired features. The base class provides the same interface
+as :class:`csnlp.Nlp`, so that the user can interact with the wrapped instance in the
+same way as with the basic NLP instance. We also provide a
+:class:`csnlp.wrappers.NonRetroactiveWrapper`, which is a special wrapper that can only
+wrap instances of :class:`csnlp.Nlp` before any variable, parameters, etc. is defined.
 
 The following wrappers are provided in this module:
 
