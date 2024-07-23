@@ -154,11 +154,11 @@ jac_and_hess_sol = jac_and_hess_solver(
     x0=sol["x"], lam_x0=sol["lam_x"], lam_g0=sol["lam_g"], **kwargs
 )
 
+t1 = time.perf_counter() - t0
+
 # retrieve the arrays
 jac_f_p = jac_and_hess_sol["jac_f_p"].full().squeeze()
 hess_f_p_p = jac_and_hess_sol["hess_f_p_p"].full()
-
-t1 = time.perf_counter() - t0
 
 # %%
 # With :mod:`csnlp`
@@ -183,10 +183,11 @@ nlp_ = wrappers.NlpSensitivity(nlp)
 t2 = time.perf_counter()
 
 dfdp, d2fdp2 = nlp_.parametric_sensitivity(nlp.f, solution=sol_, second_order=True)
-dfdp = dfdp.full().squeeze()
-d2fdp2 = d2fdp2.full()
 
 t3 = time.perf_counter() - t2
+
+dfdp = dfdp.full().squeeze()
+d2fdp2 = d2fdp2.full()
 
 # %%
 # Comparison
