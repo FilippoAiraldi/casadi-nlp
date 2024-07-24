@@ -6,7 +6,7 @@ from functools import cached_property as _cached_property
 from itertools import product as _product
 from typing import TYPE_CHECKING
 from typing import Any as _Any
-from typing import Protocol
+from typing import Protocol as _Protocol
 from typing import TypeVar as _TypeVar
 from typing import Union
 
@@ -24,7 +24,7 @@ if TYPE_CHECKING:
 SymType = _TypeVar("SymType", cs.SX, cs.MX)
 
 
-class Solution(Protocol[SymType]):
+class Solution(_Protocol[SymType]):
     """Class containing information on the solution of a solver's run for an instance of
     :class:`csnlp.Nlp`.
 
