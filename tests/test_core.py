@@ -1,7 +1,7 @@
 import random
 import unittest
-from functools import cached_property, lru_cache, partial
-from itertools import product
+from functools import cached_property, lru_cache
+from itertools import product, repeat
 from typing import Union
 
 import casadi as cs
@@ -14,7 +14,7 @@ from csnlp.core.data import array2cs, cs2array, find_index_in_vector
 from csnlp.core.debug import NlpDebug, NlpDebugEntry
 from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.scaling import MinMaxScaler, Scaler
-from csnlp.core.solutions import Solution, subsevalf
+from csnlp.core.solutions import EagerSolution, Solution, subsevalf
 
 GROUPS = set(NlpDebug._types.keys())
 
@@ -52,6 +52,16 @@ class Dummy2(Dummy):
     @invalidate_cache(prop3)
     def clear_cache(self) -> None:
         return super().clear_cache()
+
+
+class DummySolution(Solution):
+    def __init__(self, f, success, status):
+        self._f = f
+        self._stats = {"success": success, "return_status": status}
+
+    @property
+    def f(self):
+        return self._f
 
 
 class TestFuncs(unittest.TestCase):
@@ -214,62 +224,127 @@ class TestSolutions(unittest.TestCase):
             np.testing.assert_allclose(expected_val, actual_val)
 
     @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
-    def test_solution__computes_correct_value(
+    def test_eager_solution__computes_correct_value(
         self,
         XX: Union[type[cs.SX], type[cs.MX]],
         struct_X: Union[type[struct_SX], type[struct_MX]],
     ):
-        f = 0
         shape = (3, 4)
         V = {
-            "x": (XX.sym("x", *shape), np.random.rand(*shape) * 10),
-            "y": (XX.sym("y", *shape), np.random.rand(*shape) * 5),
-            "z": (XX.sym("z"), np.random.rand() + 1),
+            "x": (XX.sym("x", shape), np.random.rand(*shape) * 10),
+            "y": (XX.sym("y", shape), np.random.rand(*shape) * 5),
+            "p": (XX.sym("p"), np.random.rand() + 1),
         }
         D = {
-            "dx": (XX.sym("dx", *shape), np.random.rand(*shape) * 10),
-            "dy": (XX.sym("dy", *shape), np.random.rand(*shape) * 5),
-            "dz": (XX.sym("dz"), np.random.rand() + 1),
+            "g": (XX.sym("g", shape), np.random.rand(*shape) * 10),
+            "h": (XX.sym("h", shape), np.random.rand(*shape) * 5),
+            "lbx": (XX.sym("lbx", shape), np.random.rand(*shape) * 10),
+            "ubx": (XX.sym("ubx", shape), np.random.rand(*shape) * 5),
         }
+
+        def func(x, y, p, g, h, lbx, ubx):
+            return (lbx / h) * cs.exp(x * p / y + g * ubx)
+
+        expr, expected = (
+            func(
+                V["x"][i],
+                V["y"][i],
+                V["p"][i],
+                D["g"][i],
+                D["h"][i],
+                D["lbx"][i],
+                D["ubx"][i],
+            )
+            for i in range(2)
+        )
+
         V_vec = cs.vertcat(*(cs.vec(v) for _, v in V.values()))
         D_vec = cs.vertcat(*(cs.vec(d) for _, d in D.values()))
         V_struct = struct_X([entry(n, expr=s) for n, (s, _) in V.items()])
         D_struct = struct_X([entry(n, expr=s) for n, (s, _) in D.items()])
-
-        expr, expected_val = (
-            ((V["x"][i] + D["dx"][i]) / V["y"][i] / D["dy"][i])
-            ** (V["z"][i] - D["dz"][i])
-            for i in range(2)
+        S = EagerSolution(
+            0.0,
+            V["p"][0],
+            V["p"][1],
+            cs.veccat(V["x"][0], V["y"][0]),
+            cs.veccat(V["x"][1], V["y"][1]),
+            cs.veccat(D["g"][0], D["h"][0]),
+            cs.veccat(D["g"][1], D["h"][1]),
+            cs.veccat(D["lbx"][0], D["ubx"][0]),
+            cs.veccat(D["lbx"][1], D["ubx"][1]),
+            V_struct,
+            V_struct(V_vec),
+            D_struct,
+            D_struct(D_vec),
+            {},
         )
-
-        all_vars = cs.vertcat(V_struct, D_struct)
-        all_vals = cs.vertcat(V_struct(V_vec), D_struct(D_vec))
-        get_value = partial(subsevalf, old=all_vars, new=all_vals)
-        S = Solution(
-            f=f,
-            vars=V_struct,
-            vals=V_struct(V_vec),
-            dual_vars=D_struct,
-            dual_vals=D_struct(V_vec),
-            stats={},
-            _get_value=get_value,
-        )
-        np.testing.assert_allclose(expected_val, S.value(expr))
+        np.testing.assert_allclose(expected, S.value(expr))
 
     @parameterized.expand([(False,), (True,)])
-    def test_solution__reports_success_and_barrier_properly(self, flag: bool):
+    def test_eager_solution__reports_success_and_barrier_properly(self, flag: bool):
         mu = np.abs(np.random.randn(10)).tolist()
-        S = Solution(
-            f=None,
-            vars=None,
-            vals=None,
-            dual_vars=None,
-            dual_vals=None,
-            stats={"success": flag, "iterations": {"mu": mu}},
-            _get_value=lambda x: x,
+        S = EagerSolution(
+            *repeat(None, 13), stats={"success": flag, "iterations": {"mu": mu}}
         )
         self.assertEqual(S.success, flag)
         self.assertEqual(S.barrier_parameter, mu[-1])
+
+    def test_cmp_key__returns_correct_solution(self):
+        test_cases = [
+            {
+                "name": "All successful, varying 'f' values",
+                "sols": [(1, True, ""), (2, True, ""), (3, True, "")],
+                "expected": 0,
+            },
+            {
+                "name": "Mixed success, all feasible",
+                "sols": [(1, False, ""), (2, True, ""), (3, True, "")],
+                "expected": 1,
+            },
+            {
+                "name": "No successful, mixed feasibility",
+                "sols": [(1, False, "infeasible"), (2, False, ""), (3, False, "")],
+                "expected": 1,
+            },
+            {
+                "name": "All infeasible",
+                "sols": [
+                    (1, False, "infeasible"),
+                    (2, False, "infeasible"),
+                    (3, False, "infeasible"),
+                ],
+                "expected": 0,
+            },
+            {
+                "name": "Mixed success, infeasibility, varying 'f'",
+                "sols": [
+                    (2, True, ""),
+                    (5, True, ""),
+                    (3, False, ""),
+                    (4, False, "infeasible"),
+                ],
+                "expected": 0,
+            },
+            {
+                "name": "Real example",
+                "sols": [
+                    (387.48883666213, True, ""),
+                    (387.488836662, False, "infeasible"),
+                    (387.488836662129, True, ""),
+                    (387.4888366621303, True, ""),
+                ],
+                "expected": 2,
+            },
+        ]
+        for case in test_cases:
+            with self.subTest(name=case["name"]):
+                sols = (
+                    {"f": f, "stats": {"success": success, "return_status": status}}
+                    for f, success, status in case["sols"]
+                )
+                sols = enumerate(map(lambda s: DummySolution(*s), case["sols"]))
+                min_index, _ = min(sols, key=lambda sol: DummySolution.cmp_key(sol[1]))
+                self.assertEqual(min_index, case["expected"])
 
 
 class TestData(unittest.TestCase):

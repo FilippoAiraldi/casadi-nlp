@@ -1,4 +1,3 @@
-from functools import partial
 from typing import Any, Literal, Optional, TypeVar
 
 import casadi as cs
@@ -7,7 +6,7 @@ import numpy.typing as npt
 from joblib import Memory
 from joblib.memory import MemorizedFunc
 
-from ..core.solutions import Solution, subsevalf
+from ..core.solutions import LazySolution, Solution, subsevalf
 from .constraints import HasConstraints
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -217,7 +216,7 @@ class HasObjective(HasConstraints[SymType]):
             vals0,
         )
         sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
-        solution = self._process_solver_sol(sol_with_stats)
+        solution = LazySolution.from_casadi_solution(sol_with_stats, self)
         self._failures += not solution.success
         return solution
 
@@ -239,43 +238,6 @@ class HasObjective(HasConstraints[SymType]):
         kwargs["p"] = subsevalf(self._p, self._pars, pars)
         if vals0 is not None:
             if vals0diff := self._vars.keys() - vals0.keys():
-                vals0.update({v: 0 for v in vals0diff})  # type: ignore[has-type]
+                vals0.update({v: 0 for v in vals0diff})
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
         return kwargs
-
-    def _process_solver_sol(self, sol: dict[str, Any]) -> Solution:
-        """Internal utility to convert the solver sol dict to a :class:`Solution`
-        instance."""
-        # objective
-        f = float(sol["f"])
-
-        # primal variables and values
-        vars = self.variables
-        vals = {name: subsevalf(var, self._x, sol["x"]) for name, var in vars.items()}
-
-        # dual variables and values
-        lam_lbx = -cs.fmin(sol["lam_x"], 0)[self.nonmasked_lbx_idx, :]
-        lam_ubx = cs.fmax(sol["lam_x"], 0)[self.nonmasked_ubx_idx, :]
-        lam_g = sol["lam_g"][: self.ng, :]
-        lam_h = sol["lam_g"][self.ng :, :]
-        dual_vars = self.dual_variables
-        dual_vals = {}
-        for n, var in dual_vars.items():
-            if n.startswith("lam_lb"):
-                dual_vals[n] = subsevalf(var, self._lam_lbx, lam_lbx)
-            elif n.startswith("lam_ub"):
-                dual_vals[n] = subsevalf(var, self._lam_ubx, lam_ubx)
-            elif n.startswith("lam_g"):
-                dual_vals[n] = subsevalf(var, self._lam_g, lam_g)
-            elif n.startswith("lam_h"):
-                dual_vals[n] = subsevalf(var, self._lam_h, lam_h)
-            else:
-                raise RuntimeError(f"unknown dual variable type {n}")
-
-        # get_value function
-        old = cs.vertcat(
-            self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx, self._p
-        )
-        new = cs.vertcat(sol["x"], lam_g, lam_h, lam_lbx, lam_ubx, sol["p"])
-        get_value = partial(subsevalf, old=old, new=new)
-        return Solution(f, vars, vals, dual_vars, dual_vals, sol["stats"], get_value)

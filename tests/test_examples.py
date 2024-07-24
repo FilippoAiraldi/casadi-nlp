@@ -80,7 +80,7 @@ class TestExamples(unittest.TestCase):
 
             best_sol: Solution = nlp.solve_multi(*args)
             all_sols: list[Solution] = nlp.solve_multi(*args, return_all_sols=True)
-            all_sols.sort()
+            all_sols.sort(key=Solution.cmp_key)
             fs = [all_sol.f for all_sol in all_sols]
             self.assertEqual(best_sol.f, fs[0])
             np.testing.assert_allclose(fs, np.sort(RESULTS["multistart_nlp_fs"]))

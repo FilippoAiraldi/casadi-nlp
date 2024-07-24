@@ -1,5 +1,5 @@
 from collections.abc import Iterable, Iterator
-from functools import lru_cache, partial
+from functools import lru_cache
 from itertools import repeat
 from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
 
@@ -10,7 +10,7 @@ from joblib import Parallel, delayed
 from joblib.memory import MemorizedFunc
 
 from ..core.cache import invalidate_cache
-from ..core.solutions import Solution, subsevalf
+from ..core.solutions import EagerSolution, LazySolution, Solution, subsevalf
 from ..nlps.nlp import Nlp
 from ..nlps.objective import _solve_and_get_stats
 
@@ -32,8 +32,8 @@ def _chained_subevalf(
     new_dual_vars: Optional[dict[str, SymType]] = None,
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
-    """Internal utility to perform :func:`subevalf` on variables, parameters and dual
-    variables in chain."""
+    """Internal utility to perform :func:`subevalf` on variables, dual variables and
+    parameters in chain."""
     expr = subsevalf(expr, old_vars, new_vars, eval=False)
     if old_dual_vars is None:
         return subsevalf(expr, old_pars, new_pars, eval=eval)
@@ -41,37 +41,15 @@ def _chained_subevalf(
     return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
 
 
-def _find_best_sol(sols: Iterator[dict[str, Any]]) -> dict[str, Any]:
-    """Picks the best solution out of multiple solutions, with the following logic: the
-    current solution should be considered better if
-
-    * it is feasible and the best is not, or
-    * both are feasible or infeasible, and the current is successful and the best is
-      not, or
-    * both are successful or not, and the current has a lower optimal value than the
-      best.
-    """
-    best_sol = next(sols)
-    best_f = float(best_sol["f"])
-    is_best_successful = best_sol["stats"]["success"]
-    is_best_feasible = "infeasib" not in best_sol["stats"]["return_status"].lower()
-    for sol in sols:
-        f = float(sol["f"])
-        is_successful = sol["stats"]["success"]
-        is_feasible = "infeasib" not in sol["stats"]["return_status"].lower()
-        if (
-            (is_feasible and not is_best_feasible)
-            or (
-                is_feasible == is_best_feasible
-                and (is_successful and not is_best_successful)
-            )
-            or (is_successful == is_best_successful and f < best_f)
-        ):
-            best_sol = sol
-            best_f = f
-            is_best_successful = is_successful
-            is_best_feasible = is_feasible
-    return best_sol
+def _cmp_key(sol: dict[str, Any]) -> tuple[bool, bool, float]:
+    """Internal utility, similar to :func:`Solution.cmp_key`, but for native CasADi's
+    solution dictionaries."""
+    stats = sol["stats"]
+    return (
+        "infeasib" in stats["return_status"].lower(),
+        not stats["success"],
+        float(sol["f"]),
+    )
 
 
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
@@ -304,20 +282,28 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         if return_stacked_sol:
             return multi_sol
 
+        x_ = self._x
+        p_ = self._p
+        lam_g_and_h_ = cs.vertcat(self._lam_g, self._lam_h)
+        lam_lbx_and_ubx_ = cs.vertcat(self._lam_lbx, self._lam_ubx)
         vars_ = self.variables
         pars_ = self.parameters
         duals_ = self.dual_variables
-        old = cs.vertcat(
-            self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx, self._p
-        )
-        fs = [float(multi_sol._get_value(f)) for f in self._fs]
+        fs = [float(multi_sol.value(f)) for f in self._fs]
 
-        def get_ith_sol(idx: int) -> Solution[SymType]:
+        all_vars = cs.vertcat(x_, lam_g_and_h_, lam_lbx_and_ubx_, p_)
+        splits = np.cumsum(
+            (0, x_.size1(), lam_g_and_h_.size1(), lam_lbx_and_ubx_.size1(), p_.size1())
+        )
+
+        def get_ith_sol(idx: int) -> EagerSolution[SymType]:
             vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_.keys()}
             dual_vals = {n: multi_sol.dual_vals[_n(n, idx)] for n in duals_.keys()}
-            new = multi_sol._get_value(
+            # get the value of p, and, lam g, lam h and lam lbx and lam ubx in a single
+            # substitution to save some time
+            all_vals = multi_sol.value(
                 _chained_subevalf(
-                    old,
+                    all_vars,
                     vars_,
                     self._vars_i(idx),
                     pars_,
@@ -327,9 +313,22 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                     False,
                 )
             )
-            get_value = partial(subsevalf, old=old, new=new)
-            return Solution(
-                fs[idx], vars_, vals, duals_, dual_vals, multi_sol.stats, get_value
+            x, lam_g_and_h, lam_lbx_and_ubx, p = cs.vertsplit(all_vals, splits)
+            return EagerSolution(
+                fs[idx],
+                p_,
+                p,
+                x_,
+                x,
+                lam_g_and_h_,
+                lam_g_and_h,
+                lam_lbx_and_ubx_,
+                lam_lbx_and_ubx,
+                vars_,
+                vals,
+                duals_,
+                dual_vals,
+                multi_sol.stats,
             )
 
         if return_all_sols:
@@ -434,9 +433,9 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
         )
         if return_all_sols:
-            return list(map(self._process_solver_sol, sols))
-        best_sol = _find_best_sol(iter(sols))
-        return self._process_solver_sol(best_sol)
+            return [LazySolution.from_casadi_solution(sol, self) for sol in sols]
+        best_sol = min(sols, key=_cmp_key)
+        return LazySolution.from_casadi_solution(best_sol, self)
 
     def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
         # joblib.Parallel cannot be pickled or deepcopied
@@ -563,7 +562,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 sol_i = {k: v[:, i] for k, v in single_sol.items()}
                 sol_i["p"] = ps[i]
                 sol_i["stats"] = stats.copy()
-                sols.append(self._process_solver_sol(sol_i))
+                sols.append(LazySolution.from_casadi_solution(sol_i, self))
             return sols
 
         # just return the best, as we cannot use stats to exclude failed solutions
@@ -571,4 +570,4 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         sol = {k: v[:, i] for k, v in single_sol.items()}
         sol["p"] = ps[i]
         sol["stats"] = stats
-        return self._process_solver_sol(sol)
+        return LazySolution.from_casadi_solution(sol, self)
