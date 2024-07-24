@@ -1,6 +1,6 @@
 import random
 import unittest
-from functools import cached_property, lru_cache, partial
+from functools import cached_property, lru_cache
 from itertools import product
 from typing import Union
 
@@ -14,7 +14,7 @@ from csnlp.core.data import array2cs, cs2array, find_index_in_vector
 from csnlp.core.debug import NlpDebug, NlpDebugEntry
 from csnlp.core.derivatives import hohessian, hojacobian
 from csnlp.core.scaling import MinMaxScaler, Scaler
-from csnlp.core.solutions import Solution, subsevalf
+from csnlp.core.solutions import EagerSolution, subsevalf
 
 GROUPS = set(NlpDebug._types.keys())
 
@@ -214,7 +214,7 @@ class TestSolutions(unittest.TestCase):
             np.testing.assert_allclose(expected_val, actual_val)
 
     @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
-    def test_solution__computes_correct_value(
+    def test_eager_solution__computes_correct_value(
         self,
         XX: Union[type[cs.SX], type[cs.MX]],
         struct_X: Union[type[struct_SX], type[struct_MX]],
@@ -244,29 +244,30 @@ class TestSolutions(unittest.TestCase):
 
         all_vars = cs.vertcat(V_struct, D_struct)
         all_vals = cs.vertcat(V_struct(V_vec), D_struct(D_vec))
-        get_value = partial(subsevalf, old=all_vars, new=all_vals)
-        S = Solution(
+        S = EagerSolution(
             f=f,
             vars=V_struct,
             vals=V_struct(V_vec),
             dual_vars=D_struct,
             dual_vals=D_struct(V_vec),
+            primal_dual_par_vars=all_vars,
+            primal_dual_par_vals=all_vals,
             stats={},
-            _get_value=get_value,
         )
         np.testing.assert_allclose(expected_val, S.value(expr))
 
     @parameterized.expand([(False,), (True,)])
-    def test_solution__reports_success_and_barrier_properly(self, flag: bool):
+    def test_eager_solution__reports_success_and_barrier_properly(self, flag: bool):
         mu = np.abs(np.random.randn(10)).tolist()
-        S = Solution(
+        S = EagerSolution(
             f=None,
             vars=None,
             vals=None,
             dual_vars=None,
             dual_vals=None,
+            primal_dual_par_vars=None,
+            primal_dual_par_vals=None,
             stats={"success": flag, "iterations": {"mu": mu}},
-            _get_value=lambda x: x,
         )
         self.assertEqual(S.success, flag)
         self.assertEqual(S.barrier_parameter, mu[-1])

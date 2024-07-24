@@ -183,7 +183,7 @@ ax.plot(
     color="k",
     label="Best",
 )
-x = float(sol_best.vals["x"])
+x = float(sol_best.value(nlp.x))
 ax.vlines(x, -1.1, sol_best.f, "k", ls="-.")
 ax.hlines(sol_best.f, LB, x, "k", ls="-.")
 
