@@ -222,7 +222,7 @@ class HasObjective(HasConstraints[SymType]):
             vals0,
         )
         sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
-        solution = LazySolution(sol_with_stats, self)
+        solution = LazySolution.from_casadi_solution(sol_with_stats, self)
         self._failures += not solution.success
         return solution
 

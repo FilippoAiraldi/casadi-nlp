@@ -18,7 +18,7 @@ from csnlp.multistart import (
     StructuredStartPoint,
     StructuredStartPoints,
 )
-from csnlp.multistart.multistart_nlp import MultistartNlp, _find_best_sol, _n
+from csnlp.multistart.multistart_nlp import MultistartNlp, _n
 
 OPTS = {
     "expand": True,
@@ -99,54 +99,6 @@ class TestStartPoints(unittest.TestCase):
 
 @parameterized_class("sym_type", [("SX",), ("MX",)])
 class TestMultistartNlp(unittest.TestCase):
-    def test_find_best_sol__returns_correct_solution(self):
-        test_cases = [
-            {
-                "name": "All successful, varying 'f' values",
-                "sols": [(1, True, ""), (2, True, ""), (3, True, "")],
-                "expected": (1, True, ""),
-            },
-            {
-                "name": "Mixed success, all feasible",
-                "sols": [(1, False, ""), (2, True, ""), (3, True, "")],
-                "expected": (2, True, ""),
-            },
-            {
-                "name": "No successful, mixed feasibility",
-                "sols": [(1, False, "infeasible"), (2, False, ""), (3, False, "")],
-                "expected": (2, False, ""),
-            },
-            {
-                "name": "All infeasible",
-                "sols": [
-                    (1, False, "infeasible"),
-                    (2, False, "infeasible"),
-                    (3, False, "infeasible"),
-                ],
-                "expected": (1, False, "infeasible"),
-            },
-            {
-                "name": "Mixed success, infeasibility, varying 'f'",
-                "sols": [
-                    (2, True, ""),
-                    (5, True, ""),
-                    (3, False, ""),
-                    (4, False, "infeasible"),
-                ],
-                "expected": (2, True, ""),
-            },
-        ]
-        for case in test_cases:
-            with self.subTest(name=case["name"]):
-                sols = (
-                    {"f": f, "stats": {"success": success, "return_status": status}}
-                    for f, success, status in case["sols"]
-                )
-                actual = _find_best_sol(sols)
-                self.assertTupleEqual(
-                    (actual["f"], *actual["stats"].values()), case["expected"]
-                )
-
     def test_init__raises__with_invalid_number_of_starts(self):
         with self.assertRaisesRegex(
             ValueError, "Number of scenarios must be positive and > 0."
