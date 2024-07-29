@@ -294,17 +294,17 @@ class TestSolutions(unittest.TestCase):
             {
                 "name": "All successful, varying 'f' values",
                 "sols": [(1, True, ""), (2, True, ""), (3, True, "")],
-                "expected": (1, True, ""),
+                "expected": 0,
             },
             {
                 "name": "Mixed success, all feasible",
                 "sols": [(1, False, ""), (2, True, ""), (3, True, "")],
-                "expected": (2, True, ""),
+                "expected": 1,
             },
             {
                 "name": "No successful, mixed feasibility",
                 "sols": [(1, False, "infeasible"), (2, False, ""), (3, False, "")],
-                "expected": (2, False, ""),
+                "expected": 1,
             },
             {
                 "name": "All infeasible",
@@ -313,7 +313,7 @@ class TestSolutions(unittest.TestCase):
                     (2, False, "infeasible"),
                     (3, False, "infeasible"),
                 ],
-                "expected": (1, False, "infeasible"),
+                "expected": 0,
             },
             {
                 "name": "Mixed success, infeasibility, varying 'f'",
@@ -323,7 +323,17 @@ class TestSolutions(unittest.TestCase):
                     (3, False, ""),
                     (4, False, "infeasible"),
                 ],
-                "expected": (2, True, ""),
+                "expected": 0,
+            },
+            {
+                "name": "Real example",
+                "sols": [
+                    (387.48883666213, True, ""),
+                    (387.488836662, False, "infeasible"),
+                    (387.488836662129, True, ""),
+                    (387.4888366621303, True, ""),
+                ],
+                "expected": 2,
             },
         ]
         for case in test_cases:
@@ -332,11 +342,9 @@ class TestSolutions(unittest.TestCase):
                     {"f": f, "stats": {"success": success, "return_status": status}}
                     for f, success, status in case["sols"]
                 )
-                sols = map(lambda s: DummySolution(*s), case["sols"])
-                actual = min(sols, key=DummySolution.cmp_key)
-                self.assertTupleEqual(
-                    (actual.f, *actual.stats.values()), case["expected"]
-                )
+                sols = enumerate(map(lambda s: DummySolution(*s), case["sols"]))
+                min_index, _ = min(sols, key=lambda sol: DummySolution.cmp_key(sol[1]))
+                self.assertEqual(min_index, case["expected"])
 
 
 class TestData(unittest.TestCase):
