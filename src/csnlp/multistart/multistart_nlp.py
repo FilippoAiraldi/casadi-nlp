@@ -41,6 +41,17 @@ def _chained_subevalf(
     return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
 
 
+def _cmp_key(sol: dict[str, Any]) -> tuple[bool, bool, float]:
+    """Internal utility, similar to :func:`Solution.cmp_key`, but for native CasADi's
+    solution dictionaries."""
+    stats = sol["stats"]
+    return (
+        "infeasib" in stats["return_status"].lower(),
+        not stats["success"],
+        float(sol["f"]),
+    )
+
+
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
     """Base class for NLP with multistarting. This class lays the foundation for solving
     an NLP problem (described as an instance of :class:`csnlp.Nlp`) multiple times with
@@ -423,7 +434,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         )
         if return_all_sols:
             return [LazySolution.from_casadi_solution(sol, self) for sol in sols]
-        best_sol = min(sols, key=Solution.cmp_key)
+        best_sol = min(sols, key=_cmp_key)
         return LazySolution.from_casadi_solution(best_sol, self)
 
     def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
