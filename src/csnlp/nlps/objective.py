@@ -118,17 +118,31 @@ class HasObjective(HasConstraints[SymType]):
 
         Raises
         ------
+        ValueError
+            Raises if the given problem type is not recognized.
         RuntimeError
-            Raises if the objective has not yet been specified with :meth:`minimize`.
+            Raises if the type of the problem cannot be inferred automatically (when the
+            solver supports both conic and NLPs), if the specified solver plugin cannot
+            be found, and if the objective has not yet been specified with
+            :meth:`minimize`.
         """
-        if type == "conic" or (type == "auto" and cs.has_conic(solver)):
+        has_conic = cs.has_conic(solver)
+        has_nlpsol = cs.has_nlpsol(solver)
+        if has_conic and has_nlpsol and type == "auto":
+            raise RuntimeError(
+                f"`{solver}` supports both conic- and nlp-type problems, so the problem"
+                " type cannot be inferred automatically."
+            )
+
+        if type == "conic" or (type == "auto" and has_conic):
             func = cs.qpsol
-        elif type == "nlp" or (type == "auto" and cs.has_nlpsol(solver)):
+        elif type == "nlp" or (type == "auto" and has_nlpsol):
             func = cs.nlpsol
         elif type not in ("auto", "nlp", "conic"):
             raise ValueError(f"unknown problem type: '{type}'")
         else:
-            raise RuntimeError(f"'{solver}' plugin not found in either conic or nlp")
+            raise RuntimeError(f"'{solver}' plugin not found in either conic or nlp.")
+
         if self._f is None:
             raise RuntimeError("NLP objective not set.")
 
@@ -137,14 +151,15 @@ class HasObjective(HasConstraints[SymType]):
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
         self._solver = self._cache.cache(solver_func)
-        self._solver_type = solver
         self._solver_opts = opts
+        self._solver_plugin = solver
+        self._solver_type = type
 
     def refresh_solver(self) -> None:
         """Refresh and resets the internal solver function (with the same options, if
         previously set)."""
         if self._solver is not None:
-            self.init_solver(self._solver_opts, self._solver_type)
+            self.init_solver(self._solver_opts, self._solver_plugin, self._solver_type)
 
     def minimize(self, objective: SymType) -> None:
         """Sets the objective function to be minimized.

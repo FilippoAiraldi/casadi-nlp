@@ -1,6 +1,7 @@
 import pickle
 import unittest
 from itertools import product
+from math import ceil, floor
 from unittest.mock import Mock
 
 import casadi as cs
@@ -109,23 +110,28 @@ class TestMpc(unittest.TestCase):
             else:
                 mpc.state("x1", 2, lb=0, ub=1)
 
-    @parameterized.expand([(2,), (1,)])
-    def test_action__constructs_action_correctly(self, divider: int):
+    @parameterized.expand(product((1, 2), (1, 3)))
+    def test_action__constructs_action_correctly(self, divider: int, space: int):
         Np = 10
         Nc = Np // divider
         nlp = Nlp(sym_type="SX")
-        mpc = Mpc[cs.SX](nlp=nlp, prediction_horizon=Np, control_horizon=Nc)
+        mpc = Mpc[cs.SX](
+            nlp=nlp, prediction_horizon=Np, control_horizon=Nc, input_spacing=space
+        )
         u1, u1_exp = mpc.action("u1", 2)
-        self.assertEqual(u1.shape, (2, Nc))
+        self.assertEqual(u1.shape, (2, ceil(Nc / space)))
         self.assertEqual(u1.shape, mpc.actions["u1"].shape)
         self.assertEqual(u1_exp.shape, (2, Np))
         self.assertEqual(u1_exp.shape, mpc.actions_expanded["u1"].shape)
         self.assertEqual(mpc.na, u1.shape[0])
         u2, u2_exp = mpc.action("u2", 1)
-        self.assertEqual(u2.shape, (1, Nc))
+        self.assertEqual(u2.shape, (1, ceil(Nc / space)))
         self.assertEqual(u2.shape, mpc.actions["u2"].shape)
         self.assertEqual(u2_exp.shape, (1, Np))
         self.assertEqual(u2_exp.shape, mpc.actions_expanded["u2"].shape)
+        for i in range(Nc):
+            self.assertTrue(cs.is_equal(u1[:, floor(i / space)], u1_exp[:, i]))
+            self.assertTrue(cs.is_equal(u2[:, floor(i / space)], u2_exp[:, i]))
         for i in range(Nc - 1, Np):
             self.assertTrue(cs.is_equal(u1[:, -1], u1_exp[:, i]))
             self.assertTrue(cs.is_equal(u2[:, -1], u2_exp[:, i]))

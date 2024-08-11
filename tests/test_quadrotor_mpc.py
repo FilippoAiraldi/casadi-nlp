@@ -648,7 +648,7 @@ class QuadRotorMpcActual(Mpc[cs.SX]):
             roll_dd=self.parameters["roll_dd"],
             roll_gain=self.parameters["roll_gain"],
         )
-        self.set_dynamics(lambda x, u: A @ x + B @ u + e, n_in=2, n_out=1)
+        self.set_dynamics(lambda x, u: A @ x + B @ u + e)
 
         # 3) constraint on state
         bo = self.parameter("backoff", (1, 1))
