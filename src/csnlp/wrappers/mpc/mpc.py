@@ -1,3 +1,4 @@
+from inspect import signature
 from math import ceil
 from typing import Callable, Literal, Optional, TypeVar, Union
 
@@ -328,8 +329,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             cs.Function,
             Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
-        n_in: Optional[int] = None,
-        n_out: Optional[int] = None,
     ) -> None:
         """Sets the dynamics of the controller's prediction model and creates the
         dynamics constraints.
@@ -341,11 +340,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             where :math:`x,u,d` are the state, action, disturbances respectively, and
             :math:`x_+` is the next state. The function can have multiple outputs, in
             which case :math:`x_+` is assumed to be the first one.
-        n_in : int, optional
-            In case a callable is passed instead of a casadi.Function, then the number
-            of inputs must be manually specified via this argument.
-        n_out : int, optional
-            Same as above, for outputs.
 
         Raises
         ------
@@ -357,26 +351,19 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         """
         if self._dynamics is not None:
             raise RuntimeError("Dynamics were already set.")
-        if isinstance(F, cs.Function):
-            n_in = F.n_in()
-            n_out = F.n_out()
-        elif n_in is None or n_out is None:
+        n_in = F.n_in() if isinstance(F, cs.Function) else len(signature(F).parameters)
+        if n_in < 2 or n_in > 3:
             raise ValueError(
-                "Args `n_in` and `n_out` must be manually specified when F is not a "
-                "casadi function."
-            )
-        if n_in is None or n_in < 2 or n_in > 3 or n_out is None or n_out < 1:
-            raise ValueError(
-                "The dynamics function must accepted 2 or 3 arguments and return at "
-                f"at least 1 output; got {n_in} inputs and {n_out} outputs instead."
+                "The dynamics function must accepted 2 or 3 arguments; got "
+                f"{n_in} inputs."
             )
         if self._is_multishooting:
-            self._multishooting_dynamics(F, n_in, n_out)
+            self._multishooting_dynamics(F, n_in)
         else:
-            self._singleshooting_dynamics(F, n_in, n_out)
+            self._singleshooting_dynamics(F, n_in)
         self._dynamics = F
 
-    def _multishooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
+    def _multishooting_dynamics(self, F: cs.Function, n_in: int) -> None:
         """Internal utility to create dynamics constraints in multiple shooting."""
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
@@ -388,12 +375,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         xs_next = []
         for k in range(self._prediction_horizon):
             x_next = F(*args_at(k))
-            if n_out != 1:
+            if isinstance(x_next, (tuple, list)):
                 x_next = x_next[0]
             xs_next.append(x_next)
         self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
 
-    def _singleshooting_dynamics(self, F: cs.Function, n_in: int, n_out: int) -> None:
+    def _singleshooting_dynamics(self, F: cs.Function, n_in: int) -> None:
         """Internal utility to create dynamics constraints and states in single
         shooting."""
         Xk = cs.vcat(self._initial_states.values())
@@ -406,7 +393,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X = [Xk]
         for k in range(self._prediction_horizon):
             Xk = F(Xk, *args_at(k))
-            if n_out != 1:
+            if isinstance(Xk, (tuple, list)):
                 Xk = Xk[0]
             X.append(Xk)
         X = cs.hcat(X)

@@ -1,3 +1,4 @@
+from inspect import signature
 from itertools import chain
 from typing import Callable, Literal, Optional, TypeVar, Union
 
@@ -326,11 +327,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
             cs.Function,
             Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
-        n_in: Optional[int] = None,
-        n_out: Optional[int] = None,
     ) -> None:
-        if isinstance(F, cs.Function):
-            n_in = F.n_in()
+        n_in = F.n_in() if isinstance(F, cs.Function) else len(signature(F).parameters)
         if n_in != 3 or self.nd == 0:
             raise ValueError(
                 "The dynamics function must have 3 arguments: the state, the action, "
@@ -338,9 +336,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 "stochastic disturbances, and if there are none, a nominal MPC should "
                 "suffice (see `Mpc` wrapper)."
             )
-        return super().set_dynamics(F, n_in, n_out)
+        return super().set_dynamics(F)
 
-    def _multishooting_dynamics(self, F: cs.Function, _: int, n_out: int) -> None:
+    def _multishooting_dynamics(self, F: cs.Function, _: int) -> None:
         state_names = self.single_states.keys()
         disturbance_names = self.single_disturbances.keys()
         U = cs.vcat(self._actions_exp.values())
@@ -350,12 +348,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
             xs_i_next = []
             for k in range(self._prediction_horizon):
                 x_i_next = F(X_i[:, k], U[:, k], D_i[:, k])
-                if n_out != 1:
+                if isinstance(x_i_next, (tuple, list)):
                     x_i_next = x_i_next[0]
                 xs_i_next.append(x_i_next)
             self.constraint(_n("dyn", i), cs.hcat(xs_i_next), "==", X_i[:, 1:])
 
-    def _singleshooting_dynamics(self, F: cs.Function, _: int, n_out: int) -> None:
+    def _singleshooting_dynamics(self, F: cs.Function, _: int) -> None:
         disturbance_names = self.single_disturbances.keys()
         Xk_shared = cs.vcat(self._initial_states.values())
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
@@ -368,7 +366,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
             X_i = [Xk_i]
             for k in range(self._prediction_horizon):
                 Xk_i = F(Xk_i, U[:, k], D_i[:, k])
-                if n_out != 1:
+                if isinstance(Xk_i, (tuple, list)):
                     Xk_i = Xk_i[0]
                 X_i.append(Xk_i)
             X_i = cs.vertsplit(cs.hcat(X_i), cumsizes)
