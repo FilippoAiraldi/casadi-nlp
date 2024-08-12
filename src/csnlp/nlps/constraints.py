@@ -339,7 +339,7 @@ class HasConstraints(HasVariables[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
+        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more lower and/or upper bounds from the given variable
 

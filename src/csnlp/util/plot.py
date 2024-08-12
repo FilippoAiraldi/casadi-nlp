@@ -6,8 +6,6 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ..core.data import array2cs as _array2cs
-
 MATLAB_COLORS = [
     "#0072BD",
     "#D95319",
@@ -44,14 +42,18 @@ def save2tikz(*figs) -> None:
         )
 
 
-def spy(H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax=None, **spy_kwargs: Any):
+def spy(
+    H: Union[cs.SX, cs.MX, cs.DM, cs.Sparsity, npt.ArrayLike],
+    ax=None,
+    **spy_kwargs: Any,
+):
     """Implementation equivalent to :func:`matplotlib.pyplot.spy` that works also with
     CasADi symbolic matrices.
 
     Parameters
     ----------
-    H : casadi SX, MX, DM or array_like
-        The matrix to spy.
+    H : casadi SX, MX, DM, Sparsity or array_like
+        The matrix (or its sparsity pattern) to spy.
     ax : :class:`matplotlib.axes.Axes`, optional
         The axis to draw the result on. If ``None``, creates a new axis.
     spy_kwargs
@@ -64,17 +66,15 @@ def spy(H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax=None, **spy_kwargs: Any
     """
     import matplotlib.pyplot as plt
 
-    H = _array2cs(H)
-    try:
-        # try convert to numerical; if it fails, use symbolic method from cs
-        H = np.asarray(H, dtype=float)
-    except Exception:
+    if hasattr(H, "sparsity") and callable(H.sparsity):
+        H = H.sparsity()
+    if hasattr(H, "spy") and callable(H.spy):
         from contextlib import redirect_stdout
         from io import StringIO
 
         f = StringIO()
         with redirect_stdout(f):
-            H.sparsity().spy()
+            H.spy()
         out = f.getvalue()
         H = np.asarray(
             [
@@ -83,6 +83,9 @@ def spy(H: Union[cs.SX, cs.MX, cs.DM, npt.ArrayLike], ax=None, **spy_kwargs: Any
             ],
             dtype=int,
         )
+    else:
+        H = np.asarray(H)
+
     if ax is None:
         _, ax = plt.subplots(1, 1)
     o = ax.spy(H, **spy_kwargs)
