@@ -362,7 +362,6 @@ class HasConstraints(HasVariables[SymType]):
         analysis, because it changes the underlying NLP problem and there is no way to
         invalidate any user-arbitrary result obtained previously.
         """
-        # sourcery skip: merge-comparisons
         n_rows, n_cols = self._vars[name].shape
         size = n_rows * n_cols
         if idx is None:
@@ -437,7 +436,6 @@ class HasConstraints(HasVariables[SymType]):
         analysis, because it changes the underlying NLP problem and there is no way to
         invalidate any user-arbitrary result obtained previously.
         """
-        # sourcery skip: merge-comparisons
         old_con = self._cons.pop(name)
         group = "g" if f"lam_g_{name}" in self._dual_vars else "h"
         this_name_lam = f"lam_{group}_{name}"

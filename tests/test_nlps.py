@@ -210,7 +210,6 @@ class TestNlp(unittest.TestCase):
         self.assertIn("slack_c0", nlp._vars)
 
     def test_constraint__solves_correctly__with_soft_variable(self):
-        # sourcery skip: extract-duplicate-method, inline-immediately-returned-variable
         # From https://www.gams.com/latest/docs/UG_EMP_SoftConstraints.html
         # solve with manual soft variable
         nlp = Nlp(sym_type=self.sym_type)
