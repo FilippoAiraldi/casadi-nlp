@@ -103,7 +103,9 @@ class HasObjective(HasConstraints[SymType]):
         Parameters
         ----------
         opts : dict[str, Any], optional
-            Options to be passed to the CasADi interface to the solver.
+            Options to be passed to the CasADi interface to the solver. Must not contain
+            the ``"discrete"`` key, which is automatically set based on the variables'
+            domains. By default, ``None``.
         solver : str, optional
             Type of solver to instantiate. For example, ``"ipopt"`` and ``"sqpmethod"``
             trigger the instantiation of an NLP problem, while, e.g., ``"qrqp"``,
@@ -119,7 +121,8 @@ class HasObjective(HasConstraints[SymType]):
         Raises
         ------
         ValueError
-            Raises if the given problem type is not recognized.
+            Raises if the given problem type is not recognized, or if the ``opts`` dict
+            contains the
         RuntimeError
             Raises if the type of the problem cannot be inferred automatically (when the
             solver supports both conic and NLPs), if the specified solver plugin cannot
@@ -147,9 +150,15 @@ class HasObjective(HasConstraints[SymType]):
             raise RuntimeError("NLP objective not set.")
 
         opts = {} if opts is None else opts.copy()
+        opts_ = opts.copy()
+        if "discrete" in opts:
+            raise ValueError("The 'discrete' key is reserved for the variable domains.")
+        if self.has_discrete:
+            opts_["discrete"] = self.discrete
+
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
-        solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
+        solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts_)
         self._solver = self._cache.cache(solver_func)
         self._solver_opts = opts
         self._solver_plugin = solver

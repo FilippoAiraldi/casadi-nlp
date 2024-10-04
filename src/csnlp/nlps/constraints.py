@@ -180,6 +180,7 @@ class HasConstraints(HasVariables[SymType]):
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
@@ -191,6 +192,8 @@ class HasConstraints(HasVariables[SymType]):
             Name of the new variable. Must not be already in use.
         shape : tuple of 2 ints, optional
             Shape of the new variable. By default, a scalar.
+        discrete : bool, optional
+            Flag indicating if the variable is discrete. Defaults to ``False``.
         lb, ub: array_like, optional
             Lower and upper bounds of the new variable. By default, unbounded. If
             provided, their dimension must be broadcastable.
@@ -220,7 +223,7 @@ class HasConstraints(HasVariables[SymType]):
         if np.any(lb > ub):
             raise ValueError("Improper variable bounds.")
 
-        var = super().variable(name, shape)
+        var = super().variable(name, shape, discrete)
 
         mlb: np.ma.MaskedArray = np.ma.masked_array(lb, np.ma.nomask)
         mub: np.ma.MaskedArray = np.ma.masked_array(ub, np.ma.nomask)

@@ -170,6 +170,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         name: str,
         size: int = 1,
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
         bound_initial: bool = True,
@@ -185,6 +186,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             Name of the state.
         size : int
             Size of the state (assumed to be a vector).
+        discrete : bool, optional
+            Flag indicating if the state is discrete. Defaults to ``False``.
         lb : array_like, casadi.DM, optional
             Hard lower bound of the state, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
@@ -227,7 +230,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
                 ub[:, -1] = +np.inf
 
             # create state variable and initial state constraint
-            x = self.nlp.variable(name, shape, lb, ub)[0]
+            x = self.nlp.variable(name, shape, discrete, lb, ub)[0]
             x0 = self.nlp.parameter(x0_name, (size, 1))
             self.nlp.constraint(x0_name, x[:, 0], "==", x0)
         else:
@@ -246,6 +249,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         name: str,
         size: int = 1,
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType]:
@@ -259,6 +263,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             Name of the control action.
         size : int, optional
             Size of the control action (assumed to be a vector). Defaults to ``1``.
+        discrete : bool, optional
+            Flag indicating if the action is discrete. Defaults to ``False``.
         lb : array_like, casadi.DM, optional
             Hard lower bound of the control action, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
@@ -273,7 +279,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             prediction horizon.
         """
         nu_free = ceil(self._control_horizon / self._input_spacing)
-        u = self.nlp.variable(name, (size, nu_free), lb, ub)[0]
+        u = self.nlp.variable(name, (size, nu_free), discrete, lb, ub)[0]
 
         u_exp: SymType = (
             u

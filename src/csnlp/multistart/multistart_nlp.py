@@ -189,12 +189,13 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
-        out = super().variable(name, shape, lb, ub)
+        out = super().variable(name, shape, discrete, lb, ub)
         for i in range(self._starts):
-            self._stacked_nlp.variable(_n(name, i), shape, lb, ub)
+            self._stacked_nlp.variable(_n(name, i), shape, discrete, lb, ub)
         return out
 
     @invalidate_cache(_vars_i, _dual_vars_i)

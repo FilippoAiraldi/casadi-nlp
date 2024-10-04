@@ -369,11 +369,12 @@ class NlpSensitivity(Wrapper[SymType]):
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         """See :meth:`csnlp.Nlp.variable`."""
-        return self.nlp.variable(name, shape, lb, ub)
+        return self.nlp.variable(name, shape, discrete, lb, ub)
 
     @invalidate_cache(lagrangian, kkt, jacobian, hessian, hojacobian)
     def constraint(

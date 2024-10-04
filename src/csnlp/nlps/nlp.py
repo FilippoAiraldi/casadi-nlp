@@ -99,10 +99,11 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
-        out = super().variable(name, shape, lb, ub)
+        out = super().variable(name, shape, discrete, lb, ub)
         if self._debug is not None:
             self._debug.register("x", name, shape)
         return out
