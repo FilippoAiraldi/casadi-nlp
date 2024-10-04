@@ -1,3 +1,6 @@
+import contextlib
+import os
+import sys
 import unittest
 
 import casadi as cs
@@ -24,6 +27,15 @@ OPTS = {
 EXAMPLES_DATA_FILENAME = r"tests/examples_data.mat"
 RESULTS = io.loadmat(EXAMPLES_DATA_FILENAME, simplify_cells=True)
 # io.savemat(EXAMPLES_DATA_FILENAME, {**RESULTS, "multistart_nlp_fs": fs})
+
+
+@contextlib.contextmanager
+def nostdout():
+    save_stdout = sys.stdout
+    with open(os.devnull, "w") as f:
+        sys.stdout = f
+        yield
+    sys.stdout = save_stdout
 
 
 @parameterized_class("sym_type", [("SX",), ("MX",)])
@@ -266,6 +278,38 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_almost_equal(fs[-1], fs[:-1].min(), decimal=2)
         np.testing.assert_allclose(RESULTS["scaling_fs"], fs, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["scaling_us"], us, rtol=1e-6, atol=1e-7)
+
+    def test__milp(self):
+        nlp = Nlp(sym_type=self.sym_type)
+        z = nlp.variable("z", (2, 1), lb=-0.5, discrete=True)[0]
+        x, y = z[0], z[1]
+        nlp.minimize(-y)
+        _, _ = nlp.constraint("con1", -x + y, "<=", 1)
+        _, _ = nlp.constraint("con2", 3 * x + 2 * y, "<=", 12)
+        _, _ = nlp.constraint("con3", 2 * x + 3 * y, "<=", 12)
+        nlp.init_solver({"cbc": {"logLevel": 0}}, solver="cbc")
+        sol = nlp.solve()
+
+        self.assertTrue(sol.success)
+        z_opt = sol.vals["z"].full().flatten()
+        self.assertTrue(np.array_equal(z_opt, [1, 2]) or np.array_equal(z_opt, [2, 2]))
+
+    def test__miqp(self):
+        np_random = np.random.default_rng(42)
+        m, n = 10, 5
+        A = np_random.random(size=(m, n))
+        b = np_random.normal(size=m)
+
+        nlp = Nlp(sym_type=self.sym_type)
+        x = nlp.variable("x", (n, 1), discrete=True)[0]
+        nlp.minimize(cs.sumsqr(A @ x - b))
+        nlp.init_solver(solver="bonmin")
+        with nostdout():
+            sol = nlp.solve()
+
+        self.assertTrue(sol.success)
+        x_opt = sol.vals["x"].full().flatten()
+        np.testing.assert_array_equal(x_opt, [1, 0, -1, 1, -1])
 
 
 if __name__ == "__main__":
