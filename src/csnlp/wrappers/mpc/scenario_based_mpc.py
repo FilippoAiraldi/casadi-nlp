@@ -110,6 +110,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         self,
         name: str,
         size: int = 1,
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
         bound_initial: bool = True,
@@ -124,6 +125,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
             Name of the state.
         size : int
             Size of the state (assumed to be a vector).
+        discrete : bool, optional
+            Flag indicating if the state is discrete. Defaults to ``False``.
         lb : array_like, casadi.DM, optional
             Hard lower bound of the state, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
@@ -186,7 +189,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         for i in range(self._n_scenarios):
             name_i = _n(name, i)
             if self._is_multishooting:
-                x_i = self.nlp.variable(name_i, shape, lb, ub)[0]
+                x_i = self.nlp.variable(name_i, shape, discrete, lb, ub)[0]
                 self.nlp.constraint(_n(x0_name, i), x_i[:, 0], "==", x0)
             else:
                 x_i = None

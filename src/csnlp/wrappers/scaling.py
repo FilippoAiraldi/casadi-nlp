@@ -108,6 +108,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         self,
         name: str,
         shape: tuple[int, int] = (1, 1),
+        discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
@@ -117,7 +118,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             lb, ub = np.broadcast_to(lb, shape), np.broadcast_to(ub, shape)
             lb = self.scaler.scale(name, lb)
             ub = self.scaler.scale(name, ub)
-        var, lam_lb, lam_ub = self.nlp.variable(name, shape, lb, ub)
+        var, lam_lb, lam_ub = self.nlp.variable(name, shape, discrete, lb, ub)
         if can_scale:
             svar = self.scaler.scale(name, var)
             uvar = self.scaler.unscale(name, var)
