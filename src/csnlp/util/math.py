@@ -59,7 +59,6 @@ def prod(
     casadi.SX, MX or DM
         Product of the elements, i.e., :math:`\prod_{i=1}^{|x|}{x_i}`.
     """
-    # sourcery skip: merge-comparisons
     if axis is None:
         x = cs.vec(x)
         axis = 0

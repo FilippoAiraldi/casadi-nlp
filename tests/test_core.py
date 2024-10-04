@@ -70,7 +70,6 @@ class TestFuncs(unittest.TestCase):
             invalidate_cache(5)
 
     def test_invalidate_cache__clears_property_cache(self):
-        # sourcery skip: extract-duplicate-method
         dummy = Dummy()
         dummy.prop1
         dummy.prop1
@@ -92,7 +91,6 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy.counter2, 3)
 
     def test_invalidate_cache__invalidates_only_current_object(self):
-        # sourcery skip: extract-duplicate-method
         dummy1, dummy2 = Dummy(), Dummy()
         dummy1.prop1
         dummy2.prop1
@@ -105,7 +103,6 @@ class TestFuncs(unittest.TestCase):
         self.assertEqual(dummy2.counter1, 1)
 
     def test_invalidate_cache__accepts_new_caches_to_clear(self):
-        # sourcery skip: extract-duplicate-method
         dummy = Dummy2()
         dummy.prop1
         dummy.prop1
