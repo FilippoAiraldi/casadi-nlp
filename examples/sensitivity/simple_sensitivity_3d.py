@@ -115,7 +115,7 @@ for p_value in p_values:
 # This time the visualization is a bit more complex, as we have to plot the function
 # in 3d. Depending on ``N``, the plot data might be slow to compute.
 
-N = 50  # TODO: increase at leasure
+N = 50  # NOTE: increase at leasure
 P = np.meshgrid(np.linspace(1, 2.5, N), np.linspace(1, 2, N))
 P_flattened = np.row_stack([P[0].flat, P[1].flat])
 Z_grid = Zfun(P_flattened, 0).full().reshape(N, N)

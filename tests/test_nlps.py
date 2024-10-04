@@ -83,44 +83,77 @@ class TestNlp(unittest.TestCase):
         with self.assertRaises(ValueError):
             nlp.parameter("p")
 
+    def test_variable__discrete__is_invalidated_when_new_variable_is_added(self):
+        n_variables = 30
+        np_random = np.random.default_rng()
+
+        nlp = Nlp(sym_type=self.sym_type)
+        discretes = np_random.random(n_variables) < 0.5
+        shapes = [tuple(np_random.integers(1, 10, 2)) for _ in range(n_variables)]
+        discrete_dict = {f"x{i}": d for i, d in enumerate(discretes)}
+        discrete = np.concatenate(
+            [
+                (np.ones if d else np.zeros)(np.prod(s), dtype=bool)
+                for s, d in zip(shapes, discrete_dict.values())
+            ]
+        )
+        cumnx = np.cumsum([np.prod(s) for s in shapes])
+
+        for i, (shape, discrete_) in enumerate(zip(shapes, discretes)):
+            nlp.variable(f"x{i}", shape, discrete_)
+            np.testing.assert_array_equal(nlp.discrete, discrete[: cumnx[i]])
+
     def test_variable__creates_correct_variable(self):
-        shape1 = (4, 3)
-        shape2 = (2, 2)
-        nx1, nx2 = np.prod(shape1), np.prod(shape2)
-        nx = nx1 + nx2
-        lb1, ub1 = np.random.rand(*shape1) - 1, np.random.rand(*shape1) + 1
-        lb2, ub2 = np.random.rand(*shape2) - 1, np.random.rand(*shape2) + 1
+        n_variables = 30
+        np_random = np.random.default_rng()
+
         nlp = Nlp(sym_type=self.sym_type, debug=True)
-        x1, lam1_lb, lam1_ub = nlp.variable("x1", shape1, lb=lb1, ub=ub1)
-        x2, lam2_lb, lam2_ub = nlp.variable("x2", shape2, lb=lb2, ub=ub2)
+        discretes = np_random.random(n_variables) < 0.5
+        shapes = [tuple(np_random.integers(1, 10, 2)) for _ in range(n_variables)]
+        lbs = [np_random.random(size=s) - 1 for s in shapes]
+        ubs = [np_random.random(size=s) + 1 for s in shapes]
+        xs, lams_lb, lams_ub = [], [], []
+        for i, (shape, discrete, lb, ub) in enumerate(zip(shapes, discretes, lbs, ubs)):
+            x, lam_lb, lam_ub = nlp.variable(f"x{i}", shape, discrete, lb, ub)
+            xs.append(x)
+            lams_lb.append(lam_lb)
+            lams_ub.append(lam_ub)
 
-        self.assertEqual(x1.shape, shape1)
-        self.assertEqual(lam1_lb.shape, (nx1, 1))
-        self.assertEqual(lam1_ub.shape, (nx1, 1))
-        self.assertEqual(x2.shape, shape2)
-        self.assertEqual(lam2_lb.shape, (nx2, 1))
-        self.assertEqual(lam2_ub.shape, (nx2, 1))
+        for shape, x, lam_lb, lam_ub in zip(shapes, xs, lams_lb, lams_ub):
+            self.assertEqual(x.shape, shape)
+            self.assertEqual(lam_lb.shape, (np.prod(shape), 1))
+            self.assertEqual(lam_ub.shape, (np.prod(shape), 1))
+
+        nx = sum(np.prod(s) for s in shapes)
         self.assertEqual(nlp.nx, nx)
+        self.cmp(nlp.x, cs.vvcat(xs), vars=xs)
 
-        x = cs.veccat(x1, x2)
-        self.cmp(nlp.x, x, vars=[x1, x2])
+        discrete_dict = {f"x{i}": d for i, d in enumerate(discretes)}
+        self.assertDictEqual(nlp._discrete, discrete_dict)
+        discrete = np.concatenate(
+            [
+                (np.ones if d else np.zeros)(np.prod(s), dtype=bool)
+                for s, d in zip(shapes, discrete_dict.values())
+            ]
+        )
+        np.testing.assert_array_equal(nlp.discrete, discrete)
 
-        lb = cs.veccat(lb1, lb2)
-        ub = cs.veccat(ub1, ub2)
+        lb = cs.vvcat(lbs)
         np.testing.assert_allclose(nlp.lbx, lb.full().flat)
+        ub = cs.vvcat(ubs)
         np.testing.assert_allclose(nlp.ubx, ub.full().flat)
 
-        i = 0
-        for name, shape in [("x1", shape1), ("x2", shape2)]:
+        k = 0
+        for i, shape in enumerate(shapes):
+            name = f"x{i}"
             for _ in range(np.prod(shape)):
-                self.assertEqual(name, nlp.debug.x_describe(i).name)
-                self.assertEqual(shape, nlp.debug.x_describe(i).shape)
-                i += 1
+                self.assertEqual(name, nlp.debug.x_describe(k).name)
+                self.assertEqual(shape, nlp.debug.x_describe(k).shape)
+                k += 1
+            self.assertTrue(cs.is_equal(nlp.variables[name], xs[i]))
+
         with self.assertRaises(IndexError):
             nlp.debug.x_describe(nx + 1)
-
-        self.assertTrue(cs.is_equal(nlp.variables["x1"], x1))
-        self.assertTrue(cs.is_equal(nlp.variables["x2"], x2))
 
     def test_variable__raises__with_variables_with_same_name(self):
         nlp = Nlp(sym_type=self.sym_type)
