@@ -50,6 +50,7 @@ __all__ = [
 
 from .mpc.mpc import Mpc
 from .mpc.scenario_based_mpc import ScenarioBasedMpc
+from .mpc.hybrid_mpc import HybridMpc
 from .scaling import NlpScaling
 from .sensitivity import NlpSensitivity
 from .wrapper import NonRetroactiveWrapper, Wrapper
