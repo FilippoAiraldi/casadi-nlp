@@ -165,9 +165,9 @@ class TestMpc(unittest.TestCase):
     def test_dynamics__raises__if_dynamics_already_set(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
-        mpc._dynamics = 5
+        mpc._dynamics_already_set = True
         with self.assertRaises(RuntimeError):
-            mpc.set_dynamics(6)
+            mpc.set_dynamics(object())
 
     def test_dynamics__raises__if_dynamics_arguments_are_invalid(self):
         x1 = cs.SX.sym("x1", 2)

@@ -85,7 +85,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._actions_exp: dict[str, SymType] = {}
         self._slacks: dict[str, SymType] = {}
         self._disturbances: dict[str, SymType] = {}
-        self._dynamics: cs.Function = None
+        self._dynamics_already_set = False
 
     @property
     def prediction_horizon(self) -> int:
@@ -156,15 +156,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     def nd(self) -> int:
         """Gets the number of disturbances in the MPC controller."""
         return sum(d.shape[0] for d in self._disturbances.values())
-
-    @property
-    def dynamics(self) -> Optional[cs.Function]:
-        """Dynamics of the controller's prediction model, i.e., a CasADi function of the
-        form :math:`x_+ = F(x,u)` or :math:`x+ = F(x,u,d)`, where :math:`x,u,d` are the
-        state, action, disturbances respectively, and :math:`x_+` is the next state. The
-        function can have multiple outputs, in which case :math:`x_+` is assumed to be
-        the first one."""
-        return self._dynamics
 
     def state(
         self,
@@ -355,7 +346,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             When setting, raises if the dynamics have been already set; or if the
             function ``F`` does not take accept the expected input sizes.
         """
-        if self._dynamics is not None:
+        if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
         n_in = F.n_in() if isinstance(F, cs.Function) else len(signature(F).parameters)
         if n_in < 2 or n_in > 3:
@@ -367,7 +358,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             self._multishooting_dynamics(F, n_in)
         else:
             self._singleshooting_dynamics(F, n_in)
-        self._dynamics = F
+        self._dynamics_already_set = True
 
     def _multishooting_dynamics(self, F: cs.Function, n_in: int) -> None:
         """Internal utility to create dynamics constraints in multiple shooting."""
