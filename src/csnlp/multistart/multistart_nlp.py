@@ -244,7 +244,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         opts: Optional[dict[str, Any]] = None,
         solver: str = "ipopt",
-        type: Literal["auto", "nlp", "conic"] = "auto",
+        type: Optional[Literal["nlp", "conic"]] = None,
     ) -> None:
         out = super().init_solver(opts, solver, type)
         self._stacked_nlp.init_solver(opts, solver, type)
