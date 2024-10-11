@@ -5,14 +5,13 @@ PWA MPC controller
 This example demos how an MPC controller can be built for a system with
 piecewise affine dynamics using :class:`csnlp.wrappers.HybridMpc`.
 """
+
 import os
-os.environ["ARTELYS_LICENSE"] = r"C:\Program Files\Artelys\artelys_lic_2024-10-07_trial_full_knitro_14.0_Samuel_Mallick_62-6a-f1-5c-8d.txt"
 import casadi as cs
 import numpy as np
-
 from csnlp import Nlp, wrappers
 
-N = 5
+N = 2
 
 # build dynamics of spring
 tau = 0.5  # sampling time for discretization
@@ -45,11 +44,14 @@ mpc = wrappers.HybridMpc(
     nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N, shooting="multi"
 )
 x, _ = mpc.state("x", 2)
-u, _ = mpc.action("u", lb=-1, ub=+1)
-mpc.set_pwa_dynamics({"A": A, "B": B, "c": c, "S": S, "R": R, "T": T, "D": D, "E": E, "F": F, "G": G})
-# vals0 = {'delta': np.zeros(mpc.variables['delta'].shape)}
-# vals0['delta'][1, :] = 1
+u, _ = mpc.action("u")
+mpc.set_pwa_dynamics(
+    {"A": A, "B": B, "c": c, "S": S, "R": R, "T": T, "D": D, "E": E, "F": F, "G": G}
+)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(solver="knitro")
-sol = mpc.solve(pars={"x_0": [0.5, 0]})
-pass
+sol = mpc.solve(
+    pars={"x_0": [-3, 0]}
+)  # , vals0={"u": np.array([[-3.96348, -4.8291]]), "delta": np.array([[1, 1], [0, 0]])})
+print(sol)
+print(sol.vals)
