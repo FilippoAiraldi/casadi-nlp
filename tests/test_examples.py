@@ -311,6 +311,59 @@ class TestExamples(unittest.TestCase):
         x_opt = sol.vals["x"].full().flatten()
         np.testing.assert_array_equal(x_opt, [1, 0, -1, 1, -1])
 
+    @parameterized.expand([("single",), ("multi",)])
+    def test__pwa_mpc(self, shooting: str):
+        tau = 0.5
+        k1 = 10
+        k2 = 1
+        d = 4
+        m = 10
+        A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
+        A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
+        B1, B2 = np.array([[0], [tau / m]])
+        x_bnd = [5, 5]
+        u_bnd = 20
+        system_dict = {
+            "S": [np.array([[1, 0]]), np.array([[-1, 0]])],
+            "R": [np.zeros((1, 1)), np.zeros((1, 1))],
+            "T": [np.array([[0]]), np.array([[0]])],
+            "A": [A1, A2],
+            "B": [B1, B2],
+            "c": [np.array([[0], [0]]), np.array([[0], [0]])],
+            "D": np.array([[1, 0], [-1, 0], [0, 1], [0, -1]]),
+            "E": np.array([[x_bnd[0]], [x_bnd[0]], [x_bnd[1]], [x_bnd[1]]]),
+            "F": np.array([[1], [-1]]),
+            "G": np.array([[u_bnd], [u_bnd]]),
+        }
+        mpc = wrappers.PwaMpc(
+            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
+        )
+        x, _ = mpc.state("x", 2)
+        u, _ = mpc.action("u")
+        if shooting == "multi":
+            mpc.set_pwa_dynamics(system_dict)
+            mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
+            mpc.init_solver(solver="bonmin")
+            sol = mpc.solve(pars={"x_0": [-3, 0]})
+            np.testing.assert_allclose(
+                sol.vals["u"],
+                np.array([[-3.9634842145302898], [-4.82921262838321]]),
+                rtol=1e-6,
+                atol=1e-6,
+            )
+            np.testing.assert_allclose(
+                sol.vals["x"],
+                np.array(
+                    [[-3.0, -3.0, -1.5990871053632572], [0.0, 2.8018257892734857, 5.0]]
+                ),
+                rtol=1e-6,
+                atol=1e-6,
+            )
+            np.testing.assert_array_equal(sol.vals["delta"], np.array([[1, 1], [0, 0]]))
+        else:
+            with self.assertRaises(NotImplementedError):
+                mpc.set_pwa_dynamics(system_dict)
+
 
 if __name__ == "__main__":
     unittest.main()
