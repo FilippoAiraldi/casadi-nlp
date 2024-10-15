@@ -17,7 +17,8 @@ from csnlp.util import io, math
 TMPFILENAME: str = ""
 
 
-class EmptyClass(io.SupportsDeepcopyAndPickle): ...
+class EmptyClass(io.SupportsDeepcopyAndPickle):
+    ...
 
 
 class DictClass(EmptyClass):
