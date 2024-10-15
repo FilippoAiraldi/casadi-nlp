@@ -1,7 +1,7 @@
 from inspect import signature
 from itertools import chain
 from typing import Callable, Literal, Optional, TypeVar, Union
-
+import numpy.typing as npt
 import casadi as cs
 import numpy as np
 
@@ -15,7 +15,7 @@ from ...core.data import cs2array
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class HybridMpc(Mpc[SymType]):
+class PwaMpc(Mpc[SymType]):
     """A hybrid MPC controller, where there exists discrete variables in either
     the state, control, or constraints, e.g., piecewise affine dynamics converted
     to mixed logical dynamical form via mixed-integer constraints:
@@ -49,7 +49,38 @@ class HybridMpc(Mpc[SymType]):
     ValueError
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
-    # TODO NOT ON LBU AND UBU NOT BEING SET WITH PWA_DYNAMICS
+
+
+    def action(
+        self,
+        name: str,
+        size: int = 1,
+        discrete: bool = False
+    ) -> tuple[SymType, SymType]:
+        """Adds a control action variable to the MPC controller along the whole control
+        horizon. Automatically expands this action to be of the same length of the
+        prediction horizon by padding with the final action. Note that lower and upper 
+        bounds cannot be changed from the default values, as the polytopic action bounds 
+        are passed to :meth:`set_pwa_dynamics`.
+
+        Parameters
+        ----------
+        name : str
+            Name of the control action.
+        size : int, optional
+            Size of the control action (assumed to be a vector). Defaults to ``1``.
+        discrete : bool, optional
+            Flag indicating if the action is discrete. Defaults to ``False``.
+
+        Returns
+        -------
+        action : casadi.SX or MX
+            The control action symbolic variable.
+        action_expanded : casadi.SX or MX
+            The same control  action variable, but expanded to the same length of the
+            prediction horizon.
+        """
+        return super().action(name, size, discrete)
 
     def set_pwa_dynamics(
         self, pwa_system: dict
