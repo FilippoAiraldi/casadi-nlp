@@ -50,17 +50,13 @@ class PwaMpc(Mpc[SymType]):
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
 
-
     def action(
-        self,
-        name: str,
-        size: int = 1,
-        discrete: bool = False
+        self, name: str, size: int = 1, discrete: bool = False
     ) -> tuple[SymType, SymType]:
         """Adds a control action variable to the MPC controller along the whole control
         horizon. Automatically expands this action to be of the same length of the
-        prediction horizon by padding with the final action. Note that lower and upper 
-        bounds cannot be changed from the default values, as the polytopic action bounds 
+        prediction horizon by padding with the final action. Note that lower and upper
+        bounds cannot be changed from the default values, as the polytopic action bounds
         are passed to :meth:`set_pwa_dynamics`.
 
         Parameters
