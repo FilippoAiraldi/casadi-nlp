@@ -1,16 +1,9 @@
-from inspect import signature
-from itertools import chain
-from typing import Callable, Literal, Optional, TypeVar, Union
-import numpy.typing as npt
+from typing import TypeVar
+
 import casadi as cs
 import numpy as np
 
-from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
-
-from ..wrapper import Nlp
 from .mpc import Mpc
-from .mpc import _n as _name_init_state
-from ...core.data import cs2array
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
@@ -87,10 +80,11 @@ class PwaMpc(Mpc[SymType]):
         Parameters
         ----------
         pwa_system : dict
-            A dictionary containing the piecewise affine system dynamics matrics. The dynamics are
-            defined as x^+ = A[i]x + B[i]u + c[i] if S[i]x + R[i]u <= T[i]. Additionally, matrices
-            for constraining both the state and input are required, as both must be bounded for
-            the model conversion. The dictionary has the following keys:
+            A dictionary containing the piecewise affine system dynamics matrics. The
+            dynamics are defined as x^+ = A[i]x + B[i]u + c[i] if S[i]x + R[i]u <= T[i].
+            Additionally, matrices for constraining both the state and input are
+            required, as both must be bounded for the model conversion. The dictionary
+            has the following keys:
 
             - 'A' : numpy.ndarray
                 The state matrix of the dynamics.
@@ -121,7 +115,8 @@ class PwaMpc(Mpc[SymType]):
         l = pwa_system["T"][0].shape[0]  # the number of inequalities defining regions
         if not all(pwa_system["T"][i].shape[0] == l for i in range(s)):
             raise ValueError(
-                "The number of inequalities defining regions must be equal for all regions."
+                "The number of inequalities defining regions must be equal for all "
+                " regions."
             )
         if self._is_multishooting:
             self._multishooting_pwa_dynamics(pwa_system)
@@ -152,9 +147,9 @@ class PwaMpc(Mpc[SymType]):
         x = cs.SX.sym("x", n)
         u = cs.SX.sym("u", m)
 
-        M_region = np.zeros(
-            (s, l)
-        )  # big-M relaxation for region constraints (number of region, number of inequalities)
+        # big-M relaxation for region constraints (number of region, number of
+        # inequalities)
+        M_region = np.zeros((s, l))
         for i in range(s):
             region = S[i] @ x + R[i] @ u - T[i]
             for j in range(l):
@@ -198,8 +193,8 @@ class PwaMpc(Mpc[SymType]):
         z = [self.variable(f"z_{i}", (n, N))[0] for i in range(s)]
         delta, _, _ = self.variable("delta", (s, N), lb=0, ub=1, discrete=True)
 
-        # dynamics constraints - we now have to add constraints for all regions at each time-step, with the binary variable delta
-        # selecting the active region
+        # dynamics constraints - we now have to add constraints for all regions at each
+        # time-step, with the binary variable delta selecting the active region
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         self.constraint("delta_sum", cs.sum1(delta), "==", 1)
@@ -230,8 +225,7 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
 
-    def _single_shooting_pwa_dynamics(self, pwa_system: dict) -> None:
-        # TODO Implement single shooting for PWA dynamics
+    def _single_shooting_pwa_dynamics(self, *_, **__) -> None:
         raise NotImplementedError(
             "Single shooting for PWA dynamics is not yet implemented."
         )

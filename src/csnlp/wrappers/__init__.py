@@ -44,13 +44,14 @@ __all__ = [
     "NlpScaling",
     "NlpSensitivity",
     "NonRetroactiveWrapper",
+    "PwaMpc",
     "ScenarioBasedMpc",
     "Wrapper",
 ]
 
 from .mpc.mpc import Mpc
-from .mpc.scenario_based_mpc import ScenarioBasedMpc
 from .mpc.pwa_mpc import PwaMpc
+from .mpc.scenario_based_mpc import ScenarioBasedMpc
 from .scaling import NlpScaling
 from .sensitivity import NlpSensitivity
 from .wrapper import NonRetroactiveWrapper, Wrapper

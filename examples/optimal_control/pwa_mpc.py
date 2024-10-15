@@ -9,9 +9,10 @@ piecewise affine dynamics using :class:`csnlp.wrappers.HybridMpc`.
 # %%
 # Imports
 import casadi as cs
-import numpy as np
-from csnlp import Nlp, wrappers
 import matplotlib.pyplot as plt
+import numpy as np
+
+from csnlp import Nlp, wrappers
 
 # %%
 # Discrete time PWA dynamics for the one-sided spring-mass-damper system
@@ -56,7 +57,7 @@ mpc.init_solver(solver="gurobi")  # other options: "bonmin", "knitro"
 # %%
 # Solve mpc problem
 sol = mpc.solve(pars={"x_0": [-3, 0]})
-t = np.linspace(0, N, N+1)
+t = np.linspace(0, N, N + 1)
 plt.plot(t, sol.value(x).T)
 plt.step(t[:-1], sol.vals["u"].T.full(), "-.", where="post")
 plt.legend(["x1", "x2", "u"])
