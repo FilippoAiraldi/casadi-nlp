@@ -106,9 +106,7 @@ G = np.array([u_bnd, u_bnd])
 # difference is that now we must use the :meth:`csnlp.wrappers.PwaMpc.set_pwa_dynamics`
 # instead of :meth:`csnlp.wrappers.Mpc.set_dynamics` to set the dynamics of the system.
 N = 10
-mpc = wrappers.PwaMpc(
-    nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N, shooting="multi"
-)
+mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)
 x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
 mpc.set_pwa_dynamics(pwa_system, D, E, F, G)

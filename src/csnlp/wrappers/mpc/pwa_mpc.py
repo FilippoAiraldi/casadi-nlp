@@ -258,17 +258,12 @@ class PwaMpc(Mpc[SymType]):
             max_num_threads = len(pwa_system)
         if clp_opts is None:
             clp_opts = {}
-        if self._is_multishooting:
-            self._multishooting_pwa_dynamics(
-                pwa_system, D, E, F, G, clp_opts, parallelization, max_num_threads
-            )
-        else:
-            raise NotImplementedError(
-                "Single shooting for PWA dynamics is not yet implemented."
-            )
+        self._set_pwa_dynamics(
+            pwa_system, D, E, F, G, clp_opts, parallelization, max_num_threads
+        )
         self._dynamics = object()  # TODO New dynamics will just be a flag
 
-    def _multishooting_pwa_dynamics(
+    def _set_pwa_dynamics(
         self,
         regions: Sequence[PwaRegion],
         D: npt.NDArray[np.floating],
@@ -279,7 +274,7 @@ class PwaMpc(Mpc[SymType]):
         parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
         max_num_threads: int,
     ) -> None:
-        """Internal utility to create PWA dynamics constraints in multiple shooting."""
+        """Internal utility to create PWA dynamics constraints."""
         nr = len(regions)
         n_ineq = regions[0].T.size
         ns, na = regions[0].B.shape
@@ -314,24 +309,29 @@ class PwaMpc(Mpc[SymType]):
         tmp_ub = -sol["cost"].toarray().reshape(nr, ns) + C
         M_ub = tmp_ub.max(0)
 
-        # set polytopic domain constraints
-        X = cs.vcat(self._states.values())
-        U = cs.vcat(self._actions_exp.values())
-        self.constraint("state_constraints", D @ X - E, "<=", 0)
-        self.constraint("input_constraints", F @ U - G, "<=", 0)
-
         # dynamics constraints - we now have to add constraints for all regions at each
         # time-step, with the binary variable delta selecting the active region
         z = [self.variable(f"z_{i}", (ns, N))[0] for i in range(nr)]
+        if self._is_multishooting:
+            X = cs.vcat(self._states.values())
+            self.constraint("dynamics", X[:, 1:], "==", sum(z))
+        else:
+            Xk = cs.vcat(self._initial_states.values())
+            X = cs.horzcat(Xk, sum(z))
+            cumsizes = np.cumsum(
+                [0] + [s.shape[0] for s in self._initial_states.values()]
+            )
+            self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+
+        U = cs.vcat(self._actions_exp.values())
         delta, _, _ = self.variable("delta", (nr, N), lb=0, ub=1, discrete=True)
-        X_ = X[:, :-1]
         self.constraint("delta_sum", cs.sum1(delta), "==", 1)
-        self.constraint("dynamics", X[:, 1:], "==", sum(z))
         z_ub = []
         z_lb = []
         region = []
         z_x_ub = []
         z_x_lb = []
+        X_ = X[:, :-1]
         for i, r in enumerate(regions):
             z_i = z[i]
             delta_i = delta[i, :]
@@ -345,3 +345,7 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("region", cs.vcat(region), "<=", 0)
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
+
+        # set polytopic domain constraints
+        self.constraint("state_constraints", D @ X - E, "<=", 0)
+        self.constraint("input_constraints", F @ U - G, "<=", 0)
