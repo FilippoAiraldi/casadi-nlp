@@ -346,14 +346,10 @@ class TestExamples(unittest.TestCase):
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
-
-        if shooting == "single":
-            with self.assertRaises(NotImplementedError):
-                mpc.set_pwa_dynamics(pwa_regions, D, E, F, G)
-            return
-
         with nostdout():
             mpc.set_pwa_dynamics(pwa_regions, D, E, F, G)
+        if shooting == "single":
+            x = mpc.states["x"]  # previous `x` is None if in single shooting
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(solver="bonmin")
         with nostdout():
@@ -367,8 +363,13 @@ class TestExamples(unittest.TestCase):
             ),
             "delta": np.asarray([[1, 1], [0, 0]]),
         }
+        actual = {
+            "u": sol.vals["u"].full(),
+            "x": sol.value(x) if shooting == "single" else sol.value(x).full(),
+            "delta": sol.vals["delta"].full(),
+        }
         for name, val in expected.items():
-            np.testing.assert_allclose(sol.vals[name], val, *tols, err_msg=name)
+            np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
 
 
 if __name__ == "__main__":
