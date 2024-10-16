@@ -9,13 +9,24 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
 class PwaMpc(Mpc[SymType]):
-    """A hybrid MPC controller, where there exists discrete variables in either
-    the state, control, or constraints, e.g., piecewise affine dynamics converted
-    to mixed logical dynamical form via mixed-integer constraints:
+    r"""MPC controller for piecewise affine (PWA) systems. A PWA system is characterized
+    by linear dynamics that switch between different regions of the state-action space.
+    In mathematical terms, given a PWA system with :math:`s` regions, the dynamics are
 
-    Bemporad, Alberto, and Manfred Morari.
-    "Control of systems integrating logic, dynamics, and constraints."
-    Automatica 35.3 (1999): 407-427.
+    .. math::
+        x_+ = \begin{cases}
+            A_1 x + B_1 u + c_1 & \text{if } S_1 x + R_1 u \leq T_1 \\
+            & \vdots \\
+            A_i x + B_i u + c_i & \text{if } S_i x + R_i u \leq T_i \\
+            & \vdots \\
+            A_s x + B_s u + c_s & \text{if } S_s x + R_s u \leq T_s
+        \end{cases}
+
+    Following :cite:`bemporad_control_1999`, the PWA dynamics can be converted to
+    mixed-logical dynamical form, and the ensuing MPC optimization becomes a
+    mixed-integer optimization problem. This is done under the hood via the
+    :meth:`set_pwa_dynamics` method. See also :cite:`borrelli_predictive_2017` for
+    further details.
 
     Parameters
     ----------
@@ -43,14 +54,69 @@ class PwaMpc(Mpc[SymType]):
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
 
+    def state(
+        self,
+        name: str,
+        size: int = 1,
+        discrete: bool = False,
+        bound_initial: bool = True,
+        bound_terminal: bool = True,
+    ) -> tuple[Optional[SymType], SymType]:
+        """Adds a state variable to the MPC controller along the whole prediction
+        horizon. Automatically creates the constraint on the initial conditions for this
+        state. Note that lower and upper bounds cannot be specified here; specify them
+        instead as the polytopic state constraint :math:`D x \leq E` in
+        :meth:`set_pwa_dynamics`.
+
+        Parameters
+        ----------
+        name : str
+            Name of the state.
+        size : int
+            Size of the state (assumed to be a vector).
+        discrete : bool, optional
+            Flag indicating if the state is discrete. Defaults to ``False``.
+        bound_initial : bool, optional
+            If ``False``, then the upper and lower bounds on the initial state are not
+            imposed, i.e., set to ``+/- np.inf`` (since the initial state is constrained
+            to be equal to the current state of the system, it is sometimes advantageous
+            to remove its bounds). By default ``True``.
+        bound_terminal : bool, optional
+            Same as above, but for the terminal state. By default ``True``.
+
+        Returns
+        -------
+        state : casadi.SX or MX or None
+            The state symbolic variable. If ``shooting=single``, then ``None`` is
+            returned since the state will only be available once the dynamics are set.
+        initial state : casadi.SX or MX
+            The initial state symbolic parameter.
+
+        Raises
+        ------
+        ValueError
+            Raises if there exists already a state with the same name.
+        RuntimeError
+            Raises in single shooting if lower or upper bounds have been specified,
+            since these can only be set after the dynamics have been set via the
+            :meth:`constraint` method.
+        """
+        return super().state(
+            name,
+            size,
+            discrete,
+            bound_initial=bound_initial,
+            bound_terminal=bound_terminal,
+        )
+
     def action(
         self, name: str, size: int = 1, discrete: bool = False
     ) -> tuple[SymType, SymType]:
         """Adds a control action variable to the MPC controller along the whole control
         horizon. Automatically expands this action to be of the same length of the
         prediction horizon by padding with the final action. Note that lower and upper
-        bounds cannot be changed from the default values, as the polytopic action bounds
-        are passed to :meth:`set_pwa_dynamics`.
+        bounds cannot be specified here; specify them instead as the polytopic action
+        constraint :math:`F u \leq G` in :meth:`set_pwa_dynamics`.
 
         Parameters
         ----------
