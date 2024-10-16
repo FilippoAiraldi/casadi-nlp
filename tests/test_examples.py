@@ -44,7 +44,6 @@ def nostdout(suppress: bool = True):
         yield
 
 
-
 @parameterized_class("sym_type", [("SX",), ("MX",)])
 class TestExamples(unittest.TestCase):
     def test__chain(self):
