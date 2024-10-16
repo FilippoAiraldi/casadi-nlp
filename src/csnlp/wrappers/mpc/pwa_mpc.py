@@ -177,11 +177,16 @@ class PwaMpc(Mpc[SymType]):
         F: npt.NDArray[np.floating],
         G: npt.NDArray[np.floating],
         clp_opts: Optional[dict[str, Any]] = None,
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "thread",
+        max_num_threads: Optional[int] = None,
     ) -> None:
         r"""Sets the piecewise affine dynamics of the system for the MPC controller,
         creating auxiliary variables and constraints to handle the PWA switching. In
         order to perform the conversion of the PWA dynamics to mixed-logical dynamical
         form, the method solves a series of linear programmes via the ``CLP`` solver.
+        Parallelization can also be enabled to speed up the process.
 
         Parameters
         ----------
@@ -202,6 +207,12 @@ class PwaMpc(Mpc[SymType]):
             :math:`F u \leq G`.
         clp_opts : dict, optional
             Options for the CLP solver. Defaults to ``None``.
+        parallelization : "serial", "unroll", "inline", "thread", "openmp"
+            The type of parallelization to use (see :func:`casadi.Function.map`) when
+            solving the linear programmes. By default, ``"thread"`` is selected.
+        max_num_threads : int, optional
+            Maximum number of threads to use in parallelization; if ``None``, the number
+            of threads is equal to the number of regions in the system.
 
         Raises
         ------
@@ -243,10 +254,14 @@ class PwaMpc(Mpc[SymType]):
             raise ValueError(f"G must have shape ({n_ineq_u},).")
 
         # set the PWA dynamics
+        if max_num_threads is None:
+            max_num_threads = len(pwa_system)
         if clp_opts is None:
             clp_opts = {}
         if self._is_multishooting:
-            self._multishooting_pwa_dynamics(pwa_system, D, E, F, G, clp_opts)
+            self._multishooting_pwa_dynamics(
+                pwa_system, D, E, F, G, clp_opts, parallelization, max_num_threads
+            )
         else:
             raise NotImplementedError(
                 "Single shooting for PWA dynamics is not yet implemented."
@@ -261,6 +276,8 @@ class PwaMpc(Mpc[SymType]):
         F: npt.NDArray[np.floating],
         G: npt.NDArray[np.floating],
         clp_opts: dict[str, Any],
+        parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
+        max_num_threads: int,
     ) -> None:
         """Internal utility to create PWA dynamics constraints in multiple shooting."""
         nr = len(regions)
@@ -270,37 +287,32 @@ class PwaMpc(Mpc[SymType]):
 
         # solve linear programs to determine bounds for big-M relaxations. These LPs are
         # solved parallelly for each region and for each inequality defining the region.
-        x = cs.SX.sym("x", ns)
-        u = cs.SX.sym("u", na)
-        z = cs.vertcat(x, u)
-        g = cs.vertcat(D @ x - E, F @ u - G)
+        DF = cs.diagcat(cs.sparsify(D), cs.sparsify(F))
+        EG = np.concatenate((E, G))
+        SR_, T_, AB_, C_ = [], [], [], []
+        for r in regions:
+            SR_.append(np.hstack((r.S, r.R)))
+            T_.append(r.T)
+            AB_.append(np.hstack((r.A, r.B)))
+            C_.append(r.c)
+        SR = np.vstack(SR_).T
+        T = np.asarray(T_)
+        AB = np.vstack(AB_).T
+        C = np.asarray(C_)
+        lp = {"h": cs.Sparsity(ns + na, ns + na), "a": DF.sparsity()}
+        lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
 
-        big_M = np.zeros((nr, n_ineq))
-        for i, r in enumerate(regions):
-            region = r.S @ x + r.R @ u - r.T
-            for j in range(n_ineq):
-                lp = {"x": z, "f": -region[j], "g": g}
-                solver = cs.qpsol("S", "clp", lp, clp_opts)
-                sol = solver(ubg=0)
-                big_M[i, j] = -sol["f"]
+        mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
+        sol = mapped_lpsolver(g=SR, a=DF, uba=EG)
+        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) - T
 
-        M_ub = np.zeros(ns)  # big-M relaxation for dynamics
-        M_lb = np.zeros(ns)
-        temp_upper = np.zeros(nr)
-        temp_lower = np.zeros(nr)
-        for j in range(ns):
-            for i, r in enumerate(regions):
-                obj = r.A[[j], :] @ x + r.B[[j], :] @ u + r.c[[j]]
-                lp = {"x": z, "f": -obj, "g": g}
-                solver = cs.qpsol("S", "clp", lp, clp_opts)
-                sol = solver(ubg=0)
-                temp_upper[i] = -sol["f"]
-                lp = {"x": z, "f": obj, "g": g}
-                solver = cs.qpsol("S", "clp", lp, clp_opts)
-                sol = solver(ubg=0)
-                temp_lower[i] = sol["f"]
-            M_ub[j] = np.max(temp_upper)
-            M_lb[j] = np.min(temp_lower)
+        mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
+        sol = mapped_lpsolver(g=AB, a=DF, uba=EG)
+        tmp_lb = sol["cost"].toarray().reshape(nr, ns) + C
+        M_lb = tmp_lb.min(0)
+        sol = mapped_lpsolver(g=-AB, a=DF, uba=EG)
+        tmp_ub = -sol["cost"].toarray().reshape(nr, ns) + C
+        M_ub = tmp_ub.max(0)
 
         # set polytopic domain constraints
         X = cs.vcat(self._states.values())
