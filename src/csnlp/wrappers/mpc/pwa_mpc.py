@@ -1,11 +1,43 @@
-from typing import TypeVar
+from collections.abc import Sequence
+from dataclasses import dataclass
+from typing import Any, Literal, Optional, TypeVar
 
 import casadi as cs
 import numpy as np
+import numpy.typing as npt
 
 from .mpc import Mpc
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+
+
+@dataclass
+class PwaRegion:
+    """Stores the matrices defining the i-th region in a piecewise affine system."""
+
+    A: npt.NDArray[np.floating]
+    r"""The state matrix :math:`A_i` of the linear dynamics
+    :math:`x_+ = A_i x + B_i u + c_i`."""
+
+    B: npt.NDArray[np.floating]
+    r"""The input matrix :math:`B_i` of the linear dynamics
+    :math:`x_+ = A_i x + B_i u + c_i`."""
+
+    c: npt.NDArray[np.floating]
+    r"""The affine constant vector :math:`c_i` of the linear dynamics
+    :math:`x_+ = A_i x + B_i u + c_i`."""
+
+    S: npt.NDArray[np.floating]
+    r"""The state matrix :math:`S_i` of the region inequality
+    :math:`S_i x + R_i u \leq T_i`"""
+
+    R: npt.NDArray[np.floating]
+    r"""The input matrix :math:`R_i` of the region inequality
+    :math:`S_i x + R_i u \leq T_i`"""
+
+    T: npt.NDArray[np.floating]
+    r"""The constant vector :math:`T_i` of the region inequality
+    :math:`S_i x + R_i u \leq T_i`"""
 
 
 class PwaMpc(Mpc[SymType]):
@@ -138,160 +170,166 @@ class PwaMpc(Mpc[SymType]):
         return super().action(name, size, discrete)
 
     def set_pwa_dynamics(
-        self, pwa_system: dict
-    ) -> None:  # TODO add arguments passed explicitly
-        """Sets the piecewise affine dynamics of the system for the MPC controller,
-        creating auxiliary variables and constraints to handle the PWA switching.
+        self,
+        pwa_system: Sequence[PwaRegion],
+        D: npt.NDArray[np.floating],
+        E: npt.NDArray[np.floating],
+        F: npt.NDArray[np.floating],
+        G: npt.NDArray[np.floating],
+        clp_opts: Optional[dict[str, Any]] = None,
+    ) -> None:
+        r"""Sets the piecewise affine dynamics of the system for the MPC controller,
+        creating auxiliary variables and constraints to handle the PWA switching. In
+        order to perform the conversion of the PWA dynamics to mixed-logical dynamical
+        form, the method solves a series of linear programmes via the ``CLP`` solver.
 
         Parameters
         ----------
-        pwa_system : dict
-            A dictionary containing the piecewise affine system dynamics matrics. The
-            dynamics are defined as x^+ = A[i]x + B[i]u + c[i] if S[i]x + R[i]u <= T[i].
-            Additionally, matrices for constraining both the state and input are
-            required, as both must be bounded for the model conversion. The dictionary
-            has the following keys:
+        pwa_system : collection of PwaRegion
+            A sequence of :class:`PwaRegion` objects, where the i-th object contains
+            the matrices defining the i-th region of the PWA system.
+        D : array of shape (n_ineq_x, ns)
+            The matrix defining the polytopic constraints on the state space
+            :math:`D x \leq E`.
+        E : array of shape (n_ineq_x,)
+            The vector defining the polytopic constraints on the state space
+            :math:`D x \leq E`.
+        F : array of shape (n_ineq_u, na)
+            The matrix defining the polytopic constraints on the input space
+            :math:`F u \leq G`.
+        G : array of shape (n_ineq_u,)
+            The vector defining the polytopic constraints on the input space
+            :math:`F u \leq G`.
+        clp_opts : dict, optional
+            Options for the CLP solver. Defaults to ``None``.
 
-            - 'A' : numpy.ndarray
-                The state matrix of the dynamics.
-            - 'B' : numpy.ndarray
-                The input matrix of the dynamics.
-            - 'c' : numpy.ndarray
-                The constant term of the dynamics.
-            - 'S' : numpy.ndarray
-                The state matrix of the region inequality.
-            - 'R' : numpy.ndarray
-                The input matrix of the region inequality.
-            - 'T' : numpy.ndarray
-                The constant matrix of the region inequality.
-            - 'D' : numpy.ndarray
-                The state matrix of the state constraints Dx <= E.
-            - 'E' : numpy.ndarray
-                The constant matrix of the state constraints Dx <= E.
-            - 'F' : numpy.ndarray
-                The input matrix of the input constraints Fu <= G.
-            - 'G' : numpy.ndarray
-                The constant matrix of the input constraints Fu <= G.
+        Raises
+        ------
+        RuntimeError
+            Raises if the dynamics were already set.
+        ValueError
+            Raises if the dimensions of any matrix in any region do not match the
+            expected shape.
         """
         if self._dynamics is not None:
             raise RuntimeError("Dynamics were already set.")
-        s = len(pwa_system["A"])  # the number of switching regions
-        if not all(len(pwa_system[key]) == s for key in ("B", "c", "S", "R", "T")):
-            raise ValueError("The number of matrices in the PWA system must be equal.")
-        l = pwa_system["T"][0].shape[0]  # the number of inequalities defining regions
-        if not all(pwa_system["T"][i].shape[0] == l for i in range(s)):
-            raise ValueError(
-                "The number of inequalities defining regions must be equal for all "
-                " regions."
-            )
-        if self._is_multishooting:
-            self._multishooting_pwa_dynamics(pwa_system)
-        else:
-            self._single_shooting_pwa_dynamics(pwa_system)
-        self._dynamics = object()  # TODO New dynamics will just be a flag - change
 
-    def _multishooting_pwa_dynamics(self, pwa_system: dict) -> None:
-        """Internal utility to create pwa dynamics constraints in multiple shooting."""
-        # extract values from system
-        S = pwa_system["S"]
-        R = pwa_system["R"]
-        T = pwa_system["T"]
-        A = pwa_system["A"]
-        B = pwa_system["B"]
-        c = pwa_system["c"]
-        D = pwa_system["D"]
-        E = pwa_system["E"]
-        F = pwa_system["F"]
-        G = pwa_system["G"]
-        s = len(S)  # number of PWA regions
-        n = A[0].shape[0]  # state dimension
-        m = B[0].shape[1]  # input dimension
-        l = T[0].shape[0]  # number of inequalities defining regions
+        # validate dimensions
+        ns = self.ns
+        na = self.na
+        n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
+        for i, region in enumerate(pwa_system):
+            if region.A.shape != (ns, ns):
+                raise ValueError(f"A in region {i} must have shape ({ns}, {ns}).")
+            if region.B.shape != (ns, na):
+                raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
+            if region.c.shape != (ns,):
+                raise ValueError(f"c in region {i} must have shape ({ns},).")
+            if region.S.shape != (n_ineq, ns):
+                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {ns}).")
+            if region.R.shape != (n_ineq, na):
+                raise ValueError(f"R in region {i} must have shape ({n_ineq}, {na}).")
+            if region.T.shape != (n_ineq,):
+                raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
+        n_ineq_x = E.shape[0]
+        if D.shape != (n_ineq_x, ns):
+            raise ValueError(f"D must have shape ({n_ineq_x}, {ns}).")
+        if E.shape != (n_ineq_x,):
+            raise ValueError(f"E must have shape ({n_ineq_x},).")
+        n_ineq_u = G.shape[0]
+        if F.shape != (n_ineq_u, na):
+            raise ValueError(f"F must have shape ({n_ineq_u}, {na}).")
+        if G.shape != (n_ineq_u,):
+            raise ValueError(f"G must have shape ({n_ineq_u},).")
+
+        # set the PWA dynamics
+        if clp_opts is None:
+            clp_opts = {}
+        if self._is_multishooting:
+            self._multishooting_pwa_dynamics(pwa_system, D, E, F, G, clp_opts)
+        else:
+            raise NotImplementedError(
+                "Single shooting for PWA dynamics is not yet implemented."
+            )
+        self._dynamics = object()  # TODO New dynamics will just be a flag
+
+    def _multishooting_pwa_dynamics(
+        self,
+        regions: Sequence[PwaRegion],
+        D: npt.NDArray[np.floating],
+        E: npt.NDArray[np.floating],
+        F: npt.NDArray[np.floating],
+        G: npt.NDArray[np.floating],
+        clp_opts: dict[str, Any],
+    ) -> None:
+        """Internal utility to create PWA dynamics constraints in multiple shooting."""
+        nr = len(regions)
+        n_ineq = regions[0].T.size
+        ns, na = regions[0].B.shape
         N = self._prediction_horizon
 
-        # solve linear programs to determine bounds for big-M relaxations
-        x = cs.SX.sym("x", n)
-        u = cs.SX.sym("u", m)
+        # solve linear programs to determine bounds for big-M relaxations. These LPs are
+        # solved parallelly for each region and for each inequality defining the region.
+        x = cs.SX.sym("x", ns)
+        u = cs.SX.sym("u", na)
+        z = cs.vertcat(x, u)
+        g = cs.vertcat(D @ x - E, F @ u - G)
 
-        # big-M relaxation for region constraints (number of region, number of
-        # inequalities)
-        M_region = np.zeros((s, l))
-        for i in range(s):
-            region = S[i] @ x + R[i] @ u - T[i]
-            for j in range(l):
-                # TODO add solve options including verbose
-                lp = {
-                    "x": cs.vertcat(x, u),
-                    "f": -region[j],
-                    "g": cs.vertcat(D @ x - E, F @ u - G),
-                }  # negative sign for maximization
-                solver = cs.qpsol("S", "clp", lp)
+        big_M = np.zeros((nr, n_ineq))
+        for i, r in enumerate(regions):
+            region = r.S @ x + r.R @ u - r.T
+            for j in range(n_ineq):
+                lp = {"x": z, "f": -region[j], "g": g}
+                solver = cs.qpsol("S", "clp", lp, clp_opts)
                 sol = solver(ubg=0)
-                M_region[i, j] = -sol["f"]
+                big_M[i, j] = -sol["f"]
 
-        M_ub = np.zeros((n, 1))  # big-M relaxation for dynamics
-        M_lb = np.zeros((n, 1))
-        temp_upper = np.zeros((s, 1))
-        temp_lower = np.zeros((s, 1))
-        for j in range(n):
-            for i in range(s):
-                lp = {
-                    "x": cs.vertcat(x, u),
-                    "f": -(A[i][[j], :] @ x + B[i][[j], :] @ u + c[i][[j], :]),
-                    "g": cs.vertcat(D @ x - E, F @ u - G),
-                }
-                solver = cs.qpsol("S", "clp", lp)
+        M_ub = np.zeros(ns)  # big-M relaxation for dynamics
+        M_lb = np.zeros(ns)
+        temp_upper = np.zeros(nr)
+        temp_lower = np.zeros(nr)
+        for j in range(ns):
+            for i, r in enumerate(regions):
+                obj = r.A[[j], :] @ x + r.B[[j], :] @ u + r.c[[j]]
+                lp = {"x": z, "f": -obj, "g": g}
+                solver = cs.qpsol("S", "clp", lp, clp_opts)
                 sol = solver(ubg=0)
                 temp_upper[i] = -sol["f"]
-
-                lp = {
-                    "x": cs.vertcat(x, u),
-                    "f": A[i][[j], :] @ x + B[i][[j], :] @ u + c[i][[j], :],
-                    "g": cs.vertcat(D @ x - E, F @ u - G),
-                }
-                solver = cs.qpsol("S", "clp", lp)
+                lp = {"x": z, "f": obj, "g": g}
+                solver = cs.qpsol("S", "clp", lp, clp_opts)
                 sol = solver(ubg=0)
                 temp_lower[i] = sol["f"]
             M_ub[j] = np.max(temp_upper)
             M_lb[j] = np.min(temp_lower)
 
-        # auxiliary variables
-        z = [self.variable(f"z_{i}", (n, N))[0] for i in range(s)]
-        delta, _, _ = self.variable("delta", (s, N), lb=0, ub=1, discrete=True)
+        # set polytopic domain constraints
+        X = cs.vcat(self._states.values())
+        U = cs.vcat(self._actions_exp.values())
+        self.constraint("state_constraints", D @ X - E, "<=", 0)
+        self.constraint("input_constraints", F @ U - G, "<=", 0)
 
         # dynamics constraints - we now have to add constraints for all regions at each
         # time-step, with the binary variable delta selecting the active region
-        X = cs.vcat(self._states.values())
-        U = cs.vcat(self._actions_exp.values())
-        self.constraint("delta_sum", cs.sum1(delta), "==", 1)
-        self.constraint("state_constraints", D @ X - E, "<=", 0)
-        self.constraint("input_constraints", F @ U - G, "<=", 0)
-        self.constraint("dynamics", X[:, 1:], "==", sum(z))
+        z = [self.variable(f"z_{i}", (ns, N))[0] for i in range(nr)]
+        delta, _, _ = self.variable("delta", (nr, N), lb=0, ub=1, discrete=True)
         X_ = X[:, :-1]
+        self.constraint("delta_sum", cs.sum1(delta), "==", 1)
+        self.constraint("dynamics", X[:, 1:], "==", sum(z))
         z_ub = []
         z_lb = []
         region = []
         z_x_ub = []
         z_x_lb = []
-        for i in range(s):
-            z_ub.append(z[i] - M_ub @ delta[i, :])
-            z_lb.append(z[i] - M_lb @ delta[i, :])
-            region.append(
-                S[i] @ X_ + R[i] @ U - T[i] - M_region[i, :] @ (1 - delta[i, :])
-            )
-            z_x_ub.append(
-                z[i] - (A[i] @ X_ + B[i] @ U + c[i] - M_lb @ (1 - delta[i, :]))
-            )
-            z_x_lb.append(
-                z[i] - (A[i] @ X_ + B[i] @ U + c[i] - M_ub @ (1 - delta[i, :]))
-            )
+        for i, r in enumerate(regions):
+            z_i = z[i]
+            delta_i = delta[i, :]
+            z_ub.append(z_i - M_ub @ delta_i)
+            z_lb.append(z_i - M_lb @ delta_i)
+            region.append(r.S @ X_ + r.R @ U - r.T - big_M[i, :] @ (1 - delta_i))
+            z_x_ub.append(z_i - (r.A @ X_ + r.B @ U + r.c - M_lb @ (1 - delta_i)))
+            z_x_lb.append(z_i - (r.A @ X_ + r.B @ U + r.c - M_ub @ (1 - delta_i)))
         self.constraint("z_ub", cs.vcat(z_ub), "<=", 0)
         self.constraint("z_lb", cs.vcat(z_lb), ">=", 0)
         self.constraint("region", cs.vcat(region), "<=", 0)
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
-
-    def _single_shooting_pwa_dynamics(self, *_, **__) -> None:
-        raise NotImplementedError(
-            "Single shooting for PWA dynamics is not yet implemented."
-        )

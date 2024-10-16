@@ -24,23 +24,39 @@ mass = 10  # mass of the system
 A_spring_1 = np.array([[1, tau], [-((tau * 2 * k1) / mass), 1 - (tau * damp) / mass]])
 A_spring_2 = np.array([[1, tau], [-((tau * 2 * k2) / mass), 1 - (tau * damp) / mass]])
 B_spring = np.array([[0], [tau / mass]])
-x_bnd = [5, 5]
+x_bnd = (5, 5)
 u_bnd = 20
-system_dict = {
-    # Regions - switch about origin
-    "S": [np.array([[1, 0]]), np.array([[-1, 0]])],
-    "R": [np.zeros((1, 1)), np.zeros((1, 1))],
-    "T": [np.array([[0]]), np.array([[0]])],
-    # Dynamics
-    "A": [A_spring_1, A_spring_2],
-    "B": [B_spring, B_spring],
-    "c": [np.array([[0], [0]]), np.array([[0], [0]])],
-    # bounds
-    "D": np.array([[1, 0], [-1, 0], [0, 1], [0, -1]]),
-    "E": np.array([[x_bnd[0]], [x_bnd[0]], [x_bnd[1]], [x_bnd[1]]]),
-    "F": np.array([[1], [-1]]),
-    "G": np.array([[u_bnd], [u_bnd]]),
-}
+
+# create the pwa system's regions
+pwa_system = (
+    wrappers.PwaRegion(
+        # region dynamics
+        A=A_spring_1,
+        B=B_spring,
+        c=np.zeros(2),
+        # region domain
+        S=np.array([[1, 0]]),
+        R=np.zeros((1, 1)),
+        T=np.zeros(1),
+    ),
+    wrappers.PwaRegion(
+        # region dynamics
+        A=A_spring_2,
+        B=B_spring,
+        c=np.zeros(2),
+        # region domain
+        S=np.array([[-1, 0]]),
+        R=np.zeros((1, 1)),
+        T=np.zeros(1),
+    )
+)
+
+# bounds
+D = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+E = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+F = np.array([[1], [-1]])
+G = np.array([u_bnd, u_bnd])
+
 
 # %%
 # Construct the MPC controller
@@ -50,9 +66,9 @@ mpc = wrappers.PwaMpc(
 )
 x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
-mpc.set_pwa_dynamics(system_dict)
+mpc.set_pwa_dynamics(pwa_system, D, E, F, G)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
-mpc.init_solver(solver="gurobi")  # other options: "bonmin", "knitro"
+mpc.init_solver(solver="bonmin")  # "bonmin", "knitro", "gurobi"
 
 # %%
 # Solve mpc problem
