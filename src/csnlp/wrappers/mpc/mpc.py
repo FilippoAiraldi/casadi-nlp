@@ -320,23 +320,24 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             self._slacks[f"slack_{name}"] = out[2]
         return out
 
-    def set_dynamics(
+    def set_nonlinear_dynamics(
         self,
         F: Union[
             cs.Function,
             Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
     ) -> None:
-        """Sets the dynamics of the controller's prediction model and creates the
-        dynamics constraints.
+        """Sets nonlinear dynamics of the controller's prediction model and creates the
+        corresponding dynamics constraints.
 
         Parameters
         ----------
         F : casadi.Function or callable
             A CasADi function of the form :math:`x_+ = F(x,u)` or :math:`x+ = F(x,u,d)`,
-            where :math:`x,u,d` are the state, action, disturbances respectively, and
-            :math:`x_+` is the next state. The function can have multiple outputs, in
-            which case :math:`x_+` is assumed to be the first one.
+            where :math:`x,u,d` are the state, action, disturbances respectively,
+            :math:`F` is a generic nonlinear function and :math:`x_+` is the next state.
+            The function can have multiple outputs, in which case :math:`x_+` is assumed
+            to be the first one.
 
         Raises
         ------
@@ -355,13 +356,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
                 f"{n_in} inputs."
             )
         if self._is_multishooting:
-            self._multishooting_dynamics(F, n_in)
+            self._set_multishooting_nonlinear_dynamics(F, n_in)
         else:
-            self._singleshooting_dynamics(F, n_in)
+            self._set_singleshooting_nonlinear_dynamics(F, n_in)
         self._dynamics_already_set = True
 
-    def _multishooting_dynamics(self, F: cs.Function, n_in: int) -> None:
-        """Internal utility to create dynamics constraints in multiple shooting."""
+    def _set_multishooting_nonlinear_dynamics(self, F: cs.Function, n_in: int) -> None:
+        """Internal utility to create nonlinear dynamics constraints in multiple
+        shooting."""
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
@@ -377,9 +379,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             xs_next.append(x_next)
         self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
 
-    def _singleshooting_dynamics(self, F: cs.Function, n_in: int) -> None:
-        """Internal utility to create dynamics constraints and states in single
-        shooting."""
+    def _set_singleshooting_nonlinear_dynamics(self, F: cs.Function, n_in: int) -> None:
+        """Internal utility to create nonlinear dynamics constraints and states in
+        single shooting."""
         Xk = cs.vcat(self._initial_states.values())
         U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
