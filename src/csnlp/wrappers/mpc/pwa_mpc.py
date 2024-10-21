@@ -16,23 +16,23 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class PwaRegion:
     """Stores the matrices defining the i-th region in a piecewise affine system."""
 
-    A: Union[SymType, npt.NDArray[np.floating]]
+    A: npt.NDArray[np.floating]
     r"""The state matrix :math:`A_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    B: Union[SymType, npt.NDArray[np.floating]]
+    B: npt.NDArray[np.floating]
     r"""The input matrix :math:`B_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    c: Union[SymType, npt.NDArray[np.floating]]
+    c: npt.NDArray[np.floating]
     r"""The affine constant vector :math:`c_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    S: Union[SymType, npt.NDArray[np.floating]]
+    S: npt.NDArray[np.floating]
     r"""The state matrix :math:`S_i` of the region inequality
     :math:`S_i [x^\top, u^\top]^\top \leq T_i`"""
 
-    T: Union[SymType, npt.NDArray[np.floating]]
+    T: npt.NDArray[np.floating]
     r"""The constant vector :math:`T_i` of the region inequality
     :math:`S_i x + R_i u \leq T_i`"""
 
