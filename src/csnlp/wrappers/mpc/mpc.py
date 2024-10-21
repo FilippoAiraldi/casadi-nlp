@@ -10,6 +10,7 @@ from ...util.math import repeat
 from ..wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+MatType = TypeVar("MatType", SymType, cs.DM, np.ndarray)
 
 
 def _n(statename: str) -> str:
@@ -57,8 +58,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     ) -> None:
         super().__init__(nlp)
 
-        if not isinstance(prediction_horizon, int) or prediction_horizon <= 0:
-            raise ValueError("Prediction horizon must be positive and > 0.")
+        if (
+            not isinstance(prediction_horizon, (int, np.integer, np.int_))
+            or prediction_horizon <= 0
+        ):
+            raise ValueError(
+                "Prediction horizon must be positive and > 0; got "
+                f"{prediction_horizon} instead."
+            )
         if shooting == "single":
             self._is_multishooting = False
         elif shooting == "multi":
@@ -321,6 +328,82 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             self._slacks[f"slack_{name}"] = out[2]
         return out
 
+    def set_linear_dynamics(
+        self, A: MatType, B: MatType, D: Optional[MatType] = None
+    ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
+        r"""Sets linear dynamics of the controller's prediction model and creates the
+        corresponding dynamics constraints. The dynamics are in the form
+
+        .. math:: x_+ = A x + B u + D w,
+
+        where :math:`x_+` is the next state, :math:`x` is the current state, :math:`u`
+        is the control action, and :math:`w` is the disturbance.
+
+        Parameters
+        ----------
+        A : symbolic or numerical array
+            The state matrix :math:`A` in the dynamics equation. Can also be sparse.
+        B : symbolic or numerical array
+            The action matrix :math:`B` in the dynamics equation. Can also be sparse.
+        D : symbolic or numerical array, optional
+            The disturbance matrix :math:`D` in the dynamics equation. Must be ``None``
+            if no disturbances were provided via the :meth:`disturbance` method. Can
+            also be sparse.
+
+        Returns
+        -------
+        Optional 3-tuple of symbolic or numerical arrays
+            In multiple shooting, returns a tuple of 3 ``None``. In single shooting,
+            returns the matrices :math:`F, G, H` that parametrize the dynamics. See,
+            e.g., :cite:`campi_scenario_2019`.
+
+        Raises
+        ------
+        RuntimeError
+            Raises if the dynamics were already set.
+        ValueError
+            Raises if any of the matrices have the wrong shape; or if D was not provided
+            but disturbances were set; or if D was provided but there are no
+            disturbances set.
+        """
+        if self._dynamics_already_set:
+            raise RuntimeError("Dynamics were already set.")
+
+        # check dimensions
+        ns = self.ns
+        if A.shape != (ns, ns):
+            raise ValueError(f"A must have shape ({ns}, {ns}); got {A.shape}.")
+        na = self.na
+        if B.shape != (ns, na):
+            raise ValueError(f"B must have shape ({ns}, {na}); got {B.shape}.")
+        nd = self.nd
+        if D is not None:
+            if nd == 0:
+                raise ValueError(
+                    "Expected D to be None as no disturbance was provided via the "
+                    "`disturbance` method."
+                )
+            if D.shape != (ns, nd):
+                raise ValueError(f"D must have shape ({ns}, {nd}); got {D.shape}.")
+        elif nd > 0:
+            raise ValueError("D must be provided since there are disturbances.")
+
+        if self._is_multishooting:
+            # not much optimization that we can do here
+            if D is None:
+                n_in = 2
+                dynamics = lambda x, u: A @ x + B @ u
+            else:
+                n_in = 3
+                dynamics = lambda x, u, d: A @ x + B @ u + D @ d
+            self._set_multishooting_nonlinear_dynamics(dynamics, n_in)
+            F = G = H = None
+        else:
+            F, G, H = self._set_singleshooting_linear_dynamics(A, B, D)
+
+        self._dynamics_already_set = True
+        return F, G, H
+
     def set_nonlinear_dynamics(
         self,
         F: Union[
@@ -361,6 +444,52 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         else:
             self._set_singleshooting_nonlinear_dynamics(F, n_in)
         self._dynamics_already_set = True
+
+    def _set_singleshooting_linear_dynamics(
+        self, A: MatType, B: MatType, D: Optional[MatType] = None
+    ) -> tuple[MatType, MatType, Optional[MatType]]:
+        """Internal utility to create linear dynamics constraints and states in
+        single shooting mode."""
+        ns, na = B.shape
+        N = self._prediction_horizon
+
+        # create the QP matrices
+        F = cs.vcat([cs.mpower(A, m) for m in range(1, N + 1)])
+        #
+        zero = cs.DM.zeros(ns, na)
+        Nnx = ns * (N - 1)
+        G_col = cs.vertcat(B, F[:Nnx, :] @ B)
+        G_cols = [G_col]
+        for _ in range(1, N):
+            G_col = cs.vertcat(zero, G_col[:Nnx, :])
+            G_cols.append(G_col)
+        G = cs.hcat(G_cols)
+        #
+        D_not_none = D is not None
+        if D_not_none:
+            zero = cs.DM.zeros(ns, D.shape[1])
+            H_col = cs.vertcat(D, F[:Nnx, :] @ D)
+            H_cols = [H_col]
+            for _ in range(1, N):
+                H_col = cs.vertcat(zero, H_col[:Nnx, :])
+                H_cols.append(H_col)
+            H = cs.hcat(H_cols)
+        else:
+            H = None
+
+        # compute the next states
+        x_0 = cs.vcat(self._initial_states.values())
+        U = cs.vvcat(self._actions_exp.values())
+        X_next = F @ x_0 + G @ U
+        if D_not_none:
+            D = cs.vvcat(self._disturbances.values())  # check is correct size
+            X_next += H @ D
+
+        # append initial state, reshape and save to internal dict
+        X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
+        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+        return F, G, H
 
     def _set_multishooting_nonlinear_dynamics(self, F: cs.Function, n_in: int) -> None:
         """Internal utility to create nonlinear dynamics constraints in multiple

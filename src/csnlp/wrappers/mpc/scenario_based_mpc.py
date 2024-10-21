@@ -324,6 +324,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
             )
         )
 
+    def set_linear_dynamics(self, *_, **__):
+        raise NotImplementedError("not yet implemented")
+
     def set_nonlinear_dynamics(
         self,
         F: Union[

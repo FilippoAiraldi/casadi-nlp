@@ -244,6 +244,101 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
         self.assertEqual(mpc.states["x2"].shape, (3, N + 1))
 
+    def test_linear_dynamics__raises__if_dynamics_already_set(self):
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        mpc._dynamics_already_set = True
+        with self.assertRaises(RuntimeError):
+            mpc.set_linear_dynamics(object(), object())
+
+    @parameterized.expand([("A",), ("B",), ("D",)])
+    def test_linear_dynamics__raises__if_matrices_have_wrong_shapes(self, wrong_mat):
+        ns, na, nd = np.random.randint(4, 20, size=3)
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        mpc.disturbance("d", nd)
+        shapes = {"A": (ns, ns), "B": (ns, na), "D": (ns, nd)}
+        # A_shape = (ns, ns)
+        # B_shape = (ns, na)
+        # D_shape = (ns, nd)
+
+        wrong_shapes = shapes.copy()
+        wrong_shapes[wrong_mat] = np.add(shapes[wrong_mat], choice((1, -1)))
+
+        A = np.random.randn(*wrong_shapes["A"])
+        B = np.random.randn(*wrong_shapes["B"])
+        D = np.random.randn(*wrong_shapes["D"])
+        with self.assertRaisesRegex(ValueError, f"{wrong_mat} must have shape"):
+            mpc.set_linear_dynamics(A, B, D)
+
+    @parameterized.expand([(0,), (6,)])
+    def test_linear_dynamics__raises__when_disturbances_are_misspecified(self, nd: int):
+        ns, na = np.random.randint(4, 20, size=2)
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc(nlp=nlp, prediction_horizon=10)
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        A = np.random.randn(ns, ns)
+        B = np.random.randn(ns, na)
+
+        if nd == 0:
+            D = np.random.randn(ns, 123)
+            with self.assertRaisesRegex(ValueError, "Expected D to be None"):
+                mpc.set_linear_dynamics(A, B, D)
+        else:
+            mpc.disturbance("d", nd)
+            D = None
+            with self.assertRaisesRegex(ValueError, "D must be provided"):
+                mpc.set_linear_dynamics(A, B, D)
+
+    @parameterized.expand([(False,), (True,)])
+    def test_linear_dynamics__in_multishooting__creates_dynamics_eq_constraints(
+        self, include_d: bool
+    ):
+        ns, na, nd, N = np.random.randint(4, 20, size=4)
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc(nlp=nlp, prediction_horizon=N)
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        A = np.random.randn(ns, ns)
+        B = np.random.randn(ns, na)
+        if include_d:
+            mpc.disturbance("d", nd)
+            D = np.random.randn(ns, nd)
+            args = (A, B, D)
+        else:
+            args = (A, B)
+
+        mpc.set_linear_dynamics(*args)
+
+        self.assertIn("dyn", mpc.constraints.keys())
+        self.assertEqual(mpc.ng, (N + 1) * ns)
+
+    @parameterized.expand([(False,), (True,)])
+    def test_linear_dynamics__in_singleshooting__creates_states(self, include_d: bool):
+        ns, na, nd, N = np.random.randint(4, 20, size=4)
+        nlp = Nlp(sym_type="MX")
+        mpc = Mpc(nlp=nlp, prediction_horizon=N)
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        A = np.random.randn(ns, ns)
+        B = np.random.randn(ns, na)
+        if include_d:
+            mpc.disturbance("d", nd)
+            D = np.random.randn(ns, nd)
+            args = (A, B, D)
+        else:
+            args = (A, B)
+
+        mpc.set_linear_dynamics(*args)
+
+        for k in range(N):
+            self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
+        self.assertIn("x", mpc.states.keys())
+        self.assertEqual(mpc.states["x"].shape, (ns, N + 1))
+
     @parameterized.expand([("SX",), ("MX",)])
     def test_can_be_pickled(self, sym_type: str):
         N = 10
