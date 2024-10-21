@@ -1,11 +1,12 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypeVar
+from typing import Any, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
+from ...core.data import find_index_in_vector
 from .mpc import Mpc
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -86,96 +87,11 @@ class PwaMpc(Mpc[SymType]):
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
 
-    def state(
-        self,
-        name: str,
-        size: int = 1,
-        discrete: bool = False,
-        bound_initial: bool = True,
-        bound_terminal: bool = True,
-    ) -> tuple[Optional[SymType], SymType]:
-        """Adds a state variable to the MPC controller along the whole prediction
-        horizon. Automatically creates the constraint on the initial conditions for this
-        state. Note that lower and upper bounds cannot be specified here; specify them
-        instead as the polytopic state constraint :math:`D x \leq E` in
-        :meth:`set_pwa_dynamics`.
-
-        Parameters
-        ----------
-        name : str
-            Name of the state.
-        size : int
-            Size of the state (assumed to be a vector).
-        discrete : bool, optional
-            Flag indicating if the state is discrete. Defaults to ``False``.
-        bound_initial : bool, optional
-            If ``False``, then the upper and lower bounds on the initial state are not
-            imposed, i.e., set to ``+/- np.inf`` (since the initial state is constrained
-            to be equal to the current state of the system, it is sometimes advantageous
-            to remove its bounds). By default ``True``.
-        bound_terminal : bool, optional
-            Same as above, but for the terminal state. By default ``True``.
-
-        Returns
-        -------
-        state : casadi.SX or MX or None
-            The state symbolic variable. If ``shooting=single``, then ``None`` is
-            returned since the state will only be available once the dynamics are set.
-        initial state : casadi.SX or MX
-            The initial state symbolic parameter.
-
-        Raises
-        ------
-        ValueError
-            Raises if there exists already a state with the same name.
-        RuntimeError
-            Raises in single shooting if lower or upper bounds have been specified,
-            since these can only be set after the dynamics have been set via the
-            :meth:`constraint` method.
-        """
-        return super().state(
-            name,
-            size,
-            discrete,
-            bound_initial=bound_initial,
-            bound_terminal=bound_terminal,
-        )
-
-    def action(
-        self, name: str, size: int = 1, discrete: bool = False
-    ) -> tuple[SymType, SymType]:
-        """Adds a control action variable to the MPC controller along the whole control
-        horizon. Automatically expands this action to be of the same length of the
-        prediction horizon by padding with the final action. Note that lower and upper
-        bounds cannot be specified here; specify them instead as the polytopic action
-        constraint :math:`F u \leq G` in :meth:`set_pwa_dynamics`.
-
-        Parameters
-        ----------
-        name : str
-            Name of the control action.
-        size : int, optional
-            Size of the control action (assumed to be a vector). Defaults to ``1``.
-        discrete : bool, optional
-            Flag indicating if the action is discrete. Defaults to ``False``.
-
-        Returns
-        -------
-        action : casadi.SX or MX
-            The control action symbolic variable.
-        action_expanded : casadi.SX or MX
-            The same control  action variable, but expanded to the same length of the
-            prediction horizon.
-        """
-        return super().action(name, size, discrete)
-
     def set_pwa_dynamics(
         self,
         pwa_system: Sequence[PwaRegion],
-        D: npt.NDArray[np.floating],
+        D: Union[npt.NDArray[np.floating], cs.DM],
         E: npt.NDArray[np.floating],
-        F: npt.NDArray[np.floating],
-        G: npt.NDArray[np.floating],
         clp_opts: Optional[dict[str, Any]] = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
@@ -193,18 +109,14 @@ class PwaMpc(Mpc[SymType]):
         pwa_system : collection of PwaRegion
             A sequence of :class:`PwaRegion` objects, where the i-th object contains
             the matrices defining the i-th region of the PWA system.
-        D : array of shape (n_ineq_x, ns)
-            The matrix defining the polytopic constraints on the state space
-            :math:`D x \leq E`.
-        E : array of shape (n_ineq_x,)
-            The vector defining the polytopic constraints on the state space
-            :math:`D x \leq E`.
-        F : array of shape (n_ineq_u, na)
-            The matrix defining the polytopic constraints on the input space
-            :math:`F u \leq G`.
-        G : array of shape (n_ineq_u,)
-            The vector defining the polytopic constraints on the input space
-            :math:`F u \leq G`.
+        D : array or casadi.DM of shape (n_ineq, ns + na)
+            The (possibly sparse) matrix ``D`` defining the polytopic constraints on the
+            state-action space :math:`D [x^\top, u^\top]^\top \leq E`, where ``ns`` and
+            ``na`` are the numbers of states and actions in the MPC problem,
+            respectively.
+        E : array of shape (n_ineq,)
+            The matrix ``E`` defining the polytopic constraints on the state-action
+            space :math:`D [x, u]^\top \leq E`.
         clp_opts : dict, optional
             Options for the CLP solver. Defaults to ``None``.
         parallelization : "serial", "unroll", "inline", "thread", "openmp"
@@ -217,13 +129,45 @@ class PwaMpc(Mpc[SymType]):
         Raises
         ------
         RuntimeError
-            Raises if the dynamics were already set.
+            Raises if the dynamics were already set, or if lower and upper bounds on the
+            states and/or actions are set.
         ValueError
             Raises if the dimensions of any matrix in any region do not match the
             expected shape.
+
+        Notes
+        -----
+        This function will raise an error if lower and upper bounds on the states and
+        actions are set. This is because these bounds should be instead specified via
+        the matrices ``D`` and ``E``. Moreover, this function only uses these matrices
+        for internal computations. The user should take care to impose the constraints
+        :math::math:`D [x^\top, u^\top]^\top \leq E` in the optimization problem, as
+        well as any other, via the :meth:`constraint` method.
         """
         if self._dynamics is not None:
             raise RuntimeError("Dynamics were already set.")
+
+        # retrieve lower and upper bounds on the states and actions and check they are
+        # all unset, i.e., -/+ inf
+        U = cs.vvcat(self._actions_exp.values())
+        idx = find_index_in_vector(self.x, U)
+        lbu = self.lbx[idx].data
+        ubu = self.ubx[idx].data
+        if (~np.isneginf(lbu)).any() or (~np.isposinf(ubu)).any():
+            raise RuntimeError(
+                "cannot set lower and upper bounds on the actions in PWA systems; use "
+                "arguments `D` and `E` of `set_pwa_dyanmics` instead"
+            )
+        if self._is_multishooting:
+            X = cs.vvcat(self._states.values())
+            idx = find_index_in_vector(self.x, X)
+            lbx = self.lbx[idx].data
+            ubx = self.ubx[idx].data
+            if (~np.isneginf(lbx)).any() or (~np.isposinf(ubx)).any():
+                raise RuntimeError(
+                    "cannot set lower and upper bounds on the states in PWA systems; "
+                    "use arguments `D` and `E` of `set_pwa_dyanmics` instead"
+                )
 
         # validate dimensions
         ns = self.ns
@@ -242,16 +186,11 @@ class PwaMpc(Mpc[SymType]):
                 raise ValueError(f"R in region {i} must have shape ({n_ineq}, {na}).")
             if region.T.shape != (n_ineq,):
                 raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
-        n_ineq_x = E.shape[0]
-        if D.shape != (n_ineq_x, ns):
-            raise ValueError(f"D must have shape ({n_ineq_x}, {ns}).")
-        if E.shape != (n_ineq_x,):
-            raise ValueError(f"E must have shape ({n_ineq_x},).")
-        n_ineq_u = G.shape[0]
-        if F.shape != (n_ineq_u, na):
-            raise ValueError(f"F must have shape ({n_ineq_u}, {na}).")
-        if G.shape != (n_ineq_u,):
-            raise ValueError(f"G must have shape ({n_ineq_u},).")
+        n_ineq = E.shape[0]
+        if D.shape != (n_ineq, ns + na):
+            raise ValueError(f"D must have shape ({n_ineq}, {ns + na}).")
+        if E.shape != (n_ineq,):
+            raise ValueError(f"E must have shape ({n_ineq},).")
 
         # set the PWA dynamics
         if max_num_threads is None:
@@ -259,17 +198,15 @@ class PwaMpc(Mpc[SymType]):
         if clp_opts is None:
             clp_opts = {}
         self._set_pwa_dynamics(
-            pwa_system, D, E, F, G, clp_opts, parallelization, max_num_threads
+            pwa_system, D, E, clp_opts, parallelization, max_num_threads
         )
         self._dynamics = object()  # TODO New dynamics will just be a flag
 
     def _set_pwa_dynamics(
         self,
         regions: Sequence[PwaRegion],
-        D: npt.NDArray[np.floating],
+        D: Union[npt.NDArray[np.floating], cs.DM],
         E: npt.NDArray[np.floating],
-        F: npt.NDArray[np.floating],
-        G: npt.NDArray[np.floating],
         clp_opts: dict[str, Any],
         parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
         max_num_threads: int,
@@ -282,8 +219,7 @@ class PwaMpc(Mpc[SymType]):
 
         # solve linear programs to determine bounds for big-M relaxations. These LPs are
         # solved parallelly for each region and for each inequality defining the region.
-        DF = cs.diagcat(cs.sparsify(D), cs.sparsify(F))
-        EG = np.concatenate((E, G))
+        D = cs.sparsify(D)  # can be sparse
         SR_, T_, AB_, C_ = [], [], [], []
         for r in regions:
             SR_.append(np.hstack((r.S, r.R)))
@@ -294,18 +230,18 @@ class PwaMpc(Mpc[SymType]):
         T = np.asarray(T_)
         AB = np.vstack(AB_).T
         C = np.asarray(C_)
-        lp = {"h": cs.Sparsity(ns + na, ns + na), "a": DF.sparsity()}
+        lp = {"h": cs.Sparsity(ns + na, ns + na), "a": D.sparsity()}
         lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
 
         mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
-        sol = mapped_lpsolver(g=SR, a=DF, uba=EG)
+        sol = mapped_lpsolver(g=SR, a=D, uba=E)
         big_M = -sol["cost"].toarray().reshape(nr, n_ineq) - T
 
         mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
-        sol = mapped_lpsolver(g=AB, a=DF, uba=EG)
+        sol = mapped_lpsolver(g=AB, a=D, uba=E)
         tmp_lb = sol["cost"].toarray().reshape(nr, ns) + C
         M_lb = tmp_lb.min(0)
-        sol = mapped_lpsolver(g=-AB, a=DF, uba=EG)
+        sol = mapped_lpsolver(g=-AB, a=D, uba=E)
         tmp_ub = -sol["cost"].toarray().reshape(nr, ns) + C
         M_ub = tmp_ub.max(0)
 
@@ -345,7 +281,3 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("region", cs.vcat(region), "<=", 0)
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
-
-        # set polytopic domain constraints
-        self.constraint("state_constraints", D @ X - E, "<=", 0)
-        self.constraint("input_constraints", F @ U - G, "<=", 0)
