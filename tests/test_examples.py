@@ -337,19 +337,23 @@ class TestExamples(unittest.TestCase):
                 A2, B2, np.zeros(2), np.array([[-1, 0]]), np.zeros((1, 1)), np.zeros(1)
             ),
         )
-        D = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
-        E = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
-        F = np.array([[1], [-1]])
-        G = np.array([u_bnd, u_bnd])
+        D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+        D2 = np.array([[1], [-1]])
+        E2 = np.array([u_bnd, u_bnd])
+        D = cs.diagcat(D1, D2).sparse()
+        E = np.concatenate((E1, E2))
         mpc = wrappers.PwaMpc(
             nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
         with nostdout():
-            mpc.set_pwa_dynamics(pwa_regions, D, E, F, G)
+            mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="serial")
         if shooting == "single":
             x = mpc.states["x"]  # previous `x` is None if in single shooting
+        mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
+        mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(solver="bonmin")
         with nostdout():

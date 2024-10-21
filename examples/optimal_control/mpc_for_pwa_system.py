@@ -88,15 +88,16 @@ pwa_system = (
 # ------
 # In order for the PWA system to be converted to a mixed-integer optimization problem,
 # we need to define the bounds of the system. In this case, we must impose polytopic
-# bounds on the states and the inputs as follows.
+# bounds `D @ [x; u] <= E` on the states and the inputs as follows.
 
 x_bnd = (5, 5)
 u_bnd = 20
-D = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
-E = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
-F = np.array([[1], [-1]])
-G = np.array([u_bnd, u_bnd])
-
+D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+D2 = np.array([[1], [-1]])
+D = cs.diagcat(D1, D2).sparse()
+E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+E2 = np.array([u_bnd, u_bnd])
+E = np.concatenate((E1, E2))
 
 # %%
 # --------------
@@ -109,7 +110,9 @@ N = 10
 mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)
 x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
-mpc.set_pwa_dynamics(pwa_system, D, E, F, G)
+mpc.set_pwa_dynamics(pwa_system, D, E)
+mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
+mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(solver="bonmin")  # "bonmin", "knitro", "gurobi"
 

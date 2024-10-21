@@ -10,7 +10,7 @@ from parameterized import parameterized
 
 from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.wrappers import Mpc
+from csnlp.wrappers import Mpc, PwaMpc
 from csnlp.wrappers import ScenarioBasedMpc as SCMPC
 from csnlp.wrappers.mpc.scenario_based_mpc import _n
 
@@ -255,6 +255,24 @@ class TestMpc(unittest.TestCase):
         mpc2 = pickle.loads(pickle.dumps(mpc))
 
         self.assertIn(repr(mpc), repr(mpc2))
+
+    @parameterized.expand(product(("SX", "MX"), range(3), (False, True)))
+    def test_pwa_dynamics__raises__if_lower_or_upper_bounds_are_set(
+        self, sym_type: str, set_lower: bool, set_state: bool
+    ):
+        mpc = PwaMpc(Nlp(sym_type=sym_type), prediction_horizon=2)
+        kwargs = {"lb" if set_lower else "ub": 0} if set_state else {}
+        mpc.state("x", 1, **kwargs)
+        kwargs = {"lb" if set_lower else "ub": 0} if not set_state else {}
+        mpc.action("u", 1, **kwargs)
+
+        regex = (
+            "cannot set lower and upper bounds on the "
+            f"{'states' if set_state else 'actions'} in PWA systems; use "
+            "arguments `D` and `E` of `set_pwa_dyanmics` instead"
+        )
+        with self.assertRaisesRegex(RuntimeError, regex):
+            mpc.set_pwa_dynamics(None, None, None)
 
 
 class TestScenarioBasedMpc(unittest.TestCase):
