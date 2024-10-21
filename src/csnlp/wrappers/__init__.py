@@ -36,7 +36,9 @@ The following wrappers are provided in this module:
 - :class:`csnlp.wrappers.Mpc`: a wrapper that facilities the creation of MPC
   optimization problems :cite:`rawlings_model_2017`
 - :class:`csnlp.wrappers.ScenarioBasedMpc`: a wrapper that facilities the creation of
-  MPC controllers based on the Scenario Approach :cite:`schildbach_scenario_2014`.
+  MPC controllers based on the Scenario Approach :cite:`schildbach_scenario_2014`
+- :class:`csnlp.wrappers.PwaMpc`: a wrapper that facilities the creation of MPC
+  controllers for piecewise affine (PWA) systems :cite:`borrelli_predictive_2017`.
 """
 
 __all__ = [
@@ -44,11 +46,14 @@ __all__ = [
     "NlpScaling",
     "NlpSensitivity",
     "NonRetroactiveWrapper",
+    "PwaMpc",
+    "PwaRegion",
     "ScenarioBasedMpc",
     "Wrapper",
 ]
 
 from .mpc.mpc import Mpc
+from .mpc.pwa_mpc import PwaMpc, PwaRegion
 from .mpc.scenario_based_mpc import ScenarioBasedMpc
 from .scaling import NlpScaling
 from .sensitivity import NlpSensitivity

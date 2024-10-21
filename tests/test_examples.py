@@ -30,12 +30,18 @@ RESULTS = io.loadmat(EXAMPLES_DATA_FILENAME, simplify_cells=True)
 
 
 @contextlib.contextmanager
-def nostdout():
-    save_stdout = sys.stdout
-    with open(os.devnull, "w") as f:
+def nostdout(suppress: bool = True):
+    if suppress:
+        save_stdout = sys.stdout
+        f = open(os.devnull, "w")
         sys.stdout = f
+        try:
+            yield
+        finally:
+            sys.stdout = save_stdout
+            f.close()
+    else:
         yield
-    sys.stdout = save_stdout
 
 
 @parameterized_class("sym_type", [("SX",), ("MX",)])
@@ -310,6 +316,60 @@ class TestExamples(unittest.TestCase):
         self.assertTrue(sol.success)
         x_opt = sol.vals["x"].full().flatten()
         np.testing.assert_array_equal(x_opt, [1, 0, -1, 1, -1])
+
+    @parameterized.expand([("single",), ("multi",)])
+    def test__pwa_mpc(self, shooting: str):
+        tau = 0.5
+        k1 = 10
+        k2 = 1
+        d = 4
+        m = 10
+        A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
+        A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
+        B1 = B2 = np.array([[0], [tau / m]])
+        x_bnd = (5, 5)
+        u_bnd = 20
+        pwa_regions = (
+            wrappers.PwaRegion(
+                A1, B1, np.zeros(2), np.array([[1, 0]]), np.zeros((1, 1)), np.zeros(1)
+            ),
+            wrappers.PwaRegion(
+                A2, B2, np.zeros(2), np.array([[-1, 0]]), np.zeros((1, 1)), np.zeros(1)
+            ),
+        )
+        D = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        E = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+        F = np.array([[1], [-1]])
+        G = np.array([u_bnd, u_bnd])
+        mpc = wrappers.PwaMpc(
+            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
+        )
+        x, _ = mpc.state("x", 2)
+        u, _ = mpc.action("u")
+        with nostdout():
+            mpc.set_pwa_dynamics(pwa_regions, D, E, F, G)
+        if shooting == "single":
+            x = mpc.states["x"]  # previous `x` is None if in single shooting
+        mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
+        mpc.init_solver(solver="bonmin")
+        with nostdout():
+            sol = mpc.solve(pars={"x_0": [-3, 0]})
+
+        tols = (1e-6, 1e-6)
+        expected = {
+            "u": np.asarray([[-3.9634842145302898, -4.82921262838321]]),
+            "x": np.asarray(
+                [[-3.0, -3.0, -1.5990871053632572], [0.0, 2.8018257892734857, 5.0]]
+            ),
+            "delta": np.asarray([[1, 1], [0, 0]]),
+        }
+        actual = {
+            "u": sol.vals["u"].full(),
+            "x": sol.value(x) if shooting == "single" else sol.value(x).full(),
+            "delta": sol.vals["delta"].full(),
+        }
+        for name, val in expected.items():
+            np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
 
 
 if __name__ == "__main__":
