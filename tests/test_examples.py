@@ -369,6 +369,53 @@ class TestExamples(unittest.TestCase):
         for name, val in expected.items():
             np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
 
+    @parameterized.expand([("single",), ("multi",)])
+    def test__linear_mpc(self, shooting: str):
+        A = np.asarray(
+            [
+                [0.763, 0.460, 0.115, 0.020],
+                [-0.899, 0.763, 0.420, 0.115],
+                [0.115, 0.020, 0.763, 0.460],
+                [0.420, 0.115, -0.899, 0.763],
+            ]
+        )
+        B = np.asarray([[0.014], [0.063], [0.221], [0.367]])
+        ns, na = B.shape
+        N = 7
+        mpc = wrappers.Mpc(Nlp[cs.SX](), prediction_horizon=N, shooting=shooting)
+        mpc.state("x", ns)
+        u, _ = mpc.action("u", na, lb=-0.5, ub=0.5)
+        mpc.set_linear_dynamics(A, B)
+        x = mpc.states["x"]
+        x_bound = np.asarray([[4.0], [10.0], [4.0], [10.0]])
+        mpc.constraint("x_lb", x, ">=", -x_bound)
+        mpc.constraint("x_ub", x, "<=", x_bound)
+        delta_u = cs.diff(u, 1, 1)
+        mpc.minimize(cs.sumsqr(x) + 1e-4 * cs.sumsqr(delta_u))
+        opts = {
+            "error_on_fail": True,
+            "expand": True,
+            "verbose": False,
+            "print_time": False,
+            "print_info": False,
+            "print_header": False,
+            "print_iter": False,
+        }
+        mpc.init_solver(opts, "qrqp", type="conic")
+        x = RESULTS["lti_mpc_xs"][0]
+        X, U = [x], []
+        for _ in range(50):
+            sol = mpc.solve(pars={"x_0": x})
+            u_opt = sol.vals["u"][:, 0].full().reshape(na)
+            x = A @ x + B @ u_opt
+            X.append(x)
+            U.append(u_opt)
+        X = np.squeeze(X)
+        U = np.squeeze(U)
+
+        np.testing.assert_allclose(X, RESULTS["lti_mpc_xs"], atol=1e-6, rtol=1e-6)
+        np.testing.assert_allclose(U, RESULTS["lti_mpc_us"], atol=1e-6, rtol=1e-6)
+
 
 if __name__ == "__main__":
     unittest.main()
