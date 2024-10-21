@@ -2,6 +2,7 @@ import pickle
 import unittest
 from itertools import product
 from math import ceil, floor
+from random import choice
 from unittest.mock import Mock
 
 import casadi as cs
@@ -10,7 +11,7 @@ from parameterized import parameterized
 
 from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.wrappers import Mpc, PwaMpc
+from csnlp.wrappers import Mpc, PwaMpc, PwaRegion
 from csnlp.wrappers import ScenarioBasedMpc as SCMPC
 from csnlp.wrappers.mpc.scenario_based_mpc import _n
 
@@ -162,14 +163,14 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(d2.shape, mpc.disturbances["d2"].shape)
         self.assertEqual(mpc.nd, 22)
 
-    def test_dynamics__raises__if_dynamics_already_set(self):
+    def test_nonlinear_dynamics__raises__if_dynamics_already_set(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
         mpc._dynamics_already_set = True
         with self.assertRaises(RuntimeError):
             mpc.set_nonlinear_dynamics(object())
 
-    def test_dynamics__raises__if_dynamics_arguments_are_invalid(self):
+    def test_nonlinear_dynamics__raises__if_dynamics_arguments_are_invalid(self):
         x1 = cs.SX.sym("x1", 2)
         x2 = cs.SX.sym("x2", 3)
         x = cs.vertcat(x1, x2)
@@ -188,7 +189,9 @@ class TestMpc(unittest.TestCase):
                 mpc.set_nonlinear_dynamics(F)
 
     @parameterized.expand([(0,), (1,)])
-    def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self, i: int):
+    def test_nonlinear_dynamics__in_multishooting__creates_dynamics_eq_constraints(
+        self, i: int
+    ):
         N = 10
         nlp = Nlp(sym_type="SX")
         mpc = Mpc[cs.SX](
@@ -212,7 +215,7 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(mpc.ng, (1 + N) * 5)
 
     @parameterized.expand([(0,), (1,)])
-    def test_dynamics__in_singleshooting__creates_states(self, i: int):
+    def test_nonlinear_dynamics__in_singleshooting__creates_states(self, i: int):
         N = 10
         nlp = Nlp(sym_type="SX")
         mpc = Mpc[cs.SX](
@@ -256,6 +259,15 @@ class TestMpc(unittest.TestCase):
 
         self.assertIn(repr(mpc), repr(mpc2))
 
+
+class TestPwaMpc(unittest.TestCase):
+    def test_pwa_dynamics__raises__if_dynamics_already_set(self):
+        nlp = Nlp(sym_type="MX")
+        mpc = PwaMpc(nlp=nlp, prediction_horizon=10)
+        mpc._dynamics_already_set = True
+        with self.assertRaises(RuntimeError):
+            mpc.set_pwa_dynamics(object(), object(), object())
+
     @parameterized.expand(product(("SX", "MX"), range(3), (False, True)))
     def test_pwa_dynamics__raises__if_lower_or_upper_bounds_are_set(
         self, sym_type: str, set_lower: bool, set_state: bool
@@ -273,6 +285,99 @@ class TestMpc(unittest.TestCase):
         )
         with self.assertRaisesRegex(RuntimeError, regex):
             mpc.set_pwa_dynamics(None, None, None)
+
+    def test_pwa_linear_dynamics__raises__if_matrices_have_wrong_shapes(self):
+        nx, nu, n_ineq_r, n_ineq_xu = np.random.randint(4, 20, size=4)
+        A = np.random.randn(nx, nx)
+        B = np.random.randn(nx, nu)
+        c = np.random.randn(nx)
+        S = np.random.randn(n_ineq_r, nx + nu)
+        T = np.random.randn(n_ineq_r)
+        D = np.random.randn(n_ineq_xu, nx + nu)
+        E = np.random.randn(n_ineq_xu)
+        args = {"A": A, "B": B, "c": c, "S": S, "T": T, "D": D, "E": E}
+
+        for key in args:
+            shape = args[key].shape
+            new_args = args.copy()
+            new_args[key] = np.random.randn(*np.add(shape, choice((1, -1))))
+
+            region = PwaRegion(
+                new_args["A"],
+                new_args["B"],
+                new_args["c"],
+                new_args["S"],
+                new_args["T"],
+            )
+            nlp = Nlp(sym_type="MX")
+            mpc = PwaMpc(nlp=nlp, prediction_horizon=3, control_horizon=5)
+            mpc.state("x", nx)
+            mpc.action("u", nu)
+            regions = [region]
+            with self.assertRaises(ValueError):
+                mpc.set_pwa_dynamics(regions, new_args["D"], new_args["E"])
+
+    def test_pwa_dynamics__in_multishooting__creates_dynamics_eq_constraints(self):
+        tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
+        A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
+        A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
+        B1 = B2 = np.array([[0], [tau / m]])
+        x_bnd = (5, 5)
+        u_bnd = 20
+        pwa_regions = (
+            PwaRegion(A1, B1, np.zeros(2), np.array([[1, 0, 0]]), np.zeros(1)),
+            PwaRegion(A2, B2, np.zeros(2), np.array([[-1, 0, 0]]), np.zeros(1)),
+        )
+        D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+        D2 = np.array([[1], [-1]])
+        E2 = np.array([u_bnd, u_bnd])
+        D = cs.diagcat(D1, D2).sparse()
+        E = np.concatenate((E1, E2))
+        N, ns, na = 4, 2, 1
+        mpc = PwaMpc(Nlp(), prediction_horizon=N, shooting="multi")
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="inline")
+
+        nr = len(pwa_regions)
+        constraints = {
+            "delta_sum": (1, N),
+            "z_ub": (ns * nr, N),
+            "z_lb": (ns * nr, N),
+            "z_x_ub": (ns * nr, N),
+            "z_x_lb": (ns * nr, N),
+            "region": (nr, N),
+        }
+        for con, shape in constraints.items():
+            self.assertIn(con, mpc.constraints)
+            self.assertEqual(mpc.constraints[con].shape, shape, msg=con)
+
+    def test_pwa_dynamics__in_singleshooting__creates_states(self):
+        tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
+        A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
+        A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
+        B1 = B2 = np.array([[0], [tau / m]])
+        x_bnd = (5, 5)
+        u_bnd = 20
+        pwa_regions = (
+            PwaRegion(A1, B1, np.zeros(2), np.array([[1, 0, 0]]), np.zeros(1)),
+            PwaRegion(A2, B2, np.zeros(2), np.array([[-1, 0, 0]]), np.zeros(1)),
+        )
+        D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+        D2 = np.array([[1], [-1]])
+        E2 = np.array([u_bnd, u_bnd])
+        D = cs.diagcat(D1, D2).sparse()
+        E = np.concatenate((E1, E2))
+        N, ns, na = 4, 2, 1
+        mpc = PwaMpc(Nlp(), prediction_horizon=N, shooting="single")
+        mpc.state("x", ns)
+        mpc.action("u", na)
+        mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="inline")
+
+        self.assertIn("x", mpc.states)
+        self.assertEqual(mpc.states["x"].shape, (ns, N + 1))
 
 
 class TestScenarioBasedMpc(unittest.TestCase):

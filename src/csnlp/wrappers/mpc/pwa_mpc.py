@@ -16,27 +16,23 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 class PwaRegion:
     """Stores the matrices defining the i-th region in a piecewise affine system."""
 
-    A: npt.NDArray[np.floating]
+    A: Union[SymType, npt.NDArray[np.floating]]
     r"""The state matrix :math:`A_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    B: npt.NDArray[np.floating]
+    B: Union[SymType, npt.NDArray[np.floating]]
     r"""The input matrix :math:`B_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    c: npt.NDArray[np.floating]
+    c: Union[SymType, npt.NDArray[np.floating]]
     r"""The affine constant vector :math:`c_i` of the linear dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
-    S: npt.NDArray[np.floating]
+    S: Union[SymType, npt.NDArray[np.floating]]
     r"""The state matrix :math:`S_i` of the region inequality
-    :math:`S_i x + R_i u \leq T_i`"""
+    :math:`S_i [x^\top, u^\top]^\top \leq T_i`"""
 
-    R: npt.NDArray[np.floating]
-    r"""The input matrix :math:`R_i` of the region inequality
-    :math:`S_i x + R_i u \leq T_i`"""
-
-    T: npt.NDArray[np.floating]
+    T: Union[SymType, npt.NDArray[np.floating]]
     r"""The constant vector :math:`T_i` of the region inequality
     :math:`S_i x + R_i u \leq T_i`"""
 
@@ -116,7 +112,7 @@ class PwaMpc(Mpc[SymType]):
             respectively.
         E : array of shape (n_ineq,)
             The matrix ``E`` defining the polytopic constraints on the state-action
-            space :math:`D [x, u]^\top \leq E`.
+            space :math:`D [x^\top, u^\top]^\top \leq E`.
         clp_opts : dict, optional
             Options for the CLP solver. Defaults to ``None``.
         parallelization : "serial", "unroll", "inline", "thread", "openmp"
@@ -172,6 +168,7 @@ class PwaMpc(Mpc[SymType]):
         # validate dimensions
         ns = self.ns
         na = self.na
+        nsa = ns + na
         n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
         for i, region in enumerate(pwa_system):
             if region.A.shape != (ns, ns):
@@ -180,15 +177,13 @@ class PwaMpc(Mpc[SymType]):
                 raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
             if region.c.shape != (ns,):
                 raise ValueError(f"c in region {i} must have shape ({ns},).")
-            if region.S.shape != (n_ineq, ns):
-                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {ns}).")
-            if region.R.shape != (n_ineq, na):
-                raise ValueError(f"R in region {i} must have shape ({n_ineq}, {na}).")
+            if region.S.shape != (n_ineq, nsa):
+                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {nsa}).")
             if region.T.shape != (n_ineq,):
                 raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
         n_ineq = E.shape[0]
-        if D.shape != (n_ineq, ns + na):
-            raise ValueError(f"D must have shape ({n_ineq}, {ns + na}).")
+        if D.shape != (n_ineq, nsa):
+            raise ValueError(f"D must have shape ({n_ineq}, {nsa}).")
         if E.shape != (n_ineq,):
             raise ValueError(f"E must have shape ({n_ineq},).")
 
@@ -215,26 +210,27 @@ class PwaMpc(Mpc[SymType]):
         nr = len(regions)
         n_ineq = regions[0].T.size
         ns, na = regions[0].B.shape
+        nsa = ns + na
         N = self._prediction_horizon
 
         # solve linear programs to determine bounds for big-M relaxations. These LPs are
         # solved parallelly for each region and for each inequality defining the region.
         D = cs.sparsify(D)  # can be sparse
-        SR_, T_, AB_, C_ = [], [], [], []
+        S_, T_, AB_, C_ = [], [], [], []
         for r in regions:
-            SR_.append(np.hstack((r.S, r.R)))
+            S_.append(r.S)
             T_.append(r.T)
             AB_.append(np.hstack((r.A, r.B)))
             C_.append(r.c)
-        SR = np.vstack(SR_).T
+        S = np.vstack(S_).T
         T = np.asarray(T_)
         AB = np.vstack(AB_).T
         C = np.asarray(C_)
-        lp = {"h": cs.Sparsity(ns + na, ns + na), "a": D.sparsity()}
+        lp = {"h": cs.Sparsity(nsa, nsa), "a": D.sparsity()}
         lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
 
         mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
-        sol = mapped_lpsolver(g=SR, a=D, uba=E)
+        sol = mapped_lpsolver(g=S, a=D, uba=E)
         big_M = -sol["cost"].toarray().reshape(nr, n_ineq) - T
 
         mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
@@ -267,15 +263,16 @@ class PwaMpc(Mpc[SymType]):
         region = []
         z_x_ub = []
         z_x_lb = []
-        X_ = X[:, :-1]
+        XU = cs.vertcat(X[:, :-1], U)
         for i, r in enumerate(regions):
             z_i = z[i]
             delta_i = delta[i, :]
+            AB_i = AB_[i]
             z_ub.append(z_i - M_ub @ delta_i)
             z_lb.append(z_i - M_lb @ delta_i)
-            region.append(r.S @ X_ + r.R @ U - r.T - big_M[i, :] @ (1 - delta_i))
-            z_x_ub.append(z_i - (r.A @ X_ + r.B @ U + r.c - M_lb @ (1 - delta_i)))
-            z_x_lb.append(z_i - (r.A @ X_ + r.B @ U + r.c - M_ub @ (1 - delta_i)))
+            region.append(r.S @ XU - r.T - big_M[i, :] @ (1 - delta_i))
+            z_x_ub.append(z_i - (AB_i @ XU + r.c - M_lb @ (1 - delta_i)))
+            z_x_lb.append(z_i - (AB_i @ XU + r.c - M_ub @ (1 - delta_i)))
         self.constraint("z_ub", cs.vcat(z_ub), "<=", 0)
         self.constraint("z_lb", cs.vcat(z_lb), ">=", 0)
         self.constraint("region", cs.vcat(region), "<=", 0)

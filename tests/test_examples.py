@@ -319,22 +319,16 @@ class TestExamples(unittest.TestCase):
 
     @parameterized.expand([("single",), ("multi",)])
     def test__pwa_mpc(self, shooting: str):
-        tau = 0.5
-        k1 = 10
-        k2 = 1
-        d = 4
-        m = 10
+        tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
         A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
         A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
         B1 = B2 = np.array([[0], [tau / m]])
         x_bnd = (5, 5)
         u_bnd = 20
         pwa_regions = (
+            wrappers.PwaRegion(A1, B1, np.zeros(2), np.array([[1, 0, 0]]), np.zeros(1)),
             wrappers.PwaRegion(
-                A1, B1, np.zeros(2), np.array([[1, 0]]), np.zeros((1, 1)), np.zeros(1)
-            ),
-            wrappers.PwaRegion(
-                A2, B2, np.zeros(2), np.array([[-1, 0]]), np.zeros((1, 1)), np.zeros(1)
+                A2, B2, np.zeros(2), np.array([[-1, 0, 0]]), np.zeros(1)
             ),
         )
         D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
