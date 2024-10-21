@@ -12,7 +12,7 @@ Briefly, PWA systems are systems whose dynamics are described by a set of affine
 that are active in different regions of the state space. For region :math:`i`, the
 dynamics are described as
 
-.. math:: x_+ = A_i x + B_i u + c_i & \text{if } S_i x + R_i u \leq T_i.
+.. math:: x_+ = A_i x + B_i u + c_i & \text{if } S_i [x^\top, u^\top]^\top \leq T_i.
 
 In the context of optimal control, with the proper procedure, these dynamics can be
 translated into a mixed-integer optimization problem. To do so, polytopic bounds on the
@@ -67,8 +67,7 @@ pwa_system = (
         B=B_spring,
         c=np.zeros(2),
         # region domain
-        S=np.array([[1, 0]]),
-        R=np.zeros((1, 1)),
+        S=np.array([[1, 0, 0]]),
         T=np.zeros(1),
     ),
     wrappers.PwaRegion(
@@ -77,8 +76,7 @@ pwa_system = (
         B=B_spring,
         c=np.zeros(2),
         # region domain
-        S=np.array([[-1, 0]]),
-        R=np.zeros((1, 1)),
+        S=np.array([[-1, 0, 0]]),
         T=np.zeros(1),
     ),
 )
