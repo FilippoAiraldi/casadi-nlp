@@ -79,7 +79,7 @@ mpc = wrappers.Mpc[cs.SX](
 )
 u, _ = mpc.action("u", lb=-1, ub=+1)
 x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
-mpc.set_dynamics(F)
+mpc.set_nonlinear_dynamics(F)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 
 # %%
@@ -112,7 +112,7 @@ mpc = wrappers.Mpc[cs.SX](
 )
 u, _ = mpc.action("u", lb=-1, ub=+1)
 mpc.state("x", 2)  # does not return a symbolic variable
-mpc.set_dynamics(F)
+mpc.set_nonlinear_dynamics(F)
 x = mpc.states["x"]  # only accessible after dynamics have been set
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(opts)
