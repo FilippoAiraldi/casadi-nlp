@@ -144,7 +144,7 @@ class PwaMpc(Mpc[SymType]):
         :math::math:`D [x^\top, u^\top]^\top \leq E` in the optimization problem, as
         well as any other, via the :meth:`constraint` method.
         """
-        if self._dynamics is not None:
+        if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
 
         # retrieve lower and upper bounds on the states and actions and check they are
@@ -200,7 +200,7 @@ class PwaMpc(Mpc[SymType]):
         self._set_pwa_dynamics(
             pwa_system, D, E, clp_opts, parallelization, max_num_threads
         )
-        self._dynamics = object()  # TODO New dynamics will just be a flag
+        self._dynamics_already_set = True
 
     def _set_pwa_dynamics(
         self,
