@@ -90,7 +90,7 @@ class HasObjective(HasConstraints[SymType]):
         self,
         opts: Optional[dict[str, Any]] = None,
         solver: str = "ipopt",
-        type: Literal["auto", "nlp", "conic"] = "auto",
+        type: Optional[Literal["nlp", "conic"]] = None,
     ) -> None:
         """Initializes the solver for this NLP with the given options.
 
@@ -106,10 +106,10 @@ class HasObjective(HasConstraints[SymType]):
             ``"osqp"``, and ``"qpoases"`` of a conic one. However, the solver type can
             be overruled with the ``type`` argument. By default, ``"ipopt"`` is
             selected.
-        type : "auto", "nlp", "conic", optional
+        type : "nlp", "conic", optional
             Type of problem to instantiate. If ``"nlp"``, then the problem is forced to
             be instantiated with :func:`casadi.nlpsol`. If ``"conic"``, then
-            :func:`casadi.qpsol` is forced instead. If ``"auto"``, then the problem type
+            :func:`casadi.qpsol` is forced instead. If ``None``, then the problem type
             is selected automatically.
 
         Raises
@@ -125,17 +125,19 @@ class HasObjective(HasConstraints[SymType]):
         """
         has_conic = cs.has_conic(solver)
         has_nlpsol = cs.has_nlpsol(solver)
-        if has_conic and has_nlpsol and type == "auto":
+        auto_type = type is None
+        if has_conic and has_nlpsol and auto_type:
             raise RuntimeError(
                 f"`{solver}` supports both conic- and nlp-type problems, so the problem"
-                " type cannot be inferred automatically."
+                " type cannot be inferred automatically. Please, provide also argument"
+                " 'type' to the method."
             )
 
-        if type == "conic" or (type == "auto" and has_conic):
+        if type == "conic" or (auto_type and has_conic):
             func = cs.qpsol
-        elif type == "nlp" or (type == "auto" and has_nlpsol):
+        elif type == "nlp" or (auto_type and has_nlpsol):
             func = cs.nlpsol
-        elif type not in ("auto", "nlp", "conic"):
+        elif type not in (None, "nlp", "conic"):
             raise ValueError(f"unknown problem type: '{type}'")
         else:
             raise RuntimeError(f"'{solver}' plugin not found in either conic or nlp.")
@@ -144,16 +146,16 @@ class HasObjective(HasConstraints[SymType]):
             raise RuntimeError("NLP objective not set.")
 
         opts = {} if opts is None else opts.copy()
-        opts_ = opts.copy()
         if "discrete" in opts:
             raise ValueError("The 'discrete' key is reserved for the variable domains.")
         if self.has_discrete:
-            opts_["discrete"] = self.discrete
-
+            opts["discrete"] = self.discrete
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
-        solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts_)
+        solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
+
         self._solver = self._cache.cache(solver_func)
+        opts.pop("discrete", None)
         self._solver_opts = opts
         self._solver_plugin = solver
         self._solver_type = type

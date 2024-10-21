@@ -165,9 +165,9 @@ class TestMpc(unittest.TestCase):
     def test_dynamics__raises__if_dynamics_already_set(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
-        mpc._dynamics = 5
+        mpc._dynamics_already_set = True
         with self.assertRaises(RuntimeError):
-            mpc.set_dynamics(6)
+            mpc.set_nonlinear_dynamics(object())
 
     def test_dynamics__raises__if_dynamics_arguments_are_invalid(self):
         x1 = cs.SX.sym("x1", 2)
@@ -185,7 +185,7 @@ class TestMpc(unittest.TestCase):
         mpc = Mpc(nlp=nlp, prediction_horizon=10, control_horizon=5)
         for F in (F1, F2):
             with self.assertRaises(ValueError):
-                mpc.set_dynamics(F)
+                mpc.set_nonlinear_dynamics(F)
 
     @parameterized.expand([(0,), (1,)])
     def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self, i: int):
@@ -207,7 +207,7 @@ class TestMpc(unittest.TestCase):
             d = mpc.disturbance("d")
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
-        mpc.set_dynamics(F)
+        mpc.set_nonlinear_dynamics(F)
         self.assertIn("dyn", mpc.constraints.keys())
         self.assertEqual(mpc.ng, (1 + N) * 5)
 
@@ -233,7 +233,7 @@ class TestMpc(unittest.TestCase):
             d = mpc.disturbance("d")
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
-        mpc.set_dynamics(F)
+        mpc.set_nonlinear_dynamics(F)
         for k in range(N):
             self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
         self.assertIn("x1", mpc.states.keys())
@@ -316,7 +316,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.action("u1", 3)
         scmpc.action("u2", 1)
         scmpc.disturbance("d")
-        scmpc.set_dynamics(F)
+        scmpc.set_nonlinear_dynamics(F)
 
         if shooting == "multi":
             self.assertEqual(scmpc.nlp.ng, (1 + N) * 5 * K)

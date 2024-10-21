@@ -137,12 +137,12 @@ class TestExamples(unittest.TestCase):
         u, _ = mpc.action("u", lb=-1, ub=+1)
         if shooting == "single":
             mpc.state("x", 2)
-            mpc.set_dynamics(F)
+            mpc.set_nonlinear_dynamics(F)
             x = mpc.states["x"]  # only accessible after dynamics have been set
             mpc.constraint("c0", x, ">=", -0.2)
         else:
             x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
-            mpc.set_dynamics(F)
+            mpc.set_nonlinear_dynamics(F)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(OPTS)
         mpc = mpc.copy()
@@ -257,7 +257,7 @@ class TestExamples(unittest.TestCase):
         y = x[0, :]
         m = x[2, :]
         u, _ = mpc.action("u", lb=0, ub=5e7)
-        mpc.set_dynamics(get_dynamics(g, alpha, dt))
+        mpc.set_nonlinear_dynamics(get_dynamics(g, alpha, dt))
         x0 = cs.vertcat(0, 0, m0)
         mpc.constraint("yT", y[-1], "==", yT)
         mpc.minimize(m[0] - m[-1])

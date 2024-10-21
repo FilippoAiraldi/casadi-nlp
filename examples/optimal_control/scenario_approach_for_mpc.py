@@ -73,7 +73,7 @@ scmpc = ScenarioBasedMpc[cs.SX](Nlp(), K, N)
 x, _, _ = scmpc.state("x", nx, bound_initial=False)
 u, _ = scmpc.action("u", nu, lb=-5, ub=+5)
 d, _ = scmpc.disturbance("d", nd)
-scmpc.set_dynamics(F)
+scmpc.set_nonlinear_dynamics(F)
 
 # %%
 # Since the SCMPC internally defines ``K`` copies of the state and disturbances, how

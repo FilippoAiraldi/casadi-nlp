@@ -324,7 +324,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
             )
         )
 
-    def set_dynamics(
+    def set_nonlinear_dynamics(
         self,
         F: Union[
             cs.Function,
@@ -339,9 +339,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 "stochastic disturbances, and if there are none, a nominal MPC should "
                 "suffice (see `Mpc` wrapper)."
             )
-        return super().set_dynamics(F)
+        return super().set_nonlinear_dynamics(F)
 
-    def _multishooting_dynamics(self, F: cs.Function, _: int) -> None:
+    def _set_multishooting_nonlinear_dynamics(self, F: cs.Function, _: int) -> None:
         state_names = self.single_states.keys()
         disturbance_names = self.single_disturbances.keys()
         U = cs.vcat(self._actions_exp.values())
@@ -356,7 +356,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 xs_i_next.append(x_i_next)
             self.constraint(_n("dyn", i), cs.hcat(xs_i_next), "==", X_i[:, 1:])
 
-    def _singleshooting_dynamics(self, F: cs.Function, _: int) -> None:
+    def _set_singleshooting_nonlinear_dynamics(self, F: cs.Function, _: int) -> None:
         disturbance_names = self.single_disturbances.keys()
         Xk_shared = cs.vcat(self._initial_states.values())
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
