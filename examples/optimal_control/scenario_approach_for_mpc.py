@@ -99,7 +99,15 @@ scmpc.minimize_from_single(
 # ----------
 # We can finally simulate! First, let's initialize the solver.
 
-scmpc.init_solver({"print_time": False, "ipopt": {"sb": "yes", "print_level": 0}})
+opts = {
+    "error_on_fail": True,
+    "expand": True,
+    "print_time": False,
+    "record_time": True,
+    "verbose": False,
+    "printLevel": "none",
+}
+scmpc.init_solver(opts, "qpoases")
 
 # %%
 # Then, we'd like to simulate the solution of the MPC along a trajectory of length

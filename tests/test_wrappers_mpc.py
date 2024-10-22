@@ -476,21 +476,30 @@ class TestPwaMpc(unittest.TestCase):
 
 
 class TestScenarioBasedMpc(unittest.TestCase):
-    @parameterized.expand([(False,), (True,)])
-    def test_state__creates_as_many_states_as_scenarios(self, multishooting: bool):
-        K = np.random.randint(2, 20)
-        shooting = "multi" if multishooting else "single"
-        scmpc = SCMPC[cs.MX](Nlp(sym_type="MX"), K, 10, shooting=shooting)
-        size = 4
-        x, xs, _ = scmpc.state("x", size, bound_initial=False, bound_terminal=False)
+    @parameterized.expand([("multi",), ("single",)])
+    def test_state__creates_as_many_states_as_scenarios(self, shooting: str):
+        K, N, ns = np.random.randint(2, 20, size=3)
+        ny = ns // 2
+        nx = ns - ny
+        scmpc = SCMPC[cs.MX](Nlp(sym_type="MX"), K, N, shooting=shooting)
+        x, xs, _ = scmpc.state("x", nx, bound_initial=False, bound_terminal=False)
+        y, ys, _ = scmpc.state("y", ny, bound_initial=False, bound_terminal=False)
+
         self.assertEqual(len(xs), K)
-        self.assertEqual(scmpc.ns, size)
-        self.assertEqual(scmpc.ns_all, size * K)
-        if multishooting:
-            self.assertEqual(x.shape, xs[0].shape)
+        self.assertEqual(len(ys), K)
+        self.assertEqual(scmpc.ns, ns)
+        self.assertEqual(scmpc.ns_all, ns * K)
+
+        xshape = (nx, N + 1)
+        yshape = (ny, N + 1)
+        if shooting == "multi":
+            self.assertTrue(all(x.shape == x_i.shape == xshape for x_i in xs))
+            self.assertTrue(all(y.shape == y_i.shape == yshape for y_i in ys))
         else:
-            self.assertIsNone(x)
+            self.assertEqual(x.shape, xshape)
+            self.assertEqual(y.shape, yshape)
             self.assertTrue(all(x_i is None for x_i in xs))
+            self.assertTrue(all(y_i is None for y_i in ys))
 
     def test_disturbance__creates_as_many_disturbances_as_scenarios(self):
         K = np.random.randint(2, 20)
@@ -502,43 +511,55 @@ class TestScenarioBasedMpc(unittest.TestCase):
         self.assertEqual(scmpc.nd_all, size * K)
         self.assertEqual(d.shape, ds[0].shape)
 
-    @parameterized.expand([("multi",), ("single",)])
-    def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(
-        self, shooting: str
-    ):
-        x, u, d = cs.SX.sym("x", 5), cs.SX.sym("u", 4), cs.SX.sym("d", 1)
-        F = cs.Function("F", [x, u, d], [x + cs.vertcat(u, u[-1]) + d])
-
-        N, K = 10, np.random.randint(2, 20)
-        scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, N // 2, shooting=shooting)
-        scmpc.state("x1", 2)
-        scmpc.state("x2", 3)
-        scmpc.action("u1", 3)
-        scmpc.action("u2", 1)
-        scmpc.disturbance("d")
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self, sym_tpe):
+        nx, nu, nd, N, K = np.random.randint(4, 20, size=5)
+        x, u, d = cs.SX.sym("x", nx), cs.SX.sym("u", nu), cs.SX.sym("d", nd)
+        x_next = cs.repmat(cs.sum1(x) + cs.sum1(u) + cs.sum1(d), nx, 1)
+        F = cs.Function("F", [x, u, d], [x_next])
+        scmpc = SCMPC[cs.SX](Nlp(sym_type=sym_tpe), K, N, N // 2, shooting="multi")
+        scmpc.state("x1", nx // 2)
+        scmpc.state("x2", nx - (nx // 2))
+        scmpc.action("u1", nu // 3)
+        scmpc.action("u2", nu - (nu // 3))
+        scmpc.disturbance("d", nd)
         scmpc.set_nonlinear_dynamics(F)
 
-        if shooting == "multi":
-            self.assertEqual(scmpc.nlp.ng, (1 + N) * 5 * K)
-            for i in range(K):
-                self.assertIn(_n("dyn", i), scmpc.constraints.keys())
-        else:
-            self.assertEqual(scmpc.nlp.ng, 0)
-            for i in range(K):
-                self.assertIn(_n("x1", i), scmpc.states.keys())
-                self.assertIn(_n("x2", i), scmpc.states.keys())
-                self.assertEqual(scmpc.states[_n("x1", i)].shape, (2, N + 1))
-                self.assertEqual(scmpc.states[_n("x2", i)].shape, (3, N + 1))
+        self.assertIn("dyn", scmpc.constraints.keys())
+        self.assertEqual(scmpc.nlp.ng, (1 + N) * nx * K)
 
-    @parameterized.expand([(True,), (False,)])
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
+        nx, nu, nd, N, K = np.random.randint(4, 20, size=5)
+        x, u, d = cs.SX.sym("x", nx), cs.SX.sym("u", nu), cs.SX.sym("d", nd)
+        x_next = cs.repmat(cs.sum1(x) + cs.sum1(u) + cs.sum1(d), nx, 1)
+        F = cs.Function("F", [x, u, d], [x_next])
+        scmpc = SCMPC[cs.SX](Nlp(sym_type=sym_type), K, N, N // 2, shooting="single")
+        scmpc.state("x1", nx // 2)
+        scmpc.state("x2", nx - (nx // 2))
+        scmpc.action("u1", nu // 3)
+        scmpc.action("u2", nu - (nu // 3))
+        scmpc.disturbance("d", nd)
+        scmpc.set_nonlinear_dynamics(F)
+
+        self.assertNotIn("dyn", scmpc.constraints.keys())
+        self.assertEqual(scmpc.nlp.ng, 0)
+        for i in range(K):
+            self.assertIn(_n("x1", i), scmpc.states.keys())
+            self.assertIn(_n("x2", i), scmpc.states.keys())
+            self.assertEqual(scmpc.states[_n("x1", i)].shape, (nx // 2, N + 1))
+            self.assertEqual(scmpc.states[_n("x2", i)].shape, (nx - (nx // 2), N + 1))
+
+    @parameterized.expand(product((True, False), ("multi", "single")))
     def test_constraint_from_single__creates_constraint_for_all_scenarios(
-        self, soft: bool
+        self, soft: bool, shooting: str
     ):
         N, K = 10, np.random.randint(2, 20)
-        scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N)
+        scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting=shooting)
         x, _, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
+        scmpc.set_nonlinear_dynamics(lambda x, u, d: x + u + d[:2] - d[2:])
 
         lhs = cs.vertcat(cs.sum2(cs.exp(x)), cs.sum2(cs.log(u)))
         rhs = cs.sum2(cs.sin(d))
@@ -576,7 +597,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
 
     def test_minimize_from_single__creates_objective_for_all_scenarios(self):
         N, K = 10, np.random.randint(2, 20)
-        scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N)
+        scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting="multi")
         x, _, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
