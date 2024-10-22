@@ -69,7 +69,7 @@ x0 = np.array([1, 1])  # initial state
 F = get_dynamics()
 nx, nu, nd = F.size1_in(0), F.size1_in(1), F.size1_in(2)
 
-scmpc = ScenarioBasedMpc[cs.SX](Nlp(), K, N)
+scmpc = ScenarioBasedMpc[cs.SX](Nlp(), K, N, shooting="single")
 x, _, _ = scmpc.state("x", nx, bound_initial=False)
 u, _ = scmpc.action("u", nu, lb=-5, ub=+5)
 d, _ = scmpc.disturbance("d", nd)
