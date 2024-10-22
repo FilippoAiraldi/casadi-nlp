@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from inspect import signature
 from math import ceil
 from typing import Callable, Literal, Optional, TypeVar, Union
@@ -16,6 +17,19 @@ MatType = TypeVar("MatType", SymType, cs.DM, np.ndarray)
 def _n(statename: str) -> str:
     """Internal utility for naming initial states."""
     return f"{statename}_0"
+
+
+def _callable2csfunc(
+    F: Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
+    sym_type: type[SymType],
+    sizes_in: tuple[int, ...],
+) -> cs.Function:
+    """Internal utility to convert a callable to a CasADi function."""
+    sym_in = [sym_type.sym(f"s{i}", s, 1) for i, s in enumerate(sizes_in)]
+    sym_out = F(*sym_in)
+    if isinstance(F, Sequence):
+        sym_out = sym_out[0]
+    return cs.Function("F", sym_in, (sym_out,), {"allow_free": True, "cse": True})
 
 
 class Mpc(NonRetroactiveWrapper[SymType]):
@@ -58,10 +72,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     ) -> None:
         super().__init__(nlp)
 
-        if (
-            not isinstance(prediction_horizon, (int, np.integer, np.int_))
-            or prediction_horizon <= 0
-        ):
+        inttypes = (int, np.integer, np.int_)
+        if not isinstance(prediction_horizon, inttypes) or prediction_horizon <= 0:
             raise ValueError(
                 "Prediction horizon must be positive and > 0; got "
                 f"{prediction_horizon} instead."
@@ -76,12 +88,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._prediction_horizon = prediction_horizon
         if control_horizon is None:
             self._control_horizon = self._prediction_horizon
-        elif not isinstance(control_horizon, int) or control_horizon <= 0:
+        elif not isinstance(control_horizon, inttypes) or control_horizon <= 0:
             raise ValueError("Control horizon must be positive and > 0.")
         else:
             self._control_horizon = control_horizon
 
-        if not isinstance(input_spacing, int) or input_spacing <= 0:
+        if not isinstance(input_spacing, inttypes) or input_spacing <= 0:
             raise ValueError("Input spacing factor must be positive and > 0.")
         else:
             self._input_spacing = input_spacing
@@ -329,7 +341,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return out
 
     def set_linear_dynamics(
-        self, A: MatType, B: MatType, D: Optional[MatType] = None
+        self,
+        A: MatType,
+        B: MatType,
+        D: Optional[MatType] = None,
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "thread",
+        max_num_threads: Optional[int] = None,
     ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
         r"""Sets linear dynamics of the controller's prediction model and creates the
         corresponding dynamics constraints. The dynamics are in the form
@@ -388,15 +407,21 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         elif nd > 0:
             raise ValueError("D must be provided since there are disturbances.")
 
+        if max_num_threads is None:
+            max_num_threads = self._prediction_horizon
+
         if self._is_multishooting:
             # not much optimization that we can do here
             if D is None:
-                n_in = 2
-                dynamics = lambda x, u: A @ x + B @ u
+                sizes_in = (ns, na)
+                F = lambda x, u: A @ x + B @ u
             else:
-                n_in = 3
-                dynamics = lambda x, u, d: A @ x + B @ u + D @ d
-            self._set_multishooting_nonlinear_dynamics(dynamics, n_in)
+                sizes_in = (ns, na, nd)
+                F = lambda x, u, d: A @ x + B @ u + D @ d
+            dynamics = _callable2csfunc(F, self.nlp.sym_type, sizes_in)
+            self._set_multishooting_nonlinear_dynamics(
+                dynamics, len(sizes_in), parallelization, max_num_threads
+            )
             F = G = H = None
         else:
             F, G, H = self._set_singleshooting_linear_dynamics(A, B, D)
@@ -410,6 +435,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             cs.Function,
             Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "thread",
+        max_num_threads_or_unrolling_base: Optional[int] = None,
     ) -> None:
         """Sets nonlinear dynamics of the controller's prediction model and creates the
         corresponding dynamics constraints.
@@ -422,6 +451,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             :math:`F` is a generic nonlinear function and :math:`x_+` is the next state.
             The function can have multiple outputs, in which case :math:`x_+` is assumed
             to be the first one.
+        parallelization : "serial", "unroll", "inline", "thread", "openmp"
+            The type of parallelization to use (see :func:`casadi.Function.map`) when
+            applying the dynamics along the horizon in multiple shooting. By default,
+            ``"thread"`` is selected.
+        max_num_threads : int, optional
+            Maximum number of threads to use in parallelization (if in multiple
+            shooting), or the base for unrolling (if in single shooting). See
+            :func:`casadi.Function.map` and :func:`casadi.Function.mapaccum` for more
+            information, respectively. By default, set equal to the prediction horizon.
 
         Raises
         ------
@@ -439,10 +477,22 @@ class Mpc(NonRetroactiveWrapper[SymType]):
                 "The dynamics function must accepted 2 or 3 arguments; got "
                 f"{n_in} inputs."
             )
+
+        if not isinstance(F, cs.Function):
+            sizes_in = (self.ns, self.na) if n_in < 3 else (self.ns, self.na, self.nd)
+            F = _callable2csfunc(F, self.nlp.sym_type, sizes_in)
+
+        if max_num_threads_or_unrolling_base is None:
+            max_num_threads_or_unrolling_base = self._prediction_horizon
+
         if self._is_multishooting:
-            self._set_multishooting_nonlinear_dynamics(F, n_in)
+            self._set_multishooting_nonlinear_dynamics(
+                F, n_in, parallelization, max_num_threads_or_unrolling_base
+            )
         else:
-            self._set_singleshooting_nonlinear_dynamics(F, n_in)
+            self._set_singleshooting_nonlinear_dynamics(
+                F, n_in, max_num_threads_or_unrolling_base
+            )
         self._dynamics_already_set = True
 
     def _set_singleshooting_linear_dynamics(
@@ -479,11 +529,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
         # compute the next states
         x_0 = cs.vcat(self._initial_states.values())
-        U = cs.vvcat(self._actions_exp.values())
+        U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
         X_next = F @ x_0 + G @ U
-        if D_not_none:
-            D = cs.vvcat(self._disturbances.values())  # check is correct size
-            X_next += H @ D
+        if H is not None:
+            X_next += H @ cs.vec(cs.vcat(self._disturbances.values()))
 
         # append initial state, reshape and save to internal dict
         X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
@@ -491,40 +540,42 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
         return F, G, H
 
-    def _set_multishooting_nonlinear_dynamics(self, F: cs.Function, n_in: int) -> None:
+    def _set_multishooting_nonlinear_dynamics(
+        self,
+        F: cs.Function,
+        n_in: int,
+        parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
+        max_num_threads: int,
+    ) -> None:
         """Internal utility to create nonlinear dynamics constraints in multiple
         shooting."""
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
-            args_at = lambda k: (X[:, k], U[:, k])
+            args = (X[:, :-1], U)
         else:
             D = cs.vcat(self._disturbances.values())
-            args_at = lambda k: (X[:, k], U[:, k], D[:, k])
-        xs_next = []
-        for k in range(self._prediction_horizon):
-            x_next = F(*args_at(k))
-            if isinstance(x_next, (tuple, list)):
-                x_next = x_next[0]
-            xs_next.append(x_next)
-        self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
+            args = (X[:, :-1], U, D)
 
-    def _set_singleshooting_nonlinear_dynamics(self, F: cs.Function, n_in: int) -> None:
+        Fmap = F.map(self._prediction_horizon, parallelization, max_num_threads)
+        X_next = Fmap(*args)
+        self.constraint("dyn", X[:, 1:], "==", X_next)
+
+    def _set_singleshooting_nonlinear_dynamics(
+        self, F: cs.Function, n_in: int, base: int
+    ) -> None:
         """Internal utility to create nonlinear dynamics constraints and states in
         single shooting."""
-        Xk = cs.vcat(self._initial_states.values())
+        X0 = cs.vcat(self._initial_states.values())
         U = cs.vcat(self._actions_exp.values())
         if n_in < 3:
-            args_at = lambda k: (U[:, k],)
+            args = (X0, U)
         else:
             D = cs.vcat(self._disturbances.values())
-            args_at = lambda k: (U[:, k], D[:, k])
-        X = [Xk]
-        for k in range(self._prediction_horizon):
-            Xk = F(Xk, *args_at(k))
-            if isinstance(Xk, (tuple, list)):
-                Xk = Xk[0]
-            X.append(Xk)
-        X = cs.hcat(X)
+            args = (X0, U, D)
+
+        Fmapaccum = F.mapaccum(self._prediction_horizon, {"base": base})
+        X_next = Fmapaccum(*args)
+        X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))

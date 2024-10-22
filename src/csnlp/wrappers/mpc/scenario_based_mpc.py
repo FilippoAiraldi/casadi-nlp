@@ -1,5 +1,4 @@
 from inspect import signature
-from itertools import chain
 from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
@@ -9,10 +8,11 @@ import numpy.typing as npt
 from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
 
 from ..wrapper import Nlp
-from .mpc import Mpc
+from .mpc import Mpc, _callable2csfunc
 from .mpc import _n as _name_init_state
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+MatType = TypeVar("MatType", SymType, cs.DM, np.ndarray)
 
 
 class ScenarioBasedMpc(Mpc[SymType]):
@@ -162,8 +162,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
             since these can only be set after the dynamics have been set via the
             `constraint` method.
         """
+        N = self._prediction_horizon
         if self._is_multishooting:
-            shape = (size, self._prediction_horizon + 1)
+            shape = (size, N + 1)
             lb = np.broadcast_to(lb, shape).astype(float)
             ub = np.broadcast_to(ub, shape).astype(float)
             if not bound_initial:
@@ -177,8 +178,6 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 "in single shooting, lower and upper state bounds can only be "
                 "created after the dynamics have been set"
             )
-        else:
-            shape = (size, 1)
 
         # create as many states as scenarions, but only one initial state
         x0_name = _name_init_state(name)
@@ -197,9 +196,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
             self._states[name_i] = x_i
 
         # create also a single symbol for the state
-        x_single = (
-            self.nlp._sym_type.sym(name, shape) if self._is_multishooting else None
-        )
+        x_single = self.nlp._sym_type.sym(name, size, N + 1)
         self.single_states[name] = x_single
         return x_single, xs, x0
 
@@ -324,8 +321,16 @@ class ScenarioBasedMpc(Mpc[SymType]):
             )
         )
 
-    def set_linear_dynamics(self, *_, **__):
-        raise NotImplementedError("not yet implemented")
+    def set_linear_dynamics(
+        self, A: MatType, B: MatType, D: MatType
+    ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
+        if D is None:
+            raise ValueError(
+                "The dynamics matrix D must be given, as SCMPC is a tool to account for"
+                " stochastic disturbances, and if there are none, a nominal MPC should "
+                "suffice (see `Mpc` wrapper)."
+            )
+        return super().set_linear_dynamics(A, B, D)
 
     def set_nonlinear_dynamics(
         self,
@@ -333,48 +338,94 @@ class ScenarioBasedMpc(Mpc[SymType]):
             cs.Function,
             Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         ],
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "thread",
+        max_num_threads_or_unrolling_base: Optional[int] = None,
     ) -> None:
         n_in = F.n_in() if isinstance(F, cs.Function) else len(signature(F).parameters)
-        if n_in != 3 or self.nd == 0:
+        nd = self.nd
+        if n_in != 3 or nd == 0:
             raise ValueError(
                 "The dynamics function must have 3 arguments: the state, the action, "
                 "and the disturbance. This is because SCMPC is a tool to account for "
                 "stochastic disturbances, and if there are none, a nominal MPC should "
                 "suffice (see `Mpc` wrapper)."
             )
-        return super().set_nonlinear_dynamics(F)
 
-    def _set_multishooting_nonlinear_dynamics(self, F: cs.Function, _: int) -> None:
+        if not isinstance(F, cs.Function):
+            F = _callable2csfunc(F, self.nlp.sym_type, (self.ns, self.na, nd))
+
+        if max_num_threads_or_unrolling_base is None:
+            max_num_threads_or_unrolling_base = max(
+                self._prediction_horizon, self._n_scenarios
+            )
+
+        return super().set_nonlinear_dynamics(
+            F, parallelization, max_num_threads_or_unrolling_base
+        )
+
+    def _set_singleshooting_linear_dynamics(
+        self, A: MatType, B: MatType, D: MatType
+    ) -> tuple[MatType, MatType, Optional[MatType]]:
+        # TODO: recall what I did for the nonlinear single shooting case
+        # and check if the creation of F,G,H has to be extracted from the base class
+        raise NotImplementedError("not implemented yet.")
+
+    def _set_multishooting_nonlinear_dynamics(
+        self,
+        F: cs.Function,
+        _: int,
+        parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
+        max_num_threads: int,
+    ) -> None:
         state_names = self.single_states.keys()
         disturbance_names = self.single_disturbances.keys()
         U = cs.vcat(self._actions_exp.values())
+        X_all_ = []
+        X_all_next_ = []
+        D_all_ = []
         for i in range(self._n_scenarios):
             X_i = cs.vcat([self._states[_n(n, i)] for n in state_names])
-            D_i = cs.vcat([self._disturbances[_n(n, i)] for n in disturbance_names])
-            xs_i_next = []
-            for k in range(self._prediction_horizon):
-                x_i_next = F(X_i[:, k], U[:, k], D_i[:, k])
-                if isinstance(x_i_next, (tuple, list)):
-                    x_i_next = x_i_next[0]
-                xs_i_next.append(x_i_next)
-            self.constraint(_n("dyn", i), cs.hcat(xs_i_next), "==", X_i[:, 1:])
+            X_all_.append(X_i[:, :-1])
+            X_all_next_.append(X_i[:, 1:])
+            D_all_.append(
+                cs.vcat([self._disturbances[_n(n, i)] for n in disturbance_names])
+            )
+        X_all = cs.hcat(X_all_)
+        X_all_next = cs.hcat(X_all_next_)
+        D_all = cs.hcat(D_all_)
 
-    def _set_singleshooting_nonlinear_dynamics(self, F: cs.Function, _: int) -> None:
+        Fmap = F.map(
+            self._prediction_horizon * self._n_scenarios,
+            parallelization,
+            max_num_threads,
+        )
+        X_all_next_pred = Fmap(X_all, U, D_all)
+        self.constraint("dyn", X_all_next, "==", X_all_next_pred)
+
+    def _set_singleshooting_nonlinear_dynamics(
+        self, F: cs.Function, _: int, base: int
+    ) -> None:
         disturbance_names = self.single_disturbances.keys()
-        Xk_shared = cs.vcat(self._initial_states.values())
-        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        X0 = cs.vcat(self._initial_states.values())
         U = cs.vcat(self._actions_exp.values())
+        D_all = cs.hcat(
+            [
+                cs.vcat([self._disturbances[_n(n, i)] for n in disturbance_names])
+                for i in range(self._n_scenarios)
+            ]
+        )
+
+        N = self._prediction_horizon
+        Fmapaccum = F.mapaccum(N, {"base": base})
+        X_next_hcat = Fmapaccum(X0, U, D_all)
+
         state_names = self.single_states.keys()
-        propagated_states = []
+        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        X_next_split = cs.horzsplit(X_next_hcat, N)
         for i in range(self._n_scenarios):
-            Xk_i = Xk_shared
-            D_i = cs.vcat([self._disturbances[_n(n, i)] for n in disturbance_names])
-            X_i = [Xk_i]
-            for k in range(self._prediction_horizon):
-                Xk_i = F(Xk_i, U[:, k], D_i[:, k])
-                if isinstance(Xk_i, (tuple, list)):
-                    Xk_i = Xk_i[0]
-                X_i.append(Xk_i)
-            X_i = cs.vertsplit(cs.hcat(X_i), cumsizes)
-            propagated_states.append([(_n(n, i), x) for n, x in zip(state_names, X_i)])
-        self._states = dict(chain.from_iterable(propagated_states))
+            X_i = cs.horzcat(X0, X_next_split[i])
+            X_i_split = cs.vertsplit(X_i, cumsizes)
+            for n, x in zip(state_names, X_i_split):
+                self._states[_n(n, i)] = x
