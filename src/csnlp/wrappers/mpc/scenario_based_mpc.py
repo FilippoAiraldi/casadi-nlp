@@ -8,7 +8,7 @@ import numpy.typing as npt
 from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
 
 from ..wrapper import Nlp
-from .mpc import Mpc, _callable2csfunc
+from .mpc import Mpc, _callable2csfunc, _create_qp_mats
 from .mpc import _n as _name_init_state
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -368,9 +368,31 @@ class ScenarioBasedMpc(Mpc[SymType]):
     def _set_singleshooting_linear_dynamics(
         self, A: MatType, B: MatType, D: MatType
     ) -> tuple[MatType, MatType, Optional[MatType]]:
-        # TODO: recall what I did for the nonlinear single shooting case
-        # and check if the creation of F,G,H has to be extracted from the base class
-        raise NotImplementedError("not implemented yet.")
+        disturbance_names = self.single_disturbances.keys()
+        X0 = cs.vcat(self._initial_states.values())
+        U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
+        D_all = cs.hcat(
+            [
+                cs.vec(
+                    cs.vcat([self._disturbances[_n(n, i)] for n in disturbance_names])
+                )
+                for i in range(self._n_scenarios)
+            ]
+        )
+
+        F, G, H = _create_qp_mats(self._prediction_horizon, A, B, D)
+        X_next_pred = F @ X0 + G @ U + H @ D_all
+
+        state_names = self.single_states.keys()
+        N = self._prediction_horizon
+        ns = A.shape[0]
+        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        for i in range(self._n_scenarios):
+            X_i = cs.vertcat(X0, X_next_pred[:, i]).reshape((ns, N + 1))
+            X_i_split = cs.vertsplit(X_i, cumsizes)
+            for n, x in zip(state_names, X_i_split):
+                self._states[_n(n, i)] = x
+        return F, G, H
 
     def _set_multishooting_nonlinear_dynamics(
         self,

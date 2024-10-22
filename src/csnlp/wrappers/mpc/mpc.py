@@ -32,6 +32,37 @@ def _callable2csfunc(
     return cs.Function("F", sym_in, (sym_out,), {"allow_free": True, "cse": True})
 
 
+def _create_qp_mats(
+    N: int, A: MatType, B: MatType, D: Optional[MatType]
+) -> tuple[MatType, MatType, Optional[MatType]]:
+    """Internal utility to build the linear MPC matrices for building a QP."""
+    ns, na = B.shape
+
+    F = cs.vcat([cs.mpower(A, m) for m in range(1, N + 1)])
+
+    zero = cs.DM.zeros(ns, na)
+    Nnx = ns * (N - 1)
+    G_col = cs.vertcat(B, F[:Nnx, :] @ B)
+    G_cols = [G_col]
+    for _ in range(1, N):
+        G_col = cs.vertcat(zero, G_col[:Nnx, :])
+        G_cols.append(G_col)
+    G = cs.hcat(G_cols)
+
+    D_not_none = D is not None
+    if D_not_none:
+        zero = cs.DM.zeros(ns, D.shape[1])
+        H_col = cs.vertcat(D, F[:Nnx, :] @ D)
+        H_cols = [H_col]
+        for _ in range(1, N):
+            H_col = cs.vertcat(zero, H_col[:Nnx, :])
+            H_cols.append(H_col)
+        H = cs.hcat(H_cols)
+    else:
+        H = None
+    return F, G, H
+
+
 class Mpc(NonRetroactiveWrapper[SymType]):
     """A wrapper to easily turn an NLP scheme into an MPC controller. Most of the theory
     for MPC is taken from :cite:`rawlings_model_2017`.
@@ -500,34 +531,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     ) -> tuple[MatType, MatType, Optional[MatType]]:
         """Internal utility to create linear dynamics constraints and states in
         single shooting mode."""
-        ns, na = B.shape
+        ns = A.shape[0]
         N = self._prediction_horizon
-
-        # create the QP matrices
-        F = cs.vcat([cs.mpower(A, m) for m in range(1, N + 1)])
-        #
-        zero = cs.DM.zeros(ns, na)
-        Nnx = ns * (N - 1)
-        G_col = cs.vertcat(B, F[:Nnx, :] @ B)
-        G_cols = [G_col]
-        for _ in range(1, N):
-            G_col = cs.vertcat(zero, G_col[:Nnx, :])
-            G_cols.append(G_col)
-        G = cs.hcat(G_cols)
-        #
-        D_not_none = D is not None
-        if D_not_none:
-            zero = cs.DM.zeros(ns, D.shape[1])
-            H_col = cs.vertcat(D, F[:Nnx, :] @ D)
-            H_cols = [H_col]
-            for _ in range(1, N):
-                H_col = cs.vertcat(zero, H_col[:Nnx, :])
-                H_cols.append(H_col)
-            H = cs.hcat(H_cols)
-        else:
-            H = None
-
-        # compute the next states
+        F, G, H = _create_qp_mats(self._prediction_horizon, A, B, D)
         x_0 = cs.vcat(self._initial_states.values())
         U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
         X_next = F @ x_0 + G @ U
