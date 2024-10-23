@@ -7,10 +7,12 @@ from itertools import product
 from typing import Any, Optional
 
 import casadi as cs
+import cvxpy as cp
 import numpy as np
 from parameterized import parameterized
 from scipy.stats import norm
 
+from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
 from csnlp.util import io, math
 
@@ -134,12 +136,12 @@ class TestMath(unittest.TestCase):
         loc = np.random.randn(*shape)
         scale = np.random.rand(*shape)
         cdf_sx = subsevalf(
-            math.norm_cdf(x_sx, loc=loc_sx, scale=scale_sx),
+            math.normal_cdf(x_sx, loc=loc_sx, scale=scale_sx),
             [x_sx, loc_sx, scale_sx],
             [x, loc, scale],
         )
         cdf_mx = subsevalf(
-            math.norm_cdf(x_mx, loc=loc_mx, scale=scale_mx),
+            math.normal_cdf(x_mx, loc=loc_mx, scale=scale_mx),
             [x_mx, loc_mx, scale_mx],
             [x, loc, scale],
         )
@@ -160,12 +162,12 @@ class TestMath(unittest.TestCase):
         loc = np.random.randn(*shape)
         scale = np.random.rand(*shape)
         cdf_sx = subsevalf(
-            math.norm_ppf(x_sx, loc=loc_sx, scale=scale_sx),
+            math.normal_ppf(x_sx, loc=loc_sx, scale=scale_sx),
             [x_sx, loc_sx, scale_sx],
             [x, loc, scale],
         )
         cdf_mx = subsevalf(
-            math.norm_ppf(x_mx, loc=loc_mx, scale=scale_mx),
+            math.normal_ppf(x_mx, loc=loc_mx, scale=scale_mx),
             [x_mx, loc_mx, scale_mx],
             [x, loc, scale],
         )
@@ -184,6 +186,33 @@ class TestMath(unittest.TestCase):
     def test_repeat(self, inputs, expected):
         actual = math.repeat(*inputs)
         np.testing.assert_array_equal(actual, expected)
+
+    @parameterized.expand(product(("SX", "MX"), (1, "inf")))
+    def test_norm_1_and_inf(self, sym_type, ord):
+        # see Boyd & Vandenberghe, ex. 4.11 (a) and (b)
+        # https://egrcc.github.io/docs/math/cvxbook-solutions.pdf
+        m, n = sorted(np.random.randint(10, 20, size=2))
+        A = np.random.randn(n, m)
+        b = np.random.randn(n)
+
+        x = cp.Variable(m)
+        objective = cp.Minimize(cp.norm(A @ x - b, ord))
+        problem = cp.Problem(objective)
+        problem.solve()
+        f_cp = problem.value
+        x_cp = x.value
+
+        nlp = Nlp(sym_type)
+        x, _, _ = nlp.variable("x", (m, 1))
+        norm_fun = math.norm_1 if ord == 1 else math.norm_inf
+        nlp.minimize(norm_fun(nlp, "", A @ x - b))
+        nlp.init_solver(solver="clp")
+        sol = nlp.solve()
+        f_csnlp = sol.f
+        x_csnlp = sol.value(x).toarray().flatten()
+
+        np.testing.assert_allclose(f_cp, f_csnlp, rtol=1e-6, atol=1e-6)
+        np.testing.assert_allclose(x_cp, x_csnlp, rtol=1e-6, atol=1e-6)
 
 
 if __name__ == "__main__":
