@@ -34,7 +34,7 @@ def log(
     """
     if base is None:
         return cs.log(x)
-    if base == 10 or    base == 10.0:
+    if base == 10 or base == 10.0:
         return cs.log10(x)
     return cs.log(x) / cs.log(base)
 

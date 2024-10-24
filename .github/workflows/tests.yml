@@ -40,3 +40,5 @@ jobs:
         with:
           coverageCommand: coverage xml
           debug: true
+      - uses: pre-commit-ci/lite-action@v1.1.0
+        if: always()

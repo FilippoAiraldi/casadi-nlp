@@ -1,6 +1,6 @@
 |PyPI version| |Source Code License| |Python 3.9|
 
-|Tests| |Docs| |Downloads| |Maintainability| |Test Coverage| |Code style: black| |Pre-commit CI|
+|Tests| |Docs| |Downloads| |Maintainability| |Test Coverage| |Code style: black|
 
 .. |PyPI version| image:: https://badge.fury.io/py/csnlp.svg
    :target: https://badge.fury.io/py/csnlp
@@ -28,6 +28,3 @@
 .. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :target: https://github.com/psf/black
    :alt: Black
-.. |Pre-commit CI| image:: https://results.pre-commit.ci/badge/github/FilippoAiraldi/casadi-nlp/main.svg
-   :target: https://results.pre-commit.ci/latest/github/FilippoAiraldi/casadi-nlp/main
-   :alt: Status pre-commit.ci
