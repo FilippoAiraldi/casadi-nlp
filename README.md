@@ -15,7 +15,7 @@ optimization purposes.
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
 ![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
 
-[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml)
+[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml)
 [![Docs](https://readthedocs.org/projects/casadi-nlp/badge/?version=stable)](https://casadi-nlp.readthedocs.io/en/stable/?badge=stable)
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
