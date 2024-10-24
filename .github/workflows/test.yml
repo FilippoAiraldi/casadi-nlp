@@ -1,13 +1,14 @@
-name: Test-Experimental
+name: Test
 
 on:
   push:
     branches:
+      - main
       - experimental
 
 jobs:
 
-  test-experimental:
+  test-main:
 
     runs-on: ubuntu-latest
     strategy:
@@ -35,3 +36,12 @@ jobs:
       - name: Test with unittest
         run: |
           coverage run -m unittest discover ./tests 'test_*.py'
+
+      - name: Coverage with Code Climate (main only)
+        if: github.ref == 'refs/heads/main'
+        uses: paambaati/codeclimate-action@v9
+        env:
+          CC_TEST_REPORTER_ID: ${{ secrets.CODECLIMATE_REPORTER_ID }}
+        with:
+          coverageCommand: coverage xml
+          debug: true
