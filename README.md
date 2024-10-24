@@ -15,13 +15,12 @@ optimization purposes.
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/experimental/LICENSE)
 ![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
 
-[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-experimental.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-experimental.yml)
+[![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml)
 [![Docs](https://readthedocs.org/projects/casadi-nlp/badge/?version=latest)](https://casadi-nlp.readthedocs.io/en/latest/?badge=latest)
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
 [![Maintainability](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
 [![Test Coverage](https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
-[![pre-commit.ci status](https://results.pre-commit.ci/badge/github/FilippoAiraldi/casadi-nlp/experimental.svg)](https://results.pre-commit.ci/latest/github/FilippoAiraldi/casadi-nlp/experimental)
 
 ---
 
