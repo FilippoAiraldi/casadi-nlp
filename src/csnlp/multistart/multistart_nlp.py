@@ -386,7 +386,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     ) -> None:
         super().__init__(*args, starts=starts, **kwargs)
         self._parallel_kwargs = parallel_kwargs if parallel_kwargs is not None else {}
-        self.initialize_parallel()
+        self._parallel: Optional[Parallel] = None
 
     def initialize_parallel(self) -> None:
         """Initializes the parallel backend."""
@@ -410,6 +410,8 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
+        if self._parallel is None:
+            self.initialize_parallel()
         shared_kwargs = {
             "lbx": self._lbx.data,
             "ubx": self._ubx.data,
@@ -447,7 +449,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def __setstate__(self, state: Optional[dict[str, Any]]) -> None:
         if state is not None:
             self.__dict__.update(state)
-        self.initialize_parallel()
+        self._parallel = None
 
 
 class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
