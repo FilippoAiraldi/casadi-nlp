@@ -112,16 +112,44 @@ mpc.set_pwa_dynamics(pwa_system, D, E)
 mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
 mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
-mpc.init_solver(solver="bonmin")  # "bonmin", "knitro", "gurobi"
+mpc.init_solver(solver="gurobi")  # "bonmin", "knitro", "gurobi"
 
 # %%
 # We then solve the MPC problem and plot the results.
 
-sol = mpc.solve(pars={"x_0": [-3, 0]})
+sol_mint = mpc.solve(pars={"x_0": [-3, 0]})
 t = np.linspace(0, N, N + 1)
-plt.plot(t, sol.value(x).T)
-plt.step(t[:-1], sol.vals["u"].T.full(), "-.", where="post")
+plt.plot(t, sol_mint.value(x).T)
+plt.step(t[:-1], sol_mint.vals["u"].T.full(), "-.", where="post")
 plt.legend(["x1", "x2", "u"])
 plt.xlim(t[0], t[-1])
 plt.xlabel("t [s]")
 plt.show()
+
+# %%
+# Now lets explore the setting of the sequence for the pwa mpc # TODO make example nicer
+sequence = np.argmax(
+    sol_mint.vals["delta"], axis=0
+)  # extract the optimal sequence from the mixed-integer solution
+mpc = wrappers.PwaMpc(
+    nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N
+)  # now we can craete a new mpc that uses the sequence
+x, _ = mpc.state("x", 2)
+u, _ = mpc.action("u")
+mpc.set_time_varying_affine_dynamics(pwa_system)
+mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
+mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
+mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
+mpc.init_solver(solver="qrqp")  # here we do not have to use a mixed-integer solver
+mpc.set_sequence(
+    sequence
+)  # set the sequence to be the same as the optimal one from the previous solution
+sol_qp = mpc.solve(pars={"x_0": [-3, 0]})
+# We can see here that we get the same solution as before
+
+# %% Now lets try passing a suboptimal but feasible fixed-sequence
+sequence[3] = 0
+mpc.set_sequence(sequence)
+sol_qp_suboptimal = mpc.solve(pars={"x_0": [-3, 0]})
+# we can see here that we get a feasible solution still but a higher cost, as the sequence was suboptimal
+pass

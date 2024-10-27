@@ -6,6 +6,8 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
+from csnlp.core.solutions import Solution
+
 from ...core.data import find_index_in_vector
 from .mpc import Mpc
 
@@ -196,6 +198,7 @@ class PwaMpc(Mpc[SymType]):
             pwa_system, D, E, clp_opts, parallelization, max_num_threads
         )
         self._dynamics_already_set = True
+        self.fixed_sequence_dynamics = False
 
     def _set_pwa_dynamics(
         self,
@@ -231,7 +234,7 @@ class PwaMpc(Mpc[SymType]):
 
         mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
         sol = mapped_lpsolver(g=S, a=D, uba=E)
-        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) - T
+        big_M = -(sol["cost"].toarray().reshape(nr, n_ineq) - T)
 
         mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
         sol = mapped_lpsolver(g=AB, a=D, uba=E)
@@ -278,3 +281,84 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("region", cs.vcat(region), "<=", 0)
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
+
+    def set_time_varying_affine_dynamics(
+        self,
+        pwa_system: Sequence[PwaRegion],
+    ) -> None:
+        # TODO doc-string
+        n_ineq = pwa_system[0].T.size
+        ns, na = pwa_system[0].B.shape  # TODO are these needed? We have self.ns maybe
+
+        self._pwa_system = pwa_system
+        self.dynamics_parameters = [  # TODO: make pwa region use symbolic also
+            PwaRegion(
+                A=self.parameter(f"A[{k}]", (ns, ns)),
+                B=self.parameter(f"B[{k}]", (ns, na)),
+                c=self.parameter(f"c[{k}]", (ns, 1)),
+                S=self.parameter(f"S[{k}]", (n_ineq, ns + na)),
+                T=self.parameter(f"T[{k}]", (n_ineq, 1)),
+            )
+            for k in range(self._prediction_horizon)
+        ]
+
+        X = cs.vcat(self._states.values())
+        U = cs.vcat(self._actions_exp.values())
+
+        # set dynamics constraints and region constraints
+        if not self._is_multishooting:
+            raise NotImplementedError("Single shooting not implemented yet")
+        xs_next = []
+        for k in range(self._prediction_horizon):
+            x_next = (
+                self.dynamics_parameters[k].A @ X[:, k]
+                + self.dynamics_parameters[k].B @ U[:, k]
+                + self.dynamics_parameters[k].c
+            )
+            xs_next.append(x_next)
+            self.constraint(
+                f"region[{k}]",
+                self.dynamics_parameters[k].S @ cs.vertcat(X[:, k], U[:, k])
+                - self.dynamics_parameters[k].T,
+                "<=",
+                0,
+            )  # TODO take out of loop
+        self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
+
+        self.sequence: Union[list[int], None] = None
+        self.fixed_sequence_dynamics = True  # TODO make private variable?
+        # TODO set dynamics set flag
+
+    def set_sequence(
+        self, sequence: list[int]
+    ) -> None:  # TODO make type-hint more general sequence
+        if len(sequence) != self._prediction_horizon:
+            raise ValueError(
+                "The length of the sequence must be equal to the prediction horizon"
+            )
+        if not all(isinstance(i, int) for i in sequence):
+            raise ValueError("All elements of the sequence must be integers")
+        if not all(0 <= i < len(self._pwa_system) for i in sequence):
+            raise ValueError("All elements of the sequence must be valid region indices")
+        self.sequence = sequence
+
+    def solve(
+        self,
+        pars: Optional[dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[dict[str, npt.ArrayLike]] = None,
+    ) -> Solution[SymType]:
+        if self.fixed_sequence_dynamics:
+            if self.sequence is None:
+                raise ValueError(
+                    "Sequence not set. Use `set_sequence` method to set the sequence"
+                )
+            if pars is None:
+                pars = {}
+            for k in range(self._prediction_horizon):
+                pars[f"A[{k}]"] = self._pwa_system[self.sequence[k]].A
+                pars[f"B[{k}]"] = self._pwa_system[self.sequence[k]].B
+                pars[f"c[{k}]"] = self._pwa_system[self.sequence[k]].c
+                pars[f"S[{k}]"] = self._pwa_system[self.sequence[k]].S
+                pars[f"T[{k}]"] = self._pwa_system[self.sequence[k]].T
+            # TODO find out if it is a problem that we miss the rerouting function call
+        return self.nlp.solve(pars, vals0)
