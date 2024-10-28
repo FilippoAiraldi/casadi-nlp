@@ -274,6 +274,7 @@ class TestSolutions(unittest.TestCase):
             D_struct,
             D_struct(D_vec),
             {},
+            "a_solver_plugin",
         )
         np.testing.assert_allclose(expected, S.value(expr))
 
@@ -281,7 +282,9 @@ class TestSolutions(unittest.TestCase):
     def test_eager_solution__reports_success_and_barrier_properly(self, flag: bool):
         mu = np.abs(np.random.randn(10)).tolist()
         S = EagerSolution(
-            *repeat(None, 13), stats={"success": flag, "iterations": {"mu": mu}}
+            *repeat(None, 13),
+            stats={"success": flag, "iterations": {"mu": mu}},
+            solver_plugin="a_solver_plugin",
         )
         self.assertEqual(S.success, flag)
         self.assertEqual(S.barrier_parameter, mu[-1])

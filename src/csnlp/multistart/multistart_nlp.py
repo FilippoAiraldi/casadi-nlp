@@ -296,6 +296,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         splits = np.cumsum(
             (0, x_.size1(), lam_g_and_h_.size1(), lam_lbx_and_ubx_.size1(), p_.size1())
         )
+        solver_plugin = self.unwrapped._solver_plugin
 
         def get_ith_sol(idx: int) -> EagerSolution[SymType]:
             vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_.keys()}
@@ -330,6 +331,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                 duals_,
                 dual_vals,
                 multi_sol.stats,
+                solver_plugin,
             )
 
         if return_all_sols:

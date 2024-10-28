@@ -111,21 +111,32 @@ class Solution(_Protocol[SymType]):
         """Optimal values of the dual variables."""
 
     @property
+    def solver_plugin(self) -> dict[str, _Any]:
+        """The solver plugin used to generate this solution."""
+        return self._solver_plugin
+
+    @property
     def stats(self) -> dict[str, _Any]:
         """Statistics of the solver for this solution's run."""
         return self._stats
 
-    @_cached_property
+    @property
     def status(self) -> str:
         """Gets the status of the solver at this solution."""
         return self.stats["return_status"]
 
-    @_cached_property
+    @property
+    def unified_return_status(self) -> str:
+        """Gets the unified status of the solver at this solution."""
+        return self.stats["unified_return_status"]
+
+    @property
     def success(self) -> bool:
         """Gets whether the solver's run was successful."""
         return self.stats["success"]
 
     @_cached_property
+    @property
     def barrier_parameter(self) -> float:
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
@@ -267,6 +278,7 @@ class EagerSolution(Solution[SymType]):
         dual_vars: dict[str, SymType],
         dual_vals: dict[str, cs.DM],
         stats: dict[str, _Any],
+        solver_plugin: str,
     ) -> None:
         self._f = f
 
@@ -285,6 +297,7 @@ class EagerSolution(Solution[SymType]):
         self._dual_vals = dual_vals
 
         self._stats = stats
+        self._solver_plugin = solver_plugin
 
     @property
     def f(self) -> float:
@@ -380,6 +393,7 @@ class EagerSolution(Solution[SymType]):
             dual_vars,
             dual_vals,
             stats,
+            nlp.unwrapped._solver_plugin,
         )
 
 
@@ -428,6 +442,7 @@ class LazySolution(Solution[SymType]):
         nonmasked_lbx_idx: Union[slice, npt.NDArray[np.int64]],
         nonmasked_ubx_idx: Union[slice, npt.NDArray[np.int64]],
         stats: dict[str, _Any],
+        solver_plugin: str,
     ) -> None:
         self._sol = solution
         self._p_sym = p_sym
@@ -439,6 +454,7 @@ class LazySolution(Solution[SymType]):
         self._nonmasked_lbx_idx = nonmasked_lbx_idx
         self._nonmasked_ubx_idx = nonmasked_ubx_idx
         self._stats = stats
+        self._solver_plugin = solver_plugin
 
     @_cached_property
     def f(self) -> float:
@@ -529,6 +545,7 @@ class LazySolution(Solution[SymType]):
             nonmasked_lbx_idx,
             nonmasked_ubx_idx,
             stats,
+            nlp.unwrapped._solver_plugin,
         )
 
 
