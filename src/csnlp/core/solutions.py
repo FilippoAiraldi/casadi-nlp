@@ -146,68 +146,74 @@ class Solution(_Protocol[SymType]):
         Here is a list of what I gathered so far. The solvers are grouped based on the
         type of problem they solve. An (F) next to the solver's name indicates that the
         the solver will crash the program if ``"error_on_fail": True`` and the solver
-        fails. The ``return_status`` and ``unified_return_status`` can both be found in
+        fails. The ``status`` and ``unified_return_status`` can both be found in
         the solver's stats, or in this solution object.
 
         * NLPs
 
           - **fatrop**: unclear; better to return ``None`` for now
-          - **ipopt**: ``return_status == "Infeasible_Problem_Detected"``
-          - **qrsqp** (F): ``return_status == "Search_Direction_Becomes_Too_Small"``
+          - **ipopt**: ``status == "Infeasible_Problem_Detected"``
+          - **qrsqp** (F): ``status == "Search_Direction_Becomes_Too_Small"``
             (dubious)
-          - **sqpmethod** (F): ``return_status == "Search_Direction_Becomes_Too_Small"``
+          - **sqpmethod** (F): ``status == "Search_Direction_Becomes_Too_Small"``
             (dubious)
 
         * QPs
 
           - **ipqp** (F): no clear way to detect infeasibility; return ``None`` for now
           - **osqp** (F): ``unified_return_status == "SOLVER_RET_INFEASIBLE"`` or
-            ``"infeasible" in return_status``
-          - **proxqp** (F): ``return_status == "PROXQP_PRIMAL_INFEASIBLE"`` or
-            ``return_status == "PROXQP_DUAL_INFEASIBLE"``
-          - **qpoases** (F): ``"infeasib" in return_status``
-          - **qrqp** (F): ``return_status == "Failed to calculate search direction"``
+            ``"infeasible" in status``
+          - **proxqp** (F): ``status == "PROXQP_PRIMAL_INFEASIBLE"`` or
+            ``status == "PROXQP_DUAL_INFEASIBLE"``
+          - **qpoases** (F): ``"infeasib" in status``
+          - **qrqp** (F): ``status == "Failed to calculate search direction"``
 
         * LPs
 
-          - **clp** (F): ``return_status == "primal infeasible"`` or
-            ``return_status == "dual infeasible"``
+          - **clp** (F): ``status == "primal infeasible"`` or
+            ``status == "dual infeasible"``
 
         * Mixed-Iteger Problems (MIPs)
 
-          - **bonmin** (F): ``return_status == "INFEASIBLE"``
-          - **cbc** (F): ``"not feasible" in return_status``
-          - **gurobi** (F): ``return_status == "INFEASIBLE"``
+          - **bonmin** (F): ``status == "INFEASIBLE"``
+          - **cbc** (F): ``"not feasible" in status``
+          - **gurobi** (F): ``status == "INFEASIBLE"`` or ``status == "INF_OR_UNBD"``
+          - **knitro**: ``"INFEAS" in status``
         """
         solver_plugin = self.solver_plugin
+        status = self.status
         # NLPs
         if solver_plugin == "ipopt":
-            return self.status == "Infeasible_Problem_Detected"
+            return status == "Infeasible_Problem_Detected"
         if solver_plugin in ("qrsqp", "sqpmethod"):
-            return self.status == "Search_Direction_Becomes_Too_Small"
+            return status == "Search_Direction_Becomes_Too_Small"
         # QPs
         if solver_plugin == "osqp":
             return (
                 self.unified_return_status == "SOLVER_RET_INFEASIBLE"
-                or "infeasible" in self.status
+                or "infeasible" in status
             )
         if solver_plugin == "proxqp":
             return (
-                self.status == "PROXQP_PRIMAL_INFEASIBLE"
-                or self.status == "PROXQP_DUAL_INFEASIBLE"
+                status == "PROXQP_PRIMAL_INFEASIBLE"
+                or status == "PROXQP_DUAL_INFEASIBLE"
             )
         if solver_plugin == "qpoases":
-            return "infeasib" in self.status
+            return "infeasib" in status
         if solver_plugin == "qrqp":
-            return self.status == "Failed to calculate search direction"
+            return status == "Failed to calculate search direction"
         # LPs
         if solver_plugin == "clp":
-            return "infeasible" in self.status
+            return status.endswith("infeasible")
         # MIPs
         if solver_plugin in ("bonmin", "gurobi"):
-            return self.status == "INFEASIBLE"
+            return status == "INFEASIBLE"
         if solver_plugin == "cbc":
-            return "not feasible" in self.status
+            return "not feasible" in status
+        if solver_plugin == "gurobi":
+            return status == "INFEASIBLE" or status == "INF_OR_UNBD"
+        if solver_plugin == "knitro":
+            return "INFEAS" in status
         return None
 
     @property
