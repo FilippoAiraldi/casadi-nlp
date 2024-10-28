@@ -231,7 +231,7 @@ class PwaMpc(Mpc[SymType]):
 
         mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
         sol = mapped_lpsolver(g=S, a=D, uba=E)
-        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) - T
+        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) + T
 
         mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
         sol = mapped_lpsolver(g=AB, a=D, uba=E)
