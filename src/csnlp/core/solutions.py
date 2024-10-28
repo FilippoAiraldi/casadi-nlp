@@ -6,6 +6,7 @@ from functools import cached_property as _cached_property
 from itertools import product as _product
 from typing import TYPE_CHECKING
 from typing import Any as _Any
+from typing import Optional
 from typing import Protocol as _Protocol
 from typing import TypeVar as _TypeVar
 from typing import Union
@@ -136,6 +137,79 @@ class Solution(_Protocol[SymType]):
         return self.stats["success"]
 
     @_cached_property
+    def infeasible(self) -> Optional[bool]:
+        r"""Gets whether the solver status indicates infeasibility. If ``False``, it
+        does not imply feasibility as the solver or its CasADi interface may have not
+        detect it.
+
+        For different solvers, the infeasibility status is stored in different ways.
+        Here is a list of what I gathered so far. The solvers are grouped based on the
+        type of problem they solve. An (F) next to the solver's name indicates that the
+        the solver will crash the program if ``"error_on_fail": True`` and the solver
+        fails. The ``return_status`` and ``unified_return_status`` can both be found in
+        the solver's stats, or in this solution object.
+
+        * NLPs
+
+          - **fatrop**: unclear; better to return ``None`` for now
+          - **ipopt**: ``return_status == "Infeasible_Problem_Detected"``
+          - **qrsqp** (F): ``return_status == "Search_Direction_Becomes_Too_Small"``
+            (dubious)
+          - **sqpmethod** (F): ``return_status == "Search_Direction_Becomes_Too_Small"``
+            (dubious)
+
+        * QPs
+
+          - **ipqp** (F): no clear way to detect infeasibility; return ``None`` for now
+          - **osqp** (F): ``unified_return_status == "SOLVER_RET_INFEASIBLE"`` or
+            ``"infeasible" in return_status``
+          - **proxqp** (F): ``return_status == "PROXQP_PRIMAL_INFEASIBLE"`` or
+            ``return_status == "PROXQP_DUAL_INFEASIBLE"``
+          - **qpoases** (F): ``"infeasib" in return_status``
+          - **qrqp** (F): ``return_status == "Failed to calculate search direction"``
+
+        * LPs
+
+          - **clp** (F): ``return_status == "primal infeasible"`` or
+            ``return_status == "dual infeasible"``
+
+        * Mixed-Iteger Problems (MIPs)
+
+          - **bonmin** (F): ``return_status == "INFEASIBLE"``
+          - **cbc** (F): ``"not feasible" in return_status``
+          - **gurobi** (F): ``return_status == "INFEASIBLE"``
+        """
+        solver_plugin = self.solver_plugin
+        # NLPs
+        if solver_plugin == "ipopt":
+            return self.status == "Infeasible_Problem_Detected"
+        if solver_plugin in ("qrsqp", "sqpmethod"):
+            return self.status == "Search_Direction_Becomes_Too_Small"
+        # QPs
+        if solver_plugin == "osqp":
+            return (
+                self.unified_return_status == "SOLVER_RET_INFEASIBLE"
+                or "infeasible" in self.status
+            )
+        if solver_plugin == "proxqp":
+            return (
+                self.status == "PROXQP_PRIMAL_INFEASIBLE"
+                or self.status == "PROXQP_DUAL_INFEASIBLE"
+            )
+        if solver_plugin == "qpoases":
+            return "infeasib" in self.status
+        if solver_plugin == "qrqp":
+            return self.status == "Failed to calculate search direction"
+        # LPs
+        if solver_plugin == "clp":
+            return "infeasible" in self.status
+        # MIPs
+        if solver_plugin in ("bonmin", "gurobi"):
+            return self.status == "INFEASIBLE"
+        if solver_plugin == "cbc":
+            return "not feasible" in self.status
+        return None
+
     @property
     def barrier_parameter(self) -> float:
         """Gets the IPOPT barrier parameter at the optimal solution"""

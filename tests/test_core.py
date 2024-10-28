@@ -9,6 +9,7 @@ import numpy as np
 from casadi.tools import entry, struct_MX, struct_SX
 from parameterized import parameterized
 
+from csnlp import Nlp
 from csnlp.core.cache import invalidate_cache
 from csnlp.core.data import array2cs, cs2array, find_index_in_vector
 from csnlp.core.debug import NlpDebug, NlpDebugEntry
@@ -345,6 +346,94 @@ class TestSolutions(unittest.TestCase):
                 sols = enumerate(map(lambda s: DummySolution(*s), case["sols"]))
                 min_index, _ = min(sols, key=lambda sol: DummySolution.cmp_key(sol[1]))
                 self.assertEqual(min_index, case["expected"])
+
+    @parameterized.expand(
+        product(
+            ("MX", "SX"),
+            (True, False),
+            [
+                # (
+                #     "nlp",
+                #     "sqpmethod",
+                #     {
+                #         "error_on_fail": False,
+                #         "print_time": False,
+                #         "print_status": False,
+                #         "print_header": False,
+                #         "print_iteration": False,
+                #         "qpsol_options": {
+                #             "error_on_fail": False, "printLevel": "none"
+                #         },
+                #     },
+                # ),
+                (
+                    "nlp",
+                    "ipopt",
+                    {
+                        "print_time": False,
+                        "ipopt": {"print_level": 0, "sb": "yes"},
+                    },
+                ),
+                # (
+                #     "conic",
+                #     "osqp",
+                #     {
+                #         "error_on_fail": False,
+                #         "print_time": False,
+                #         "osqp": {"verbose": False},
+                #     },
+                # ),
+                ("conic", "qpoases", {"error_on_fail": False, "printLevel": "none"}),
+                # ("conic", "proxqp", {"error_on_fail": False}),
+                (
+                    "conic",
+                    "qrqp",
+                    {
+                        "error_on_fail": False,
+                        "print_time": False,
+                        "print_header": False,
+                        "print_info": False,
+                        "print_iter": False,
+                    },
+                ),
+                ("conic", "clp", {"error_on_fail": False}),
+                (
+                    "nlp",
+                    "bonmin",
+                    {
+                        "print_time": False,
+                        "bonmin": {
+                            "fp_log_level": 0,
+                            "lp_log_level": 0,
+                            "milp_log_level": 0,
+                            "nlp_log_level": 0,
+                            "oa_cuts_log_level": 0,
+                            "oa_log_level": 0,
+                        },
+                    },
+                ),
+                # ("conic", "cbc", {"error_on_fail": False}),
+            ],
+        )
+    )
+    def test_infeasible(self, sym_type, is_feas, solver_data):
+        solver_type, solver, solver_options = solver_data
+
+        prob = Nlp(sym_type=sym_type)
+        discrete = solver in ("bonmin", "cbc", "gurobi", "knitro")
+        x, _, _ = prob.variable("x", discrete=discrete)
+        lb = -abs(np.random.randn())
+        ub = abs(np.random.randn())
+        if not is_feas:
+            lb, ub = ub, lb
+        prob.constraint("lb", x, ">=", lb)
+        prob.constraint("ub", x, "<=", ub)
+        prob.minimize(x)
+        prob.init_solver(solver_options, solver, solver_type)
+        sol = prob.solve()
+
+        self.assertEqual(sol.success, is_feas)
+        self.assertEqual(not sol.infeasible, is_feas)
 
 
 class TestData(unittest.TestCase):
