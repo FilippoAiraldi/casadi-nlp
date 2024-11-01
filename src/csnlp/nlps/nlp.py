@@ -169,20 +169,21 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         """
         if self._sym_type is cs.SX:
             warnings.warn(
-                "The IPOPT interface does not support SX expansion, "
-                "so the function must be wrapped in MX.",
+                "CasADi interfaces often do not support SX expansion, so the function"
+                " will be wrapped in MX.",
                 RuntimeWarning,
             )
         S = self._solver
         if S is None:
             raise RuntimeError("Solver not yet initialized.")
+        n_ins = len(ins)
+        n_outs = len(outs)
 
         # converts inputs/outputs to/from variables and parameters
-        n_outs = len(outs)
-        Fin = cs.Function("Fin", ins, [self._x, self._p])
+        Fin = cs.Function("Fin", ins, (self._x, self._p))
         Fout = cs.Function(
             "Fout",
-            [self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx],
+            (self._p, self._x, self._lam_g, self._lam_h, self._lam_lbx, self._lam_ubx),
             outs,
         )
 
@@ -190,8 +191,8 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         if self._sym_type is cs.SX:
             Fin = Fin.wrap()
             Fout = Fout.wrap()
-            ins = [Fin.mx_in(i) for i in range(len(ins))]
-            outs = [Fout.mx_out(i) for i in range(len(outs))]
+            ins = [Fin.mx_in(i) for i in range(n_ins)]
+            outs = [Fout.mx_out(i) for i in range(n_outs)]
         x0, p = Fin(*ins)
         sol = S(
             x0=x0,
