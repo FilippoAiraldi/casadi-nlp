@@ -59,6 +59,7 @@ class DummySolution(Solution):
     def __init__(self, f, success, status):
         self._f = f
         self._stats = {"success": success, "return_status": status}
+        self._solver_plugin = "osqp"
 
     @property
     def f(self):

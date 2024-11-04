@@ -10,7 +10,13 @@ from joblib import Parallel, delayed
 from joblib.memory import MemorizedFunc
 
 from ..core.cache import invalidate_cache
-from ..core.solutions import EagerSolution, LazySolution, Solution, subsevalf
+from ..core.solutions import (
+    EagerSolution,
+    LazySolution,
+    Solution,
+    _is_infeas,
+    subsevalf,
+)
 from ..nlps.nlp import Nlp
 from ..nlps.objective import _solve_and_get_stats
 
@@ -43,15 +49,15 @@ def _chained_subevalf(
     return cs.evalf(expr) if eval else expr
 
 
-def _cmp_key(sol: dict[str, Any]) -> tuple[bool, bool, float]:
+def _cmp_key(sol: dict[str, Any], plugin_solver: str) -> tuple[bool, bool, float]:
     """Internal utility, similar to :func:`Solution.cmp_key`, but for native CasADi's
     solution dictionaries."""
     stats = sol["stats"]
-    return (
-        "infeasib" in stats["return_status"].lower(),
-        not stats["success"],
-        float(sol["f"]),
-    )
+    status = stats["return_status"]
+    is_infeas = _is_infeas(status, plugin_solver)
+    if is_infeas is None:
+        is_infeas = "infeas" in status.lower()
+    return is_infeas, not stats["success"], float(sol["f"])
 
 
 class MultistartNlp(Nlp[SymType], Generic[SymType]):
@@ -441,7 +447,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         )
         if return_all_sols:
             return [LazySolution.from_casadi_solution(sol, self) for sol in sols]
-        best_sol = min(sols, key=_cmp_key)
+        best_sol = min(sols, key=lambda s: _cmp_key(s, self._solver_plugin))
         return LazySolution.from_casadi_solution(best_sol, self)
 
     def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
