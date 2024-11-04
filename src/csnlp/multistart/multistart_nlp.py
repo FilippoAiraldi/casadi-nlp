@@ -34,11 +34,13 @@ def _chained_subevalf(
 ) -> Union[SymType, cs.DM, np.ndarray]:
     """Internal utility to perform :func:`subevalf` on variables, dual variables and
     parameters in chain."""
-    expr = subsevalf(expr, old_vars, new_vars, eval=False)
-    if old_dual_vars is None:
-        return subsevalf(expr, old_pars, new_pars, eval=eval)
-    expr = subsevalf(expr, old_pars, new_pars, eval=False)
-    return subsevalf(expr, old_dual_vars, new_dual_vars, eval=eval)
+    if old_dual_vars is not None and old_dual_vars:
+        expr = subsevalf(expr, old_dual_vars, new_dual_vars, False)
+    if old_vars:
+        expr = subsevalf(expr, old_vars, new_vars, False)
+    if old_pars:
+        return subsevalf(expr, old_pars, new_pars, eval)
+    return cs.evalf(expr) if eval else expr
 
 
 def _cmp_key(sol: dict[str, Any]) -> tuple[bool, bool, float]:
