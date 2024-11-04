@@ -240,13 +240,14 @@ class ScenarioBasedMpc(Mpc[SymType]):
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[list[SymType], ...]:
-        """Similarly to `Nlp.constraint`, adds a constraint to the NLP scheme. However,
-        instead of manually creating the constraint for each scenario, this method
-        allows to define only one constraint expression for a single scenario, which is
-        then automatically declined for all scenarios. The symbolical expression must
-        be made up of the single scenario states and disturbances, returned as first
-        output by the methods :meth:`state` and :meth:`disturbance`, respectively. Note
-        that the return types are list of symbolical variables.
+        """Similarly to :meth:`csnlp.wrappers.Mpc.constraint`, adds a constraint to the
+        MPC scheme. However, instead of manually creating the constraint for each
+        scenario, this method allows to define only one constraint expression for a
+        single scenario, which is then automatically declined for all scenarios. The
+        symbolical expression must be made up of the single scenario states and
+        disturbances, returned as first output by the methods :meth:`state` and
+        :meth:`disturbance`, respectively. Note that the return types are lists of
+        symbolical variables.
 
         Returns
         -------
@@ -296,12 +297,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
         return cons, lams
 
     def minimize_from_single(self, objective: SymType) -> None:
-        """Similarly to `Nlp.minimize`, adds the objective to be minimized to the NLP
-        scheme. However, instead of manually creating the objective for each scenario,
-        this method allows to define only one expression for a single scenario, which is
-        then automatically declined and summed for all scenarios. The symbolical
-        expression must be made up of the single scenario states, disturbances, and
-        slacks, returned as first output by the methods :meth:`state`,
+        """Similarly to :meth:`csnlp.Nlp.minimize`, adds the objective to be minimized
+        to the NLP scheme. However, instead of manually creating the objective for each
+        scenario, this method allows to define only one expression for a single
+        scenario, which is then automatically declined and summed for all scenarios. The
+        symbolical expression must be made up of the single scenario states,
+        disturbances, and slacks, returned as first output by the methods :meth:`state`,
         :meth:`disturbance`, and :meth:`constraint_from_single`, respectively.
         """
         objective_ = objective / self._n_scenarios
