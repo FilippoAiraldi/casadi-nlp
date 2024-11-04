@@ -26,6 +26,39 @@ if TYPE_CHECKING:
 SymType = _TypeVar("SymType", cs.SX, cs.MX)
 
 
+def _is_infeas(status: str, solver_plugin: str) -> Optional[bool]:
+    """Internal utility to compute whether the solver status indicates infeasibility."""
+    # NLPs
+    if solver_plugin == "ipopt":
+        return status == "Infeasible_Problem_Detected"
+    if solver_plugin in ("qrsqp", "sqpmethod"):
+        return status == "Search_Direction_Becomes_Too_Small"
+    # QPs
+    if solver_plugin == "osqp":
+        return "infeasible" in status
+    if solver_plugin == "proxqp":
+        return (
+            status == "PROXQP_PRIMAL_INFEASIBLE" or status == "PROXQP_DUAL_INFEASIBLE"
+        )
+    if solver_plugin == "qpoases":
+        return "infeasib" in status
+    if solver_plugin == "qrqp":
+        return status == "Failed to calculate search direction"
+    # LPs
+    if solver_plugin == "clp":
+        return status.endswith("infeasible")
+    # MIPs
+    if solver_plugin in ("bonmin", "gurobi"):
+        return status == "INFEASIBLE"
+    if solver_plugin == "cbc":
+        return "not feasible" in status
+    if solver_plugin == "gurobi":
+        return status == "INFEASIBLE" or status == "INF_OR_UNBD"
+    if solver_plugin == "knitro":
+        return "INFEAS" in status
+    return None
+
+
 class Solution(_Protocol[SymType]):
     """Class containing information on the solution of a solver's run for an instance of
     :class:`csnlp.Nlp`.
@@ -112,7 +145,7 @@ class Solution(_Protocol[SymType]):
         """Optimal values of the dual variables."""
 
     @property
-    def solver_plugin(self) -> dict[str, _Any]:
+    def solver_plugin(self) -> str:
         """The solver plugin used to generate this solution."""
         return self._solver_plugin
 
@@ -180,41 +213,7 @@ class Solution(_Protocol[SymType]):
           - **gurobi** (F): ``status == "INFEASIBLE"`` or ``status == "INF_OR_UNBD"``
           - **knitro**: ``"INFEAS" in status``
         """
-        solver_plugin = self.solver_plugin
-        status = self.status
-        # NLPs
-        if solver_plugin == "ipopt":
-            return status == "Infeasible_Problem_Detected"
-        if solver_plugin in ("qrsqp", "sqpmethod"):
-            return status == "Search_Direction_Becomes_Too_Small"
-        # QPs
-        if solver_plugin == "osqp":
-            return (
-                self.unified_return_status == "SOLVER_RET_INFEASIBLE"
-                or "infeasible" in status
-            )
-        if solver_plugin == "proxqp":
-            return (
-                status == "PROXQP_PRIMAL_INFEASIBLE"
-                or status == "PROXQP_DUAL_INFEASIBLE"
-            )
-        if solver_plugin == "qpoases":
-            return "infeasib" in status
-        if solver_plugin == "qrqp":
-            return status == "Failed to calculate search direction"
-        # LPs
-        if solver_plugin == "clp":
-            return status.endswith("infeasible")
-        # MIPs
-        if solver_plugin in ("bonmin", "gurobi"):
-            return status == "INFEASIBLE"
-        if solver_plugin == "cbc":
-            return "not feasible" in status
-        if solver_plugin == "gurobi":
-            return status == "INFEASIBLE" or status == "INF_OR_UNBD"
-        if solver_plugin == "knitro":
-            return "INFEAS" in status
-        return None
+        return _is_infeas(self.status, self.solver_plugin)
 
     @property
     def barrier_parameter(self) -> float:
@@ -274,9 +273,8 @@ class Solution(_Protocol[SymType]):
 
     @staticmethod
     def cmp_key(sol: "Solution[SymType]") -> tuple[bool, bool, float]:
-        """Compare values form a solution with another's. Returns ``True`` if this
-        solution is strictly better than the other one, where this solution is strictly
-        better if
+        """Gets the comparison keys to compare a solution with another. This solution is
+        strictly better if
 
         - it is feasible and the other is not, or
         - both are feasible or infeasible, and the current is successful and the other
@@ -284,14 +282,17 @@ class Solution(_Protocol[SymType]):
         - both are successful or not, and the current has a lower optimal value than the
             other.
 
-        To be used as _key_ argument in, e.g., :func:`min` or :func:`sorted`.
+        To be used as ``key`` argument in, e.g., :func:`min` or :func:`sorted`.
 
         Returns
         -------
         tuple of (bool, bool, float)
             A tuple with (is_infeasible, is_unsuccessful, f).
         """
-        return "infeasib" in sol.status.lower(), not sol.success, sol.f
+        is_infeas = _is_infeas(sol.status, sol.solver_plugin)
+        if is_infeas is None:
+            is_infeas = "infeas" in sol.status.lower()
+        return is_infeas, not sol.success, sol.f
 
     def __repr__(self) -> str:
         return (
