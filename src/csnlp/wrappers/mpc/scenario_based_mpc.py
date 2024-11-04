@@ -280,6 +280,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 self.states_i(i),
                 self.single_disturbances,
                 self.disturbances_i(i),
+                self.single_slacks,
+                self.slacks_i(i),
                 eval=False,
             )
 
