@@ -1,3 +1,4 @@
+import numbers
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, TypeVar, Union
@@ -5,7 +6,6 @@ from typing import Any, Literal, Optional, TypeVar, Union
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
-import numbers
 
 from csnlp.core.solutions import Solution
 
@@ -55,15 +55,15 @@ class PwaMpc(Mpc[SymType]):
         \end{cases}
 
     The MPC controller can then be considered as a linear MPC controller with
-    time-varying dynamics, in which case the dynamics are defined via the 
-    :meth:`set_time_varying_affine_dynamics` method. Then, prior to solving the 
-    optimization problem, the sequence of regions to be active at each time-step 
+    time-varying dynamics, in which case the dynamics are defined via the
+    :meth:`set_time_varying_affine_dynamics` method. Then, prior to solving the
+    optimization problem, the sequence of regions to be active at each time-step
     is set via the :meth:`set_sequence` method. Alternatively, the sequence of PWA
     regions can be optimized over, in which case the dynamics are defined via the
     :meth:`set_pwa_dynamics` method. Following :cite:`bemporad_control_1999`, the
-    PWA dynamics are converted to mixed-logical dynamical form, and the ensuing 
-    MPC optimization becomes a mixed-integer optimization problem. This is done 
-    under the hood via the :meth:`set_pwa_dynamics` method. See also 
+    PWA dynamics are converted to mixed-logical dynamical form, and the ensuing
+    MPC optimization becomes a mixed-integer optimization problem. This is done
+    under the hood via the :meth:`set_pwa_dynamics` method. See also
     :cite:`borrelli_predictive_2017` for further details.
 
     Parameters
