@@ -1,6 +1,6 @@
 from collections.abc import Collection
 from dataclasses import dataclass
-from typing import Any, Literal, Optional, TypeVar, Union
+from typing import Any, Iterable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -95,6 +95,44 @@ class PwaMpc(Mpc[SymType]):
     ValueError
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._fixed_sequence_dynamics = False
+        self._pwa_system: Optional[Collection[PwaRegion]] = None
+        self._sequence: Optional[Collection[int]] = None
+
+    def validate_pwa_dimensions(self, pwa_system: Iterable[PwaRegion]) -> None:
+        """Validates that the dimensions are correct for all matrices in
+        the passed PWA system.
+
+        Parameters
+        ----------
+        pwa_system : iterable of PwaRegion
+            An iterable of :class:`PwaRegion` objects, where the i-th object contains
+            the matrices defining the i-th region of the PWA system.
+
+        Raises
+        ------
+        ValueError
+            Raises if the dimensions of any matrix in any region do not match the
+            expected shape.
+        """
+        ns = self.ns
+        na = self.na
+        nsa = ns + na
+        n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
+        for i, region in enumerate(pwa_system):
+            if region.A.shape != (ns, ns):
+                raise ValueError(f"A in region {i} must have shape ({ns}, {ns}).")
+            if region.B.shape != (ns, na):
+                raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
+            if region.c.shape != (ns,):
+                raise ValueError(f"c in region {i} must have shape ({ns},).")
+            if region.S.shape != (n_ineq, nsa):
+                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {nsa}).")
+            if region.T.shape != (n_ineq,):
+                raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
 
     def set_pwa_dynamics(
         self,
@@ -198,7 +236,6 @@ class PwaMpc(Mpc[SymType]):
             pwa_system, D, E, clp_opts, parallelization, max_num_threads
         )
         self._dynamics_already_set = True
-        self._fixed_sequence_dynamics = False
 
     def _set_pwa_dynamics(
         self,
@@ -314,7 +351,6 @@ class PwaMpc(Mpc[SymType]):
         nsa = ns + na
         n_ineq = pwa_system[0].T.size
 
-        self._pwa_system = pwa_system
         # parameters defining time-varying dynamics
         A = [self.parameter(f"A[{k}]", (ns, ns)) for k in range(N)]
         B = [self.parameter(f"B[{k}]", (ns, na)) for k in range(N)]
@@ -342,7 +378,7 @@ class PwaMpc(Mpc[SymType]):
         )
         self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
 
-        self.sequence: Union[Sequence[int], None] = None
+        self._pwa_system = pwa_system
         self._dynamics_already_set = True
         self._fixed_sequence_dynamics = True
 
@@ -369,16 +405,7 @@ class PwaMpc(Mpc[SymType]):
                 "The sequence can only be set if time-varying dynamics are used"
             )
         if len(sequence) != self._prediction_horizon:
-            raise ValueError(
-                "The length of the sequence must be equal to the prediction horizon"
-            )
-        if not all(isinstance(i, numbers.Integral) for i in sequence):
-            raise ValueError("All elements of the sequence must be integers")
-        if not all(0 <= i < len(self._pwa_system) for i in sequence):
-            raise ValueError(
-                "All elements of the sequence must be valid region indices"
-            )
-        self.sequence = sequence
+        self._sequence = sequence
 
     def solve(
         self,
@@ -386,7 +413,7 @@ class PwaMpc(Mpc[SymType]):
         vals0: Optional[dict[str, npt.ArrayLike]] = None,
     ) -> Solution[SymType]:
         if self._fixed_sequence_dynamics:
-            if self.sequence is None:
+            if self._sequence is None:
                 raise ValueError(
                     "A sequence must be set via `set_switching_sequence` prior to "
                     "solving the MPC because the dyanmics were set via "
@@ -396,41 +423,9 @@ class PwaMpc(Mpc[SymType]):
             if pars is None:
                 pars = {}
             for k in range(self._prediction_horizon):
-                pars[f"A[{k}]"] = self._pwa_system[self.sequence[k]].A
-                pars[f"B[{k}]"] = self._pwa_system[self.sequence[k]].B
-                pars[f"c[{k}]"] = self._pwa_system[self.sequence[k]].c
-                pars[f"S[{k}]"] = self._pwa_system[self.sequence[k]].S
-                pars[f"T[{k}]"] = self._pwa_system[self.sequence[k]].T
+                pars[f"A[{k}]"] = self._pwa_system[self._sequence[k]].A
+                pars[f"B[{k}]"] = self._pwa_system[self._sequence[k]].B
+                pars[f"c[{k}]"] = self._pwa_system[self._sequence[k]].c
+                pars[f"S[{k}]"] = self._pwa_system[self._sequence[k]].S
+                pars[f"T[{k}]"] = self._pwa_system[self._sequence[k]].T
         return self.nlp.solve(pars, vals0)
-
-    def validate_pwa_dimensions(self, pwa_system: Sequence[PwaRegion]) -> None:
-        """Validates that the dimensions are correct for all matrices in
-        the passed PWA system.
-
-        Parameters
-        ----------
-        pwa_system : Sequence[PwaRegion]
-            A sequence of :class:`PwaRegion` objects, where the i-th object contains
-            the matrices defining the i-th region of the PWA system.
-
-        Raises
-        ------
-        ValueError
-            Raises if the dimensions of any matrix in any region do not match the
-            expected shape.
-        """
-        ns = self.ns
-        na = self.na
-        nsa = ns + na
-        n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
-        for i, region in enumerate(pwa_system):
-            if region.A.shape != (ns, ns):
-                raise ValueError(f"A in region {i} must have shape ({ns}, {ns}).")
-            if region.B.shape != (ns, na):
-                raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
-            if region.c.shape != (ns,):
-                raise ValueError(f"c in region {i} must have shape ({ns},).")
-            if region.S.shape != (n_ineq, nsa):
-                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {nsa}).")
-            if region.T.shape != (n_ineq,):
-                raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
