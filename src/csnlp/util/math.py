@@ -5,10 +5,14 @@ really does not provide the required functionality.
 """
 
 from math import sqrt as _sqrt
-from typing import Literal, Union
+from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
 import casadi as cs
 
+if TYPE_CHECKING:
+    from ..nlps.nlp import Nlp
+
+SymType = TypeVar("SymType", cs.SX, cs.MX)
 SQRT2 = _sqrt(2)
 
 
@@ -81,7 +85,7 @@ def prod(
     return cs.if_else(cs.remainder(n_negatives, 2) == 0.0, 1, -1) * p
 
 
-def norm_cdf(
+def normal_cdf(
     x: Union[cs.SX, cs.MX, cs.DM],
     loc: Union[cs.SX, cs.MX, cs.DM] = 0,
     scale: Union[cs.SX, cs.MX, cs.DM] = 1,
@@ -106,7 +110,7 @@ def norm_cdf(
     return 0.5 * (1 + cs.erf((x - loc) / SQRT2 / scale))
 
 
-def norm_ppf(
+def normal_ppf(
     p: Union[cs.SX, cs.MX, cs.DM],
     loc: Union[cs.SX, cs.MX, cs.DM] = 0,
     scale: Union[cs.SX, cs.MX, cs.DM] = 1,
@@ -149,3 +153,149 @@ def repeat(
         Output array with repeated elements.
     """
     return cs.kron(a, cs.GenDM_ones(repeats))
+
+
+def norm_1(
+    nlp: "Nlp[SymType]",
+    name: str,
+    x: SymType,
+) -> SymType:
+    r"""Computes the 1-norm of the vector in the context of an optimization problem,
+    i.e., it converts the 1-norm into a linear programme formulation by introducing
+    auxiliary variables and two constraints (see, e.g., [1]_), and returns the
+    corresponding scalar objective.
+
+    Parameters
+    ----------
+    nlp : Nlp
+        The optimization problem for which to compute the norm.
+    name : str
+        Name of the norm. Used to yield unique names of the auxiliary variable and
+        constraints.
+    x : casadi SX or MX
+        The expression whose norm is to be computed. If not a vector, it is reshaped
+        into one first.
+
+    Returns
+    -------
+    casadi SX or MX
+        The corresponding value of the 1-norm.
+
+    Raises
+    ------
+    ValueError
+        Raises if the given name is already in use.
+
+    References
+    ----------
+    .. [1] Boyd, S. and Vandenberghe, L., 2004. Convex optimization. Cambridge
+           University Press.
+
+    Examples
+    --------
+    Consider the following optimization problem:
+
+    .. math:: \min_{x} \lVert A x - b \rVert_1
+
+    It is well known [1]_ that this is equivalent to the LP
+
+    .. math::
+        \begin{aligned}
+            \min_{x, t} \quad & 1^\top t \\
+            \text{s.t.} \quad & A x - b \le t \\
+            & A x - b \ge -t
+        \end{aligned}
+
+    where :math:`t` are the auxiliary variables of the same size as `b`, and two
+    auxiliary sets of new inequality constraints have been added (vector inequalities
+    are understood component-wise). Instead of performing this conversion manually, it
+    can be quickly achieved as:
+
+    >>> import numpy as np
+    >>> from csnlp import Nlp, util
+    >>> m, n = np.random.randint(10, 20, size=2)
+    >>> A = np.random.randn(n, m)
+    >>> b = np.random.randn(n)
+    >>> nlp = Nlp(sym_type)
+    >>> x, _, _ = nlp.variable("x", (m, 1))
+    >>> nlp.minimize(util.math.norm_1(nlp, "some_name", A @ x - b))
+    >>> nlp.init_solver(solver="clp")
+    >>> sol = nlp.solve()
+    """
+    t, _, _ = nlp.variable(f"{name}_norm_1_aux_var", x.shape)
+    nlp.constraint(f"{name}_norm_1_aux_con_lb", x, ">=", -t)
+    nlp.constraint(f"{name}_norm_1_aux_con_ub", x, "<=", t)
+    return cs.sum1(cs.vec(t))
+
+
+def norm_inf(
+    nlp: "Nlp[SymType]",
+    name: str,
+    x: SymType,
+) -> SymType:
+    r"""Computes the infinity-norm of the vector in the context of an optimization
+    problem, i.e., it converts the inf-norm into a linear programme formulation by
+    introducing an auxiliary variable and two constraints (see, e.g., [1]_), and returns
+    the corresponding scalar objective.
+
+    Parameters
+    ----------
+    nlp : Nlp
+        The optimization problem for which to compute the norm.
+    name : str
+        Name of the norm. Used to yield unique names of the auxiliary variable and
+        constraints.
+    x : casadi SX or MX
+        The expression whose norm is to be computed. If not a vector, it is reshaped
+        into one first.
+
+    Returns
+    -------
+    casadi SX or MX
+        The corresponding value of the 1-norm.
+
+    Raises
+    ------
+    ValueError
+        Raises if the given name is already in use.
+
+    References
+    ----------
+    .. [1] Boyd, S. and Vandenberghe, L., 2004. Convex optimization. Cambridge
+           University Press.
+
+    Examples
+    --------
+    Consider the following optimization problem:
+
+    .. math:: \min_{x} \lVert A x - b \rVert_\infty
+
+    It is well known [1]_ that this is equivalent to the LP
+
+    .. math::
+        \begin{aligned}
+            \min_{x, t} \quad & t \\
+            \text{s.t.} \quad & A x - b \le t 1 \\
+            & A x - b \ge -t 1
+        \end{aligned}
+
+    where :math:`t` is the scalar auxiliary variable, and two auxiliary sets of new
+    inequality constraints have been added (vector inequalities are understood
+    component-wise). Instead of performing this conversion manually, it can be quickly
+    achieved as:
+
+    >>> import numpy as np
+    >>> from csnlp import Nlp, util
+    >>> m, n = np.random.randint(10, 20, size=2)
+    >>> A = np.random.randn(n, m)
+    >>> b = np.random.randn(n)
+    >>> nlp = Nlp(sym_type)
+    >>> x, _, _ = nlp.variable("x", (m, 1))
+    >>> nlp.minimize(util.math.norm_inf(nlp, "some_name", A @ x - b))
+    >>> nlp.init_solver(solver="clp")
+    >>> sol = nlp.solve()
+    """
+    t, _, _ = nlp.variable(f"{name}_norm_inf_aux_var")
+    nlp.constraint(f"{name}_norm_inf_aux_con_lb", x, ">=", -t)
+    nlp.constraint(f"{name}_norm_inf_aux_con_ub", x, "<=", t)
+    return t

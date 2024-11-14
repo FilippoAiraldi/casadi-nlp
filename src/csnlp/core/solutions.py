@@ -6,6 +6,7 @@ from functools import cached_property as _cached_property
 from itertools import product as _product
 from typing import TYPE_CHECKING
 from typing import Any as _Any
+from typing import Optional
 from typing import Protocol as _Protocol
 from typing import TypeVar as _TypeVar
 from typing import Union
@@ -23,6 +24,39 @@ if TYPE_CHECKING:
     from ..nlps.nlp import Nlp
 
 SymType = _TypeVar("SymType", cs.SX, cs.MX)
+
+
+def _is_infeas(status: str, solver_plugin: str) -> Optional[bool]:
+    """Internal utility to compute whether the solver status indicates infeasibility."""
+    # NLPs
+    if solver_plugin == "ipopt":
+        return status == "Infeasible_Problem_Detected"
+    if solver_plugin in ("qrsqp", "sqpmethod"):
+        return status == "Search_Direction_Becomes_Too_Small"
+    # QPs
+    if solver_plugin == "osqp":
+        return "infeasible" in status
+    if solver_plugin == "proxqp":
+        return (
+            status == "PROXQP_PRIMAL_INFEASIBLE" or status == "PROXQP_DUAL_INFEASIBLE"
+        )
+    if solver_plugin == "qpoases":
+        return "infeasib" in status
+    if solver_plugin == "qrqp":
+        return status == "Failed to calculate search direction"
+    # LPs
+    if solver_plugin == "clp":
+        return status.endswith("infeasible")
+    # MIPs
+    if solver_plugin in ("bonmin", "gurobi"):
+        return status == "INFEASIBLE"
+    if solver_plugin == "cbc":
+        return "not feasible" in status
+    if solver_plugin == "gurobi":
+        return status == "INFEASIBLE" or status == "INF_OR_UNBD"
+    if solver_plugin == "knitro":
+        return "INFEAS" in status
+    return None
 
 
 class Solution(_Protocol[SymType]):
@@ -111,21 +145,77 @@ class Solution(_Protocol[SymType]):
         """Optimal values of the dual variables."""
 
     @property
+    def solver_plugin(self) -> str:
+        """The solver plugin used to generate this solution."""
+        return self._solver_plugin
+
+    @property
     def stats(self) -> dict[str, _Any]:
         """Statistics of the solver for this solution's run."""
         return self._stats
 
-    @_cached_property
+    @property
     def status(self) -> str:
         """Gets the status of the solver at this solution."""
         return self.stats["return_status"]
 
-    @_cached_property
+    @property
+    def unified_return_status(self) -> str:
+        """Gets the unified status of the solver at this solution."""
+        return self.stats["unified_return_status"]
+
+    @property
     def success(self) -> bool:
         """Gets whether the solver's run was successful."""
         return self.stats["success"]
 
     @_cached_property
+    def infeasible(self) -> Optional[bool]:
+        r"""Gets whether the solver status indicates infeasibility. If ``False``, it
+        does not imply feasibility as the solver or its CasADi interface may have not
+        detect it.
+
+        For different solvers, the infeasibility status is stored in different ways.
+        Here is a list of what I gathered so far. The solvers are grouped based on the
+        type of problem they solve. An (F) next to the solver's name indicates that the
+        the solver will crash the program if ``"error_on_fail": True`` and the solver
+        fails. The ``status`` and ``unified_return_status`` can both be found in
+        the solver's stats, or in this solution object.
+
+        * NLPs
+
+          - **fatrop**: unclear; better to return ``None`` for now
+          - **ipopt**: ``status == "Infeasible_Problem_Detected"``
+          - **qrsqp** (F): ``status == "Search_Direction_Becomes_Too_Small"``
+            (dubious)
+          - **sqpmethod** (F): ``status == "Search_Direction_Becomes_Too_Small"``
+            (dubious)
+
+        * QPs
+
+          - **ipqp** (F): no clear way to detect infeasibility; return ``None`` for now
+          - **osqp** (F): ``unified_return_status == "SOLVER_RET_INFEASIBLE"`` or
+            ``"infeasible" in status``
+          - **proxqp** (F): ``status == "PROXQP_PRIMAL_INFEASIBLE"`` or
+            ``status == "PROXQP_DUAL_INFEASIBLE"``
+          - **qpoases** (F): ``"infeasib" in status``
+          - **qrqp** (F): ``status == "Failed to calculate search direction"``
+
+        * LPs
+
+          - **clp** (F): ``status == "primal infeasible"`` or
+            ``status == "dual infeasible"``
+
+        * Mixed-Iteger Problems (MIPs)
+
+          - **bonmin** (F): ``status == "INFEASIBLE"``
+          - **cbc** (F): ``"not feasible" in status``
+          - **gurobi** (F): ``status == "INFEASIBLE"`` or ``status == "INF_OR_UNBD"``
+          - **knitro**: ``"INFEAS" in status``
+        """
+        return _is_infeas(self.status, self.solver_plugin)
+
+    @property
     def barrier_parameter(self) -> float:
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
@@ -183,9 +273,8 @@ class Solution(_Protocol[SymType]):
 
     @staticmethod
     def cmp_key(sol: "Solution[SymType]") -> tuple[bool, bool, float]:
-        """Compare values form a solution with another's. Returns ``True`` if this
-        solution is strictly better than the other one, where this solution is strictly
-        better if
+        """Gets the comparison keys to compare a solution with another. This solution is
+        strictly better if
 
         - it is feasible and the other is not, or
         - both are feasible or infeasible, and the current is successful and the other
@@ -193,14 +282,17 @@ class Solution(_Protocol[SymType]):
         - both are successful or not, and the current has a lower optimal value than the
             other.
 
-        To be used as _key_ argument in, e.g., :func:`min` or :func:`sorted`.
+        To be used as ``key`` argument in, e.g., :func:`min` or :func:`sorted`.
 
         Returns
         -------
         tuple of (bool, bool, float)
             A tuple with (is_infeasible, is_unsuccessful, f).
         """
-        return "infeasib" in sol.status.lower(), not sol.success, sol.f
+        is_infeas = _is_infeas(sol.status, sol.solver_plugin)
+        if is_infeas is None:
+            is_infeas = "infeas" in sol.status.lower()
+        return is_infeas, not sol.success, sol.f
 
     def __repr__(self) -> str:
         return (
@@ -267,6 +359,7 @@ class EagerSolution(Solution[SymType]):
         dual_vars: dict[str, SymType],
         dual_vals: dict[str, cs.DM],
         stats: dict[str, _Any],
+        solver_plugin: str,
     ) -> None:
         self._f = f
 
@@ -285,6 +378,7 @@ class EagerSolution(Solution[SymType]):
         self._dual_vals = dual_vals
 
         self._stats = stats
+        self._solver_plugin = solver_plugin
 
     @property
     def f(self) -> float:
@@ -380,6 +474,7 @@ class EagerSolution(Solution[SymType]):
             dual_vars,
             dual_vals,
             stats,
+            nlp.unwrapped._solver_plugin,
         )
 
 
@@ -428,6 +523,7 @@ class LazySolution(Solution[SymType]):
         nonmasked_lbx_idx: Union[slice, npt.NDArray[np.int64]],
         nonmasked_ubx_idx: Union[slice, npt.NDArray[np.int64]],
         stats: dict[str, _Any],
+        solver_plugin: str,
     ) -> None:
         self._sol = solution
         self._p_sym = p_sym
@@ -439,6 +535,7 @@ class LazySolution(Solution[SymType]):
         self._nonmasked_lbx_idx = nonmasked_lbx_idx
         self._nonmasked_ubx_idx = nonmasked_ubx_idx
         self._stats = stats
+        self._solver_plugin = solver_plugin
 
     @_cached_property
     def f(self) -> float:
@@ -529,6 +626,7 @@ class LazySolution(Solution[SymType]):
             nonmasked_lbx_idx,
             nonmasked_ubx_idx,
             stats,
+            nlp.unwrapped._solver_plugin,
         )
 
 

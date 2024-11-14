@@ -319,17 +319,21 @@ class TestExamples(unittest.TestCase):
 
     @parameterized.expand([("single",), ("multi",)])
     def test__pwa_mpc(self, shooting: str):
+        np_random = np.random.default_rng(42)
+
         tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
         A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
         A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
         B1 = B2 = np.array([[0], [tau / m]])
+        C1, C2 = np_random.normal(scale=0.01, size=(2, A1.shape[0]))
+        S1 = np.array([[1, 0, 0]])
+        S2 = -S1
+        T1, T2 = np_random.normal(scale=0.01, size=(2, S1.shape[0]))
         x_bnd = (5, 5)
         u_bnd = 20
         pwa_regions = (
-            wrappers.PwaRegion(A1, B1, np.zeros(2), np.array([[1, 0, 0]]), np.zeros(1)),
-            wrappers.PwaRegion(
-                A2, B2, np.zeros(2), np.array([[-1, 0, 0]]), np.zeros(1)
-            ),
+            wrappers.PwaRegion(A1, B1, C1, S1, T1),
+            wrappers.PwaRegion(A2, B2, C2, S2, T2),
         )
         D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
         E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
@@ -355,11 +359,14 @@ class TestExamples(unittest.TestCase):
 
         tols = (1e-6, 1e-6)
         expected = {
-            "u": np.asarray([[-3.9634842145302898, -4.82921262838321]]),
+            "u": np.asarray([[-3.751224743945753, -4.563681191310823]]),
             "x": np.asarray(
-                [[-3.0, -3.0, -1.5990871053632572], [0.0, 2.8018257892734857, 5.0]]
+                [
+                    [-3.0, -2.9969528092116566, -1.5928861678523183],
+                    [0.0, 2.80203890175142, 5.000000009994731],
+                ]
             ),
-            "delta": np.asarray([[1, 1], [0, 0]]),
+            "delta": np.asarray([[1.0, 1.0], [0.0, 0.0]]),
         }
         actual = {
             "u": sol.vals["u"].full(),

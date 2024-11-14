@@ -40,13 +40,13 @@ repos:
     hooks:
     -   id: black
 
--   repo: local
-    hooks:
-    -   id: coverage
-        name: coverage
-        entry: coverage run -m unittest discover tests
-        language: system
-        pass_filenames: false
-        always_run: true
-        verbose: true
-        stages: [manual]  # pre-push
+# -   repo: local
+#     hooks:
+#     -   id: coverage
+#         name: coverage
+#         entry: coverage run -m unittest discover tests
+#         language: system
+#         pass_filenames: false
+#         always_run: true
+#         verbose: true
+#         stages: [manual]  # pre-push

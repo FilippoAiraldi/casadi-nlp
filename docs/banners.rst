@@ -10,8 +10,8 @@
    :alt: MIT License
 .. |Python 3.9| image:: https://img.shields.io/badge/python-%3E=3.9-green.svg
    :alt: Python 3.9
-.. |Tests| image:: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml/badge.svg
-   :target: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/test-main.yml
+.. |Tests| image:: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml/badge.svg
+   :target: https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml
    :alt: Tests
 .. |Docs| image:: https://readthedocs.org/projects/casadi-nlp/badge/?version=latest
    :target: https://casadi-nlp.readthedocs.io/en/latest/?badge=latest
@@ -27,4 +27,4 @@
    :alt: Test Coverage
 .. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
    :target: https://github.com/psf/black
-   :alt: blacks
+   :alt: Black
