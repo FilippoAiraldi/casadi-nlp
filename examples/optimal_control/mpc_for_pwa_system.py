@@ -164,7 +164,7 @@ mpc.init_solver({"record_time": True}, "qrqp")
 # the previous solution) via :meth:`csnlp.wrappers.PwaMpc.set_switching_sequence`, and
 # solve the ensuing QP problem for the same initial state.
 
-opt_sequence = sol_mixint.vals["delta"].toarray().argmax(0)
+opt_sequence = wrappers.PwaMpc.get_optimal_switching_sequence(sol_mixint)
 mpc.set_switching_sequence(opt_sequence)
 sol_qp = mpc.solve(pars={"x_0": x_0})
 

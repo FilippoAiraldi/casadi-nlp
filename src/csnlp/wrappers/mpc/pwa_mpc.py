@@ -434,6 +434,38 @@ class PwaMpc(Mpc[SymType]):
                 )
         self._sequence = sequence
 
+    @staticmethod
+    def get_optimal_switching_sequence(
+        sol: Solution[SymType]
+    ) -> npt.NDArray[np.integer]:
+        """Returns the optimal switching sequence of regions for the state trajectory
+        along the prediction horizon, which can be extracted from the solution of the
+        corresponding mixed-integer optimization MPC problem (i.e., when the dynamics
+        are set via :meth:`set_pwa_dynamics`, which allows to optimize over the sequence
+        as well, though more computationally expensive).
+
+        Parameters
+        ----------
+        sol : Solution
+            An optimal solution of the mixed-integer PWA MPC problem.
+
+        Returns
+        -------
+        array of ints
+            An array of integers representing the indices of the regions that active at
+            each time step along the prediction horizon, i.e., the k-th entry of this
+            array represents the index of the region the predicted state is in at time
+            step ``k``.
+
+        Raises
+        ------
+        KeyError
+            Raises if the solution does not contain the variable ``delta``, e.g., the
+            solution was not obtained from a mixed-integer optimization problem, or the
+            dynamics were not set via :meth:`set_pwa_dynamics`.
+        """
+        return sol.vals["delta"].toarray().argmax(0)
+
     def solve(
         self,
         pars: Optional[dict[str, npt.ArrayLike]] = None,
