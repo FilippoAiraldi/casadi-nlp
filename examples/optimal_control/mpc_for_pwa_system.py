@@ -127,7 +127,14 @@ plt.xlabel("t [s]")
 plt.show()
 
 # %%
-# Now lets explore the setting of the sequence for the pwa mpc # TODO make example nicer
+# --------------
+# Time-varying affine dynamics
+# --------------
+# Now lets explore the setting of the sequence for time-varying dynamics, rather
+# than optimizing the sequence. We build the MPC as before, now using the
+# :meth:`csnlp.wrappers.PwaMpc.set_time_varying_affine_dynamics` method to set the
+# dynamics of the system. We then set the sequence to be the optimal one from the
+# previous solution.
 sequence = np.argmax(
     sol_mint.vals["delta"], axis=0
 )  # extract the optimal sequence from the mixed-integer solution
@@ -144,12 +151,24 @@ mpc.init_solver(solver="qrqp")  # here we do not have to use a mixed-integer sol
 mpc.set_sequence(
     sequence
 )  # set the sequence to be the same as the optimal one from the previous solution
-sol_qp = mpc.solve(pars={"x_0": [-3, 0]})
-# We can see here that we get the same solution as before
+sol_qp = mpc.solve(
+    pars={"x_0": [-3, 0]}
+)  # We can see here that we get the same solution as before
 
 # %% Now lets try passing a suboptimal but feasible fixed-sequence
+
 sequence[3] = 0
 mpc.set_sequence(sequence)
 sol_qp_suboptimal = mpc.solve(pars={"x_0": [-3, 0]})
 # we can see here that we get a feasible solution still but a higher cost, as the sequence was suboptimal
-pass
+
+# %%
+# We then plot the results of the optimal and suboptimal solutions
+plt.plot(t, sol_qp.value(x).T)
+plt.step(t[:-1], sol_qp.vals["u"].T.full(), "-.", where="post")
+plt.plot(t, sol_qp_suboptimal.value(x).T)
+plt.step(t[:-1], sol_qp_suboptimal.vals["u"].T.full(), "-.", where="post")
+plt.legend(["x1", "x2", "u", "x1_", "x2_", "u_"])
+plt.xlim(t[0], t[-1])
+plt.xlabel("t [s]")
+plt.show()
