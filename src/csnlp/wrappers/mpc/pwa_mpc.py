@@ -284,16 +284,12 @@ class PwaMpc(Mpc[SymType]):
         n_ineq = pwa_system[0].T.size
 
         self._pwa_system = pwa_system
-        self.dynamics_parameters = [  # TODO: make pwa region use symbolic also
-            PwaRegion(
-                A=self.parameter(f"A[{k}]", (ns, ns)),
-                B=self.parameter(f"B[{k}]", (ns, na)),
-                c=self.parameter(f"c[{k}]", (ns, 1)),
-                S=self.parameter(f"S[{k}]", (n_ineq, ns + na)),
-                T=self.parameter(f"T[{k}]", (n_ineq, 1)),
-            )
-            for k in range(self._prediction_horizon)
-        ]
+        # parameters defining time-varying dynamics
+        A = [self.parameter(f"A[{k}]", (ns, ns)) for k in range(N)]
+        B = [self.parameter(f"B[{k}]", (ns, na)) for k in range(N)]
+        c = [self.parameter(f"c[{k}]", (ns, 1)) for k in range(N)]
+        S = [self.parameter(f"S[{k}]", (n_ineq, nsa)) for k in range(N)]
+        T = [self.parameter(f"T[{k}]", (n_ineq, 1)) for k in range(N)]
 
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
@@ -302,25 +298,22 @@ class PwaMpc(Mpc[SymType]):
         if not self._is_multishooting:
             raise NotImplementedError("Single shooting not implemented yet")
         xs_next = []
-        for k in range(self._prediction_horizon):
-            x_next = (
-                self.dynamics_parameters[k].A @ X[:, k]
-                + self.dynamics_parameters[k].B @ U[:, k]
-                + self.dynamics_parameters[k].c
-            )
+        for k in range(N):
+            x_next = A[k] @ X[:, k] + B[k] @ U[:, k] + c[k]
             xs_next.append(x_next)
-            self.constraint(
-                f"region[{k}]",
-                self.dynamics_parameters[k].S @ cs.vertcat(X[:, k], U[:, k])
-                - self.dynamics_parameters[k].T,
-                "<=",
-                0,
-            )  # TODO take out of loop
+        self.constraint(
+            "region",
+            cs.diagcat(*S)
+            @ cs.vertcat(*[cs.vertcat(X[:, k], U[:, k]) for k in range(N)])
+            - cs.vertcat(*T),
+            "<=",
+            0,
+        )
         self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
 
-        self.sequence: Union[list[int], None] = None
-        self.fixed_sequence_dynamics = True  # TODO make private variable?
-        # TODO set dynamics set flag
+        self.sequence: Union[Sequence[int], None] = None
+        self._dynamics_already_set = True
+        self._fixed_sequence_dynamics = True
 
     def set_sequence(
         self, sequence: list[int]
