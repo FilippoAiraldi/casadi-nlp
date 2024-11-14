@@ -341,26 +341,24 @@ class PwaMpc(Mpc[SymType]):
         self._dynamics_already_set = True
         self._fixed_sequence_dynamics = True
 
-    def set_sequence(
-        self, sequence: Sequence[int]
-    ) -> None:
+    def set_sequence(self, sequence: Sequence[int]) -> None:
         """Sets the sequence of regions to be active at each time-step for the MPC.
         An error will be raised if the dynamics have not been set via the
         :meth:`set_time_varying_affine_dynamics` method.
-        
+
         Parameters
         ----------
         sequence : Sequence[int]
             A sequence of integers representing the indices of the regions to be active
-            
+
         Raises
         ------
         ValueError
             Raises if the sequence is not the same length as the prediction horizon, the
             sequence does not contain integers, the sequence contains integers that exceed
-            the number of PWA regions, or if the time-varying dynamics have not been set 
+            the number of PWA regions, or if the time-varying dynamics have not been set
             via the :meth:`set_time_varying_affine_dynamics` method.
-            """
+        """
         if not self._fixed_sequence_dynamics:
             raise ValueError(
                 "The sequence can only be set if time-varying dynamics are used"
