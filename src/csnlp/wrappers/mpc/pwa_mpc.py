@@ -1,4 +1,4 @@
-from collections.abc import Collection
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from numbers import Integral
 from typing import Any, Iterable, Literal, Optional, TypeVar, Union
@@ -13,6 +13,11 @@ from ...core.data import find_index_in_vector
 from .mpc import Mpc
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
+
+
+def _n(parname: str, index: int) -> str:
+    """Internal utility for the naming convention of the ``i``-th region parameters."""
+    return f"{parname}__{index}"
 
 
 @dataclass
@@ -100,7 +105,7 @@ class PwaMpc(Mpc[SymType]):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._fixed_sequence_dynamics = False
-        self._pwa_system: Optional[Collection[PwaRegion]] = None
+        self._pwa_system: Optional[Sequence[PwaRegion]] = None
         self._sequence: Optional[Collection[int]] = None
 
     def validate_pwa_dimensions(self, pwa_system: Iterable[PwaRegion]) -> None:
@@ -321,17 +326,15 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
 
-    def set_time_varying_affine_dynamics(
-        self, pwa_system: Collection[PwaRegion]
-    ) -> None:
+    def set_time_varying_affine_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
         r"""Sets the time-varying affine dynamics of the system for the MPC controller.
         The possible values taken by the affine dynamics are defined by the sequence of
         :class:`PwaRegion`.
 
         Parameters
         ----------
-        pwa_system : collection of PwaRegion
-            A collection of :class:`PwaRegion` objects, where the i-th object contains
+        pwa_system : sequence of PwaRegion
+            A sequence of :class:`PwaRegion` objects, where the i-th object contains
             the matrices defining the i-th region of the PWA system.
 
         Raises
@@ -437,6 +440,8 @@ class PwaMpc(Mpc[SymType]):
         vals0: Optional[dict[str, npt.ArrayLike]] = None,
     ) -> Solution[SymType]:
         if self._fixed_sequence_dynamics:
+            regions = self._pwa_system
+            assert regions is not None, "PWA system should have been set!"
             if self._sequence is None:
                 raise ValueError(
                     "A sequence must be set via `set_switching_sequence` prior to "
@@ -444,12 +449,13 @@ class PwaMpc(Mpc[SymType]):
                     "`set_time_varying_affine_dynamics`. Use `set_pwa_dynamics` instead"
                     " to optimize over the sequence as well."
                 )
+
             if pars is None:
                 pars = {}
-            for k in range(self._prediction_horizon):
-                pars[f"A[{k}]"] = self._pwa_system[self._sequence[k]].A
-                pars[f"B[{k}]"] = self._pwa_system[self._sequence[k]].B
-                pars[f"c[{k}]"] = self._pwa_system[self._sequence[k]].c
-                pars[f"S[{k}]"] = self._pwa_system[self._sequence[k]].S
-                pars[f"T[{k}]"] = self._pwa_system[self._sequence[k]].T
+            for k, idx in enumerate(self._sequence):
+                pars[_n("A", k)] = regions[idx].A
+                pars[_n("B", k)] = regions[idx].B
+                pars[_n("c", k)] = regions[idx].c
+                pars[_n("S", k)] = regions[idx].S
+                pars[_n("T", k)] = regions[idx].T
         return self.nlp.solve(pars, vals0)
