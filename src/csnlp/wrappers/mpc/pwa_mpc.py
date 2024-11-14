@@ -168,21 +168,8 @@ class PwaMpc(Mpc[SymType]):
                 )
 
         # validate dimensions
-        ns = self.ns
-        na = self.na
-        nsa = ns + na
-        n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
-        for i, region in enumerate(pwa_system):
-            if region.A.shape != (ns, ns):
-                raise ValueError(f"A in region {i} must have shape ({ns}, {ns}).")
-            if region.B.shape != (ns, na):
-                raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
-            if region.c.shape != (ns,):
-                raise ValueError(f"c in region {i} must have shape ({ns},).")
-            if region.S.shape != (n_ineq, nsa):
-                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {nsa}).")
-            if region.T.shape != (n_ineq,):
-                raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
+        self.validate_pwa_dimensions(pwa_system)
+        nsa = self.ns + self.na
         n_ineq = E.shape[0]
         if D.shape != (n_ineq, nsa):
             raise ValueError(f"D must have shape ({n_ineq}, {nsa}).")
@@ -286,9 +273,15 @@ class PwaMpc(Mpc[SymType]):
         self,
         pwa_system: Sequence[PwaRegion],
     ) -> None:
-        # TODO doc-string
+        if self._dynamics_already_set:
+            raise RuntimeError("Dynamics were already set.")
+
+        self.validate_pwa_dimensions(pwa_system)
+        N = self._prediction_horizon
+        ns = self.ns
+        na = self.na
+        nsa = ns + na
         n_ineq = pwa_system[0].T.size
-        ns, na = pwa_system[0].B.shape  # TODO are these needed? We have self.ns maybe
 
         self._pwa_system = pwa_system
         self.dynamics_parameters = [  # TODO: make pwa region use symbolic also
@@ -360,5 +353,36 @@ class PwaMpc(Mpc[SymType]):
                 pars[f"c[{k}]"] = self._pwa_system[self.sequence[k]].c
                 pars[f"S[{k}]"] = self._pwa_system[self.sequence[k]].S
                 pars[f"T[{k}]"] = self._pwa_system[self.sequence[k]].T
-            # TODO find out if it is a problem that we miss the rerouting function call
         return self.nlp.solve(pars, vals0)
+
+    def validate_pwa_dimensions(self, pwa_system: Sequence[PwaRegion]) -> None:
+        """Validates that the dimensions are correct for all matrices in
+        the passed PWA system.
+
+        Parameters
+        ----------
+        pwa_system : Sequence[PwaRegion]
+            A sequence of :class:`PwaRegion` objects, where the i-th object contains
+            the matrices defining the i-th region of the PWA system.
+
+        Raises
+        ------
+        ValueError
+            Raises if the dimensions of any matrix in any region do not match the
+            expected shape.
+        """
+        ns = self.ns
+        na = self.na
+        nsa = ns + na
+        n_ineq = pwa_system[0].T.shape[0]  # must be the same for all regions
+        for i, region in enumerate(pwa_system):
+            if region.A.shape != (ns, ns):
+                raise ValueError(f"A in region {i} must have shape ({ns}, {ns}).")
+            if region.B.shape != (ns, na):
+                raise ValueError(f"B in region {i} must have shape ({ns}, {na}).")
+            if region.c.shape != (ns,):
+                raise ValueError(f"c in region {i} must have shape ({ns},).")
+            if region.S.shape != (n_ineq, nsa):
+                raise ValueError(f"S in region {i} must have shape ({n_ineq}, {nsa}).")
+            if region.T.shape != (n_ineq,):
+                raise ValueError(f"T in region {i} must have shape ({n_ineq},).")
