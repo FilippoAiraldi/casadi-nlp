@@ -248,12 +248,6 @@ class PwaMpc(Mpc[SymType]):
         max_num_threads: int,
     ) -> None:
         """Internal utility to create PWA dynamics constraints."""
-        nr = len(regions)
-        n_ineq = regions[0].T.size
-        ns, na = regions[0].B.shape
-        nsa = ns + na
-        N = self._prediction_horizon
-
         # solve linear programs to determine bounds for big-M relaxations. These LPs are
         # solved parallelly for each region and for each inequality defining the region.
         D = cs.sparsify(D)  # can be sparse
@@ -267,6 +261,13 @@ class PwaMpc(Mpc[SymType]):
         T = np.asarray(T_)
         AB = np.vstack(AB_).T
         C = np.asarray(C_)
+
+        nr = len(regions)
+        n_ineq = r.T.size
+        ns, na = r.B.shape
+        nsa = ns + na
+        N = self._prediction_horizon
+
         lp = {"h": cs.Sparsity(nsa, nsa), "a": D.sparsity()}
         lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
 
