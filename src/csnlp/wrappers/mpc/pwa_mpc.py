@@ -5,6 +5,7 @@ from typing import Any, Literal, Optional, TypeVar, Union
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
+import numbers
 
 from csnlp.core.solutions import Solution
 
@@ -53,11 +54,17 @@ class PwaMpc(Mpc[SymType]):
             A_s x + B_s u + c_s & \text{if } S_s x + R_s u \leq T_s
         \end{cases}
 
-    Following :cite:`bemporad_control_1999`, the PWA dynamics can be converted to
-    mixed-logical dynamical form, and the ensuing MPC optimization becomes a
-    mixed-integer optimization problem. This is done under the hood via the
-    :meth:`set_pwa_dynamics` method. See also :cite:`borrelli_predictive_2017` for
-    further details.
+    The MPC controller can then be considered as a linear MPC controller with
+    time-varying dynamics, in which case the dynamics are defined via the 
+    :meth:`set_time_varying_affine_dynamics` method. Then, prior to solving the 
+    optimization problem, the sequence of regions to be active at each time-step 
+    is set via the :meth:`set_sequence` method. Alternatively, the sequence of PWA
+    regions can be optimized over, in which case the dynamics are defined via the
+    :meth:`set_pwa_dynamics` method. Following :cite:`bemporad_control_1999`, the
+    PWA dynamics are converted to mixed-logical dynamical form, and the ensuing 
+    MPC optimization becomes a mixed-integer optimization problem. This is done 
+    under the hood via the :meth:`set_pwa_dynamics` method. See also 
+    :cite:`borrelli_predictive_2017` for further details.
 
     Parameters
     ----------
@@ -185,7 +192,7 @@ class PwaMpc(Mpc[SymType]):
             pwa_system, D, E, clp_opts, parallelization, max_num_threads
         )
         self._dynamics_already_set = True
-        self.fixed_sequence_dynamics = False
+        self._fixed_sequence_dynamics = False
 
     def _set_pwa_dynamics(
         self,
@@ -273,6 +280,25 @@ class PwaMpc(Mpc[SymType]):
         self,
         pwa_system: Sequence[PwaRegion],
     ) -> None:
+        r"""Sets the time-varying affine dynamics of the system for the MPC controller.
+        The possible values taken by the affine dynamics are defined by the sequence of
+        :class:`PwaRegion`.
+
+        Parameters
+        ----------
+        pwa_system : collection of PwaRegion
+            A sequence of :class:`PwaRegion` objects, where the i-th object contains
+            the matrices defining the i-th region of the PWA system.
+
+        Raises
+        ------
+        RuntimeError
+            Raises if the dynamics were already set.
+        ValueError
+            Raises if the dimensions of any matrix in any region do not match the
+            expected shape.
+
+        """
         if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
 
@@ -316,16 +342,39 @@ class PwaMpc(Mpc[SymType]):
         self._fixed_sequence_dynamics = True
 
     def set_sequence(
-        self, sequence: list[int]
-    ) -> None:  # TODO make type-hint more general sequence
+        self, sequence: Sequence[int]
+    ) -> None:
+        """Sets the sequence of regions to be active at each time-step for the MPC.
+        An error will be raised if the dynamics have not been set via the
+        :meth:`set_time_varying_affine_dynamics` method.
+        
+        Parameters
+        ----------
+        sequence : Sequence[int]
+            A sequence of integers representing the indices of the regions to be active
+            
+        Raises
+        ------
+        ValueError
+            Raises if the sequence is not the same length as the prediction horizon, the
+            sequence does not contain integers, the sequence contains integers that exceed
+            the number of PWA regions, or if the time-varying dynamics have not been set 
+            via the :meth:`set_time_varying_affine_dynamics` method.
+            """
+        if not self._fixed_sequence_dynamics:
+            raise ValueError(
+                "The sequence can only be set if time-varying dynamics are used"
+            )
         if len(sequence) != self._prediction_horizon:
             raise ValueError(
                 "The length of the sequence must be equal to the prediction horizon"
             )
-        if not all(isinstance(i, int) for i in sequence):
+        if not all(isinstance(i, numbers.Integral) for i in sequence):
             raise ValueError("All elements of the sequence must be integers")
         if not all(0 <= i < len(self._pwa_system) for i in sequence):
-            raise ValueError("All elements of the sequence must be valid region indices")
+            raise ValueError(
+                "All elements of the sequence must be valid region indices"
+            )
         self.sequence = sequence
 
     def solve(
@@ -333,7 +382,7 @@ class PwaMpc(Mpc[SymType]):
         pars: Optional[dict[str, npt.ArrayLike]] = None,
         vals0: Optional[dict[str, npt.ArrayLike]] = None,
     ) -> Solution[SymType]:
-        if self.fixed_sequence_dynamics:
+        if self._fixed_sequence_dynamics:
             if self.sequence is None:
                 raise ValueError(
                     "Sequence not set. Use `set_sequence` method to set the sequence"
