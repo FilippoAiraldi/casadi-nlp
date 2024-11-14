@@ -1,5 +1,6 @@
 from collections.abc import Collection
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Any, Iterable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
@@ -382,29 +383,51 @@ class PwaMpc(Mpc[SymType]):
         self._dynamics_already_set = True
         self._fixed_sequence_dynamics = True
 
-    def set_sequence(self, sequence: Sequence[int]) -> None:
-        """Sets the sequence of regions to be active at each time-step for the MPC.
-        An error will be raised if the dynamics have not been set via the
-        :meth:`set_time_varying_affine_dynamics` method.
+    def set_switching_sequence(self, sequence: Collection[int]) -> None:
+        """Sets the sequence of regions to be active at each time step along the MPC
+        prediction horizon. Then, when solved, the MPC optimization will only optimze
+        over the action and state trajectories, while enforcing the sequence of regions
+        visited by the states to be the one provided here.
 
         Parameters
         ----------
-        sequence : Sequence[int]
-            A sequence of integers representing the indices of the regions to be active
+        sequence : collection of int
+            A collection of integers representing the indices of the regions to be
+            active at each time step along the prediction horizon, i.e., the k-th entry
+            of this collection represents the index of the region the state must be at
+            time step ``k``.
 
         Raises
         ------
         ValueError
-            Raises if the sequence is not the same length as the prediction horizon, the
-            sequence does not contain integers, the sequence contains integers that exceed
-            the number of PWA regions, or if the time-varying dynamics have not been set
-            via the :meth:`set_time_varying_affine_dynamics` method.
+            Raises if dynamics have not been set via
+            :meth:`set_time_varying_affine_dynamics`; if the sequence is not the same
+            length as the prediction horizon; if the sequence does not contain integers;
+            if the sequence contains integers that exceed the number of PWA regions
+            specified via :meth:`set_time_varying_affine_dynamics`.
+
+        Notes
+        -----
+        For internal validation purposes, please call first
+        :meth:`set_time_varying_affine_dynamics` and only then call this method.
         """
-        if not self._fixed_sequence_dynamics:
+        if not self._fixed_sequence_dynamics or self._pwa_system is None:
             raise ValueError(
-                "The sequence can only be set if time-varying dynamics are used"
+                "Sequence can only be set if time-varying dynamics are used."
             )
         if len(sequence) != self._prediction_horizon:
+            raise ValueError("Length of sequence must match the prediction horizon")
+
+        N = len(self._pwa_system)
+        for i, idx in enumerate(sequence):
+            if not isinstance(idx, Integral):
+                raise ValueError(
+                    f"{i}-th element of the sequence is not an integer; got {idx}."
+                )
+            if not 0 <= idx < N:
+                raise ValueError(
+                    f"{i}-th element of the sequence must be in [0, N); got {idx}."
+                )
         self._sequence = sequence
 
     def solve(
