@@ -1,5 +1,4 @@
-import numbers
-from collections.abc import Sequence
+from collections.abc import Collection
 from dataclasses import dataclass
 from typing import Any, Literal, Optional, TypeVar, Union
 
@@ -54,17 +53,22 @@ class PwaMpc(Mpc[SymType]):
             A_s x + B_s u + c_s & \text{if } S_s x + R_s u \leq T_s
         \end{cases}
 
-    The MPC controller can then be considered as a linear MPC controller with
-    time-varying dynamics, in which case the dynamics are defined via the
-    :meth:`set_time_varying_affine_dynamics` method. Then, prior to solving the
-    optimization problem, the sequence of regions to be active at each time-step
-    is set via the :meth:`set_sequence` method. Alternatively, the sequence of PWA
-    regions can be optimized over, in which case the dynamics are defined via the
-    :meth:`set_pwa_dynamics` method. Following :cite:`bemporad_control_1999`, the
-    PWA dynamics are converted to mixed-logical dynamical form, and the ensuing
-    MPC optimization becomes a mixed-integer optimization problem. This is done
-    under the hood via the :meth:`set_pwa_dynamics` method. See also
-    :cite:`borrelli_predictive_2017` for further details.
+    This MPC controller class can then handle two different types of specifications for
+    the dynamics.
+
+    * **time-varying affine dynamics**: the MPC controller can be considered as a
+      linear MPC controller with time-varying dynamics, in which case the dynamics
+      must be defined via the :meth:`set_time_varying_affine_dynamics` method. Then,
+      prior to solving the optimization problem, the sequence of regions to be active
+      at each time-step needs to be set via :meth:`set_switching_sequence` by the
+      user/externally.
+    * **optimzing also the sequence**: alternatively, the sequence of PWA regions can
+      be optimized over, in which case the dynamics must be defined via the
+      :meth:`set_pwa_dynamics` method. Following :cite:`bemporad_control_1999`, the PWA
+      dynamics are converted to mixed-logical dynamical form, and the ensuing MPC
+      optimization becomes a mixed-integer optimization problem. This is done under the
+      hood via the :meth:`set_pwa_dynamics` method. See also
+      :cite:`borrelli_predictive_2017` for further details.
 
     Parameters
     ----------
@@ -94,7 +98,7 @@ class PwaMpc(Mpc[SymType]):
 
     def set_pwa_dynamics(
         self,
-        pwa_system: Sequence[PwaRegion],
+        pwa_system: Collection[PwaRegion],
         D: Union[npt.NDArray[np.floating], cs.DM],
         E: npt.NDArray[np.floating],
         clp_opts: Optional[dict[str, Any]] = None,
@@ -112,7 +116,7 @@ class PwaMpc(Mpc[SymType]):
         Parameters
         ----------
         pwa_system : collection of PwaRegion
-            A sequence of :class:`PwaRegion` objects, where the i-th object contains
+            A collection of :class:`PwaRegion` objects, where the i-th object contains
             the matrices defining the i-th region of the PWA system.
         D : array or casadi.DM of shape (n_ineq, ns + na)
             The (possibly sparse) matrix ``D`` defining the polytopic constraints on the
@@ -142,12 +146,14 @@ class PwaMpc(Mpc[SymType]):
 
         Notes
         -----
-        This function will raise an error if lower and upper bounds on the states and
-        actions are set. This is because these bounds should be instead specified via
-        the matrices ``D`` and ``E``. Moreover, this function only uses these matrices
-        for internal computations. The user should take care to impose the constraints
-        :math::math:`D [x^\top, u^\top]^\top \leq E` in the optimization problem, as
-        well as any other, via the :meth:`constraint` method.
+        When multiple states and/or control inputs are defined, these are concatenated
+        into the single vectors :math:`x` and :math:`u`, respectively. Also, this
+        function will raise an error if lower and upper bounds on any state or action
+        are set. This is because these bounds should be instead specified via the
+        matrices ``D`` and ``E``. Moreover, this function only uses these matrices for
+        internal computations, so the user should take care to impose the constraints
+        :math:`D [x^\top, u^\top]^\top \leq E` in the optimization problem, as well as
+        any other, via the :meth:`constraint` method.
         """
         if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
@@ -160,8 +166,8 @@ class PwaMpc(Mpc[SymType]):
         ubu = self.ubx[idx].data
         if (~np.isneginf(lbu)).any() or (~np.isposinf(ubu)).any():
             raise RuntimeError(
-                "cannot set lower and upper bounds on the actions in PWA systems; use "
-                "arguments `D` and `E` of `set_pwa_dyanmics` instead"
+                "Cannot set lower and upper bounds on the actions in PWA systems; use "
+                "arguments `D` and `E` of `set_pwa_dyanmics` instead."
             )
         if self._is_multishooting:
             X = cs.vvcat(self._states.values())
@@ -170,8 +176,8 @@ class PwaMpc(Mpc[SymType]):
             ubx = self.ubx[idx].data
             if (~np.isneginf(lbx)).any() or (~np.isposinf(ubx)).any():
                 raise RuntimeError(
-                    "cannot set lower and upper bounds on the states in PWA systems; "
-                    "use arguments `D` and `E` of `set_pwa_dyanmics` instead"
+                    "Cannot set lower and upper bounds on the states in PWA systems; "
+                    "use arguments `D` and `E` of `set_pwa_dyanmics` instead."
                 )
 
         # validate dimensions
@@ -196,7 +202,7 @@ class PwaMpc(Mpc[SymType]):
 
     def _set_pwa_dynamics(
         self,
-        regions: Sequence[PwaRegion],
+        regions: Collection[PwaRegion],
         D: Union[npt.NDArray[np.floating], cs.DM],
         E: npt.NDArray[np.floating],
         clp_opts: dict[str, Any],
@@ -277,8 +283,7 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
 
     def set_time_varying_affine_dynamics(
-        self,
-        pwa_system: Sequence[PwaRegion],
+        self, pwa_system: Collection[PwaRegion]
     ) -> None:
         r"""Sets the time-varying affine dynamics of the system for the MPC controller.
         The possible values taken by the affine dynamics are defined by the sequence of
@@ -287,7 +292,7 @@ class PwaMpc(Mpc[SymType]):
         Parameters
         ----------
         pwa_system : collection of PwaRegion
-            A sequence of :class:`PwaRegion` objects, where the i-th object contains
+            A collection of :class:`PwaRegion` objects, where the i-th object contains
             the matrices defining the i-th region of the PWA system.
 
         Raises
@@ -322,7 +327,7 @@ class PwaMpc(Mpc[SymType]):
 
         # set dynamics constraints and region constraints
         if not self._is_multishooting:
-            raise NotImplementedError("Single shooting not implemented yet")
+            raise NotImplementedError("Single shooting not implemented yet.")
         xs_next = []
         for k in range(N):
             x_next = A[k] @ X[:, k] + B[k] @ U[:, k] + c[k]
@@ -383,7 +388,10 @@ class PwaMpc(Mpc[SymType]):
         if self._fixed_sequence_dynamics:
             if self.sequence is None:
                 raise ValueError(
-                    "Sequence not set. Use `set_sequence` method to set the sequence"
+                    "A sequence must be set via `set_switching_sequence` prior to "
+                    "solving the MPC because the dyanmics were set via "
+                    "`set_time_varying_affine_dynamics`. Use `set_pwa_dynamics` instead"
+                    " to optimize over the sequence as well."
                 )
             if pars is None:
                 pars = {}
