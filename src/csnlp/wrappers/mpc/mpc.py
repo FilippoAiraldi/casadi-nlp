@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from inspect import signature
+from itertools import accumulate
 from math import ceil
 from typing import Callable, Literal, Optional, TypeVar, Union
 
@@ -32,13 +33,14 @@ def _callable2csfunc(
     return cs.Function("F", sym_in, (sym_out,), {"allow_free": True, "cse": True})
 
 
-def _create_qp_mats(
-    N: int, A: MatType, B: MatType, D: Optional[MatType]
-) -> tuple[MatType, MatType, Optional[MatType]]:
-    """Internal utility to build the linear MPC matrices for building a QP."""
+def _create_ati_mats(
+    N: int, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
+) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+    """Internal utility to build the affine time-invariant (ATI) matrices."""
     ns, na = B.shape
 
-    F = cs.vcat([cs.mpower(A, m) for m in range(1, N + 1)])
+    F_rows = [cs.mpower(A, m) for m in range(1, N + 1)]
+    F = cs.vcat(F_rows)
 
     zero = cs.DM.zeros(ns, na)
     Nnx = ns * (N - 1)
@@ -49,8 +51,7 @@ def _create_qp_mats(
         G_cols.append(G_col)
     G = cs.hcat(G_cols)
 
-    D_not_none = D is not None
-    if D_not_none:
+    if D is not None:
         zero = cs.DM.zeros(ns, D.shape[1])
         H_col = cs.vertcat(D, F[:Nnx, :] @ D)
         H_cols = [H_col]
@@ -60,7 +61,16 @@ def _create_qp_mats(
         H = cs.hcat(H_cols)
     else:
         H = None
-    return F, G, H
+
+    if c is not None:
+        eye = cs.DM.eye(ns)
+        L = cs.vcat(
+            [A_pwr_sum @ c for A_pwr_sum in accumulate(F_rows[:-1], initial=eye)]
+        )
+    else:
+        L = None
+
+    return F, G, H, L
 
 
 class Mpc(NonRetroactiveWrapper[SymType]):
@@ -371,23 +381,27 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             self._slacks[f"slack_{name}"] = out[2]
         return out
 
-    def set_linear_dynamics(
+    def set_affine_dynamics(
         self,
         A: MatType,
         B: MatType,
         D: Optional[MatType] = None,
+        c: Optional[MatType] = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
         max_num_threads: Optional[int] = None,
-    ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
-        r"""Sets linear dynamics of the controller's prediction model and creates the
-        corresponding dynamics constraints. The dynamics are in the form
+    ) -> tuple[
+        Optional[MatType], Optional[MatType], Optional[MatType], Optional[MatType]
+    ]:
+        r"""Sets affine dynamics as the controller's prediction model and creates the
+        corresponding dynamics constraints. The dynamics are in the affine form
 
-        .. math:: x_+ = A x + B u + D w,
+        .. math:: x_+ = A x + B u + D w + c,
 
         where :math:`x_+` is the next state, :math:`x` is the current state, :math:`u`
-        is the control action, and :math:`w` is the disturbance.
+        is the control action, :math:`w` is the disturbance, and :math:`c` is a constant
+        term.
 
         Parameters
         ----------
@@ -399,12 +413,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             The disturbance matrix :math:`D` in the dynamics equation. Must be ``None``
             if no disturbances were provided via the :meth:`disturbance` method. Can
             also be sparse.
+        c : symbolic or numerical array, optional
+            The constant term :math:`c` in the dynamics equation. By default, ``None``.
+            If not provided, the dynamics become linear instead of affine.
 
         Returns
         -------
-        Optional 3-tuple of symbolic or numerical arrays
-            In multiple shooting, returns a tuple of 3 ``None``. In single shooting,
-            returns the matrices :math:`F, G, H` that parametrize the dynamics. See,
+        Optional 4-tuple of symbolic or numerical arrays
+            In multiple shooting, returns a tuple of ``None``s. In single shooting,
+            returns the matrices :math:`F, G, H, L` that parametrize the dynamics. See,
             e.g., :cite:`campi_scenario_2019`.
 
         Raises
@@ -430,35 +447,41 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         if D is not None:
             if nd == 0:
                 raise ValueError(
-                    "Expected D to be None as no disturbance was provided via the "
+                    "Expected D to be `None` as no disturbance was provided via the "
                     "`disturbance` method."
                 )
             if D.shape != (ns, nd):
                 raise ValueError(f"D must have shape ({ns}, {nd}); got {D.shape}.")
         elif nd > 0:
             raise ValueError("D must be provided since there are disturbances.")
+        if c is not None and c.shape != (ns,) and c.shape != (ns, 1):
+            raise ValueError(
+                f"c must have shape ({ns},) or ({ns}, {1}); got {c.shape}."
+            )
 
         if max_num_threads is None:
             max_num_threads = self._prediction_horizon
 
         if self._is_multishooting:
             # not much optimization that we can do here
+            if c is None:
+                c = 0
             if D is None:
                 sizes_in = (ns, na)
-                F = lambda x, u: A @ x + B @ u
+                F = lambda x, u: A @ x + B @ u + c
             else:
                 sizes_in = (ns, na, nd)
-                F = lambda x, u, d: A @ x + B @ u + D @ d
+                F = lambda x, u, d: A @ x + B @ u + D @ d + c
             dynamics = _callable2csfunc(F, self.nlp.sym_type, sizes_in)
             self._set_multishooting_nonlinear_dynamics(
                 dynamics, len(sizes_in), parallelization, max_num_threads
             )
-            F = G = H = None
+            F = G = H = L = None
         else:
-            F, G, H = self._set_singleshooting_linear_dynamics(A, B, D)
+            F, G, H, L = self._set_singleshooting_affine_dynamics(A, B, D, c)
 
         self._dynamics_already_set = True
-        return F, G, H
+        return F, G, H, L
 
     def set_nonlinear_dynamics(
         self,
@@ -526,25 +549,27 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             )
         self._dynamics_already_set = True
 
-    def _set_singleshooting_linear_dynamics(
-        self, A: MatType, B: MatType, D: Optional[MatType] = None
-    ) -> tuple[MatType, MatType, Optional[MatType]]:
-        """Internal utility to create linear dynamics constraints and states in
+    def _set_singleshooting_affine_dynamics(
+        self, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
+    ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+        """Internal utility to create affine dynamics constraints and states in
         single shooting mode."""
         ns = A.shape[0]
         N = self._prediction_horizon
-        F, G, H = _create_qp_mats(self._prediction_horizon, A, B, D)
+        F, G, H, L = _create_ati_mats(self._prediction_horizon, A, B, D, c)
         x_0 = cs.vcat(self._initial_states.values())
         U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
         X_next = F @ x_0 + G @ U
         if H is not None:
             X_next += H @ cs.vec(cs.vcat(self._disturbances.values()))
+        if L is not None:
+            X_next += L
 
         # append initial state, reshape and save to internal dict
         X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
-        return F, G, H
+        return F, G, H, L
 
     def _set_multishooting_nonlinear_dynamics(
         self,

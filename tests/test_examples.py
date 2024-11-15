@@ -387,12 +387,13 @@ class TestExamples(unittest.TestCase):
             ]
         )
         B = np.asarray([[0.014], [0.063], [0.221], [0.367]])
+        c = A.sum(axis=1) * 0.1  # also add an affine term to spice things up
         ns, na = B.shape
         N = 7
         mpc = wrappers.Mpc(Nlp[cs.SX](), prediction_horizon=N, shooting=shooting)
         mpc.state("x", ns)
         u, _ = mpc.action("u", na, lb=-0.5, ub=0.5)
-        mpc.set_linear_dynamics(A, B)
+        mpc.set_affine_dynamics(A, B, c=c)
         x = mpc.states["x"]
         x_bound = np.asarray([[4.0], [10.0], [4.0], [10.0]])
         mpc.constraint("x_lb", x, ">=", -x_bound)
