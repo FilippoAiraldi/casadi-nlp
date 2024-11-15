@@ -1,7 +1,7 @@
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Any, Iterable, Literal, Optional, TypeVar, Union
+from typing import Any, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -436,7 +436,7 @@ class PwaMpc(Mpc[SymType]):
 
     @staticmethod
     def get_optimal_switching_sequence(
-        sol: Solution[SymType]
+        sol: Solution[SymType],
     ) -> npt.NDArray[np.integer]:
         """Returns the optimal switching sequence of regions for the state trajectory
         along the prediction horizon, which can be extracted from the solution of the
