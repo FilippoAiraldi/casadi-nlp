@@ -1,6 +1,5 @@
 from collections.abc import Sequence
 from inspect import signature
-from itertools import accumulate
 from math import ceil
 from typing import Callable, Literal, Optional, TypeVar, Union
 
@@ -37,39 +36,19 @@ def _create_ati_mats(
     N: int, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
 ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
     """Internal utility to build the affine time-invariant (ATI) matrices."""
-    ns, na = B.shape
+    ns = A.shape[0]
 
-    F_rows = [cs.mpower(A, m) for m in range(1, N + 1)]
-    F = cs.vcat(F_rows)
+    row = eye = cs.DM.eye(ns)
+    rows = [cs.horzcat(row, cs.DM(ns, ns * (N - 1)))]
+    for k in range(1, N):
+        row = cs.horzcat(A @ row, eye)
+        rows.append(cs.horzcat(row, cs.DM(ns, ns * (N - k - 1))))
+    base = cs.vcat(rows)
 
-    zero = cs.DM(ns, na)
-    Nnx = ns * (N - 1)
-    G_col = cs.vertcat(B, F[:Nnx, :] @ B)
-    G_cols = [G_col]
-    for _ in range(1, N):
-        G_col = cs.vertcat(zero, G_col[:Nnx, :])
-        G_cols.append(G_col)
-    G = cs.hcat(G_cols)
-
-    if D is not None:
-        zero = cs.DM(ns, D.shape[1])
-        H_col = cs.vertcat(D, F[:Nnx, :] @ D)
-        H_cols = [H_col]
-        for _ in range(1, N):
-            H_col = cs.vertcat(zero, H_col[:Nnx, :])
-            H_cols.append(H_col)
-        H = cs.hcat(H_cols)
-    else:
-        H = None
-
-    if c is not None:
-        eye = cs.DM.eye(ns)
-        L = cs.vcat(
-            [A_pwr_sum @ c for A_pwr_sum in accumulate(F_rows[:-1], initial=eye)]
-        )
-    else:
-        L = None
-
+    F = base[:, :ns] @ A
+    G = base @ cs.dcat([B] * N)
+    H = None if D is None else base @ cs.dcat([D] * N)
+    L = None if c is None else base @ cs.repmat(c, N, 1)
     return F, G, H, L
 
 
