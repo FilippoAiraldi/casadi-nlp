@@ -62,9 +62,9 @@ class PwaMpc(Mpc[SymType]):
     This MPC controller class can then handle two different types of specifications for
     the dynamics.
 
-    * **time-varying affine dynamics**: the MPC controller can be considered as a
+    * **affine time-varying dynamics**: the MPC controller can be considered as a
       linear MPC controller with time-varying dynamics, in which case the dynamics
-      must be defined via the :meth:`set_time_varying_affine_dynamics` method. Then,
+      must be defined via the :meth:`set_affine_time_varying_dynamics` method. Then,
       prior to solving the optimization problem, the sequence of regions to be active
       at each time-step needs to be set via :meth:`set_switching_sequence` by the
       user/externally.
@@ -245,8 +245,8 @@ class PwaMpc(Mpc[SymType]):
         )
         self._dynamics_already_set = True
 
-    def set_time_varying_affine_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
-        r"""Sets time-varying affine dynamics as the controller's prediction model and
+    def set_affine_time_varying_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
+        r"""Sets affine time-varying dynamics as the controller's prediction model and
         creates the corresponding dynamics constraints. The dynamics in the affine
         time-varying form are described as
 
@@ -324,15 +324,15 @@ class PwaMpc(Mpc[SymType]):
         ------
         ValueError
             Raises if dynamics have not been set via
-            :meth:`set_time_varying_affine_dynamics`; if the sequence is not the same
+            :meth:`set_affine_time_varying_dynamics`; if the sequence is not the same
             length as the prediction horizon; if the sequence does not contain integers;
             if the sequence contains integers that exceed the number of PWA regions
-            specified via :meth:`set_time_varying_affine_dynamics`.
+            specified via :meth:`set_affine_time_varying_dynamics`.
 
         Notes
         -----
         For internal validation purposes, please call first
-        :meth:`set_time_varying_affine_dynamics` and only then call this method.
+        :meth:`set_affine_time_varying_dynamics` and only then call this method.
         """
         if not self._fixed_sequence_dynamics or self._pwa_system is None:
             raise ValueError(
@@ -365,7 +365,7 @@ class PwaMpc(Mpc[SymType]):
                 raise ValueError(
                     "A sequence must be set via `set_switching_sequence` prior to "
                     "solving the MPC because the dyanmics were set via "
-                    "`set_time_varying_affine_dynamics`. Use `set_pwa_dynamics` instead"
+                    "`set_affine_time_varying_dynamics`. Use `set_pwa_dynamics` instead"
                     " to optimize over the sequence as well."
                 )
 
@@ -508,8 +508,8 @@ class PwaMpc(Mpc[SymType]):
     def _set_multishooting_tva_dynamics(
         self, As: Iterable[SymType], Bs: Iterable[SymType], Cs: Iterable[SymType]
     ) -> tuple[SymType, SymType]:
-        """Internal utility to create time-varying affine dynamics constraints in
-        mutple shooting."""
+        """Internal utility to create affine time-varying dynamics constraints in
+        multiple shooting."""
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         X_next_ = []
