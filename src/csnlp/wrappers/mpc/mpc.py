@@ -42,7 +42,7 @@ def _create_ati_mats(
     F_rows = [cs.mpower(A, m) for m in range(1, N + 1)]
     F = cs.vcat(F_rows)
 
-    zero = cs.DM.zeros(ns, na)
+    zero = cs.DM(ns, na)
     Nnx = ns * (N - 1)
     G_col = cs.vertcat(B, F[:Nnx, :] @ B)
     G_cols = [G_col]
@@ -52,7 +52,7 @@ def _create_ati_mats(
     G = cs.hcat(G_cols)
 
     if D is not None:
-        zero = cs.DM.zeros(ns, D.shape[1])
+        zero = cs.DM(ns, D.shape[1])
         H_col = cs.vertcat(D, F[:Nnx, :] @ D)
         H_cols = [H_col]
         for _ in range(1, N):
