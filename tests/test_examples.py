@@ -399,7 +399,7 @@ class TestExamples(unittest.TestCase):
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
-        mpc.set_time_varying_affine_dynamics(pwa_regions)
+        mpc.set_affine_time_varying_dynamics(pwa_regions)
         if shooting == "single":
             x = mpc.states["x"]  # previous `x` is None if in single shooting
         mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)

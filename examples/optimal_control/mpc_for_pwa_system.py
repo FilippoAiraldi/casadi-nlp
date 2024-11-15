@@ -127,7 +127,7 @@ sol_mixint = mpc.solve(pars={"x_0": x_0})
 
 # %%
 # ----------------------------
-# Time-varying affine dynamics
+# Affine time-varying dynamics
 # ----------------------------
 # As stated above, when using :meth:`csnlp.wrappers.PwaMpc.set_pwa_dynamics` to specify
 # the PWA dynamics, the numerical solver will optimize also over the sequence of regions
@@ -146,14 +146,14 @@ sol_mixint = mpc.solve(pars={"x_0": x_0})
 # ---------------------------------------------
 # Now lets explore the setting in which the switching sequence is passed rather than
 # optimized. We build the MPC as before, but now using the
-# :meth:`csnlp.wrappers.PwaMpc.set_time_varying_affine_dynamics` method to set the
+# :meth:`csnlp.wrappers.PwaMpc.set_affine_time_varying_dynamics` method to set the
 # dynamics of the system instead. Note that, since the sequence is fixed, we do not need
 # a mixed-integer solver, but we can use any QP solver.
 
 mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)
 x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
-mpc.set_time_varying_affine_dynamics(pwa_system)
+mpc.set_affine_time_varying_dynamics(pwa_system)
 mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
 mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
