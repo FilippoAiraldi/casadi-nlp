@@ -374,9 +374,9 @@ class TestPwaMpc(unittest.TestCase):
         mpc.action("u", 1, **kwargs)
 
         regex = (
-            "cannot set lower and upper bounds on the "
+            "Cannot set lower and upper bounds on the "
             f"{'states' if set_state else 'actions'} in PWA systems; use "
-            "arguments `D` and `E` of `set_pwa_dyanmics` instead"
+            "arguments `D` and `E` of `set_pwa_dyanmics` instead."
         )
         with self.assertRaisesRegex(RuntimeError, regex):
             mpc.set_pwa_dynamics(None, None, None)
