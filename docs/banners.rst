@@ -19,10 +19,10 @@
 .. |Downloads| image:: https://static.pepy.tech/badge/csnlp
    :target: https://www.pepy.tech/projects/csnlp
    :alt: Downloads
-.. |Maintainability| image:: https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/maintainability
+.. |Maintainability| image:: https://api.codeclimate.com/v1/badges/e27aa9154db412199fec/maintainability
    :target: https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability
    :alt: Maintainability
-.. |Test Coverage| image:: https://api.codeclimate.com/v1/badges/d1cf537cff6af1a08508/test_coverage
+.. |Test Coverage| image:: https://api.codeclimate.com/v1/badges/e27aa9154db412199fec/test_coverage
    :target: https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage
    :alt: Test Coverage
 .. |Code style: black| image:: https://img.shields.io/badge/code%20style-black-000000.svg
