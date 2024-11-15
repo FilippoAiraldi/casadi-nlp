@@ -69,7 +69,7 @@ u, _ = mpc.action("u", na, lb=-0.5, ub=0.5)
 # %%
 # Set the linear dynamics.
 
-_ = mpc.set_linear_dynamics(A, B)
+_ = mpc.set_affine_dynamics(A, B)
 
 # %%
 # Define the constraints on the state only after having set the dynamics.

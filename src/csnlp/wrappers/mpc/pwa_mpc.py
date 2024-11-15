@@ -25,15 +25,15 @@ class PwaRegion:
     """Stores the matrices defining the i-th region in a piecewise affine system."""
 
     A: npt.NDArray[np.floating]
-    r"""The state matrix :math:`A_i` of the linear dynamics
+    r"""The state matrix :math:`A_i` of the affine dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
     B: npt.NDArray[np.floating]
-    r"""The input matrix :math:`B_i` of the linear dynamics
+    r"""The input matrix :math:`B_i` of the affine dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
     c: npt.NDArray[np.floating]
-    r"""The affine constant vector :math:`c_i` of the linear dynamics
+    r"""The affine constant vector :math:`c_i` of the affine dynamics
     :math:`x_+ = A_i x + B_i u + c_i`."""
 
     S: npt.NDArray[np.floating]

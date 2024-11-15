@@ -8,7 +8,7 @@ import numpy.typing as npt
 from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
 
 from ..wrapper import Nlp
-from .mpc import Mpc, _callable2csfunc, _create_qp_mats
+from .mpc import Mpc, _callable2csfunc, _create_ati_mats
 from .mpc import _n as _name_init_state
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -324,8 +324,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
             )
         )
 
-    def set_linear_dynamics(
-        self, A: MatType, B: MatType, D: MatType
+    def set_affine_dynamics(
+        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType]
     ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
         if D is None:
             raise ValueError(
@@ -333,7 +333,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 " stochastic disturbances, and if there are none, a nominal MPC should "
                 "suffice (see `Mpc` wrapper)."
             )
-        return super().set_linear_dynamics(A, B, D)
+        return super().set_affine_dynamics(A, B, D, c)
 
     def set_nonlinear_dynamics(
         self,
@@ -368,9 +368,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
             F, parallelization, max_num_threads_or_unrolling_base
         )
 
-    def _set_singleshooting_linear_dynamics(
-        self, A: MatType, B: MatType, D: MatType
-    ) -> tuple[MatType, MatType, Optional[MatType]]:
+    def _set_singleshooting_affine_dynamics(
+        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType]
+    ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
         disturbance_names = self.single_disturbances.keys()
         X0 = cs.vcat(self._initial_states.values())
         U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
@@ -383,8 +383,10 @@ class ScenarioBasedMpc(Mpc[SymType]):
             ]
         )
 
-        F, G, H = _create_qp_mats(self._prediction_horizon, A, B, D)
+        F, G, H, L = _create_ati_mats(self._prediction_horizon, A, B, D, c)
         X_next_pred = F @ X0 + G @ U + H @ D_all
+        if L is not None:
+            X_next_pred += L
 
         state_names = self.single_states.keys()
         N = self._prediction_horizon
@@ -395,7 +397,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
             X_i_split = cs.vertsplit(X_i, cumsizes)
             for n, x in zip(state_names, X_i_split):
                 self._states[_n(n, i)] = x
-        return F, G, H
+        return F, G, H, L
 
     def _set_multishooting_nonlinear_dynamics(
         self,

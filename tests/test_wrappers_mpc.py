@@ -244,25 +244,22 @@ class TestMpc(unittest.TestCase):
         self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
         self.assertEqual(mpc.states["x2"].shape, (3, N + 1))
 
-    def test_linear_dynamics__raises__if_dynamics_already_set(self):
+    def test_affine_dynamics__raises__if_dynamics_already_set(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
         mpc._dynamics_already_set = True
         with self.assertRaises(RuntimeError):
-            mpc.set_linear_dynamics(object(), object())
+            mpc.set_affine_dynamics(object(), object())
 
-    @parameterized.expand([("A",), ("B",), ("D",)])
-    def test_linear_dynamics__raises__if_matrices_have_wrong_shapes(self, wrong_mat):
+    @parameterized.expand([("A",), ("B",), ("D",), ("c",)])
+    def test_affine_dynamics__raises__if_matrices_have_wrong_shapes(self, wrong_mat):
         ns, na, nd = np.random.randint(4, 20, size=3)
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
         mpc.state("x", ns)
         mpc.action("u", na)
         mpc.disturbance("d", nd)
-        shapes = {"A": (ns, ns), "B": (ns, na), "D": (ns, nd)}
-        # A_shape = (ns, ns)
-        # B_shape = (ns, na)
-        # D_shape = (ns, nd)
+        shapes = {"A": (ns, ns), "B": (ns, na), "D": (ns, nd), "c": (ns,)}
 
         wrong_shapes = shapes.copy()
         wrong_shapes[wrong_mat] = np.add(shapes[wrong_mat], choice((1, -1)))
@@ -270,11 +267,12 @@ class TestMpc(unittest.TestCase):
         A = np.random.randn(*wrong_shapes["A"])
         B = np.random.randn(*wrong_shapes["B"])
         D = np.random.randn(*wrong_shapes["D"])
+        c = np.random.randn(*wrong_shapes["c"])
         with self.assertRaisesRegex(ValueError, f"{wrong_mat} must have shape"):
-            mpc.set_linear_dynamics(A, B, D)
+            mpc.set_affine_dynamics(A, B, D, c)
 
     @parameterized.expand([(0,), (6,)])
-    def test_linear_dynamics__raises__when_disturbances_are_misspecified(self, nd: int):
+    def test_affine_dynamics__raises__when_disturbances_are_misspecified(self, nd: int):
         ns, na = np.random.randint(4, 20, size=2)
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=10)
@@ -285,17 +283,17 @@ class TestMpc(unittest.TestCase):
 
         if nd == 0:
             D = np.random.randn(ns, 123)
-            with self.assertRaisesRegex(ValueError, "Expected D to be None"):
-                mpc.set_linear_dynamics(A, B, D)
+            with self.assertRaisesRegex(ValueError, "Expected D to be `None`"):
+                mpc.set_affine_dynamics(A, B, D)
         else:
             mpc.disturbance("d", nd)
             D = None
             with self.assertRaisesRegex(ValueError, "D must be provided"):
-                mpc.set_linear_dynamics(A, B, D)
+                mpc.set_affine_dynamics(A, B, D)
 
-    @parameterized.expand([(False,), (True,)])
-    def test_linear_dynamics__in_multishooting__creates_dynamics_eq_constraints(
-        self, include_d: bool
+    @parameterized.expand(product((False, True), (False, True)))
+    def test_affine_dynamics__in_multishooting__creates_dynamics_eq_constraints(
+        self, include_d: bool, include_c: bool
     ):
         ns, na, nd, N = np.random.randint(4, 20, size=4)
         nlp = Nlp(sym_type="MX")
@@ -307,17 +305,19 @@ class TestMpc(unittest.TestCase):
         if include_d:
             mpc.disturbance("d", nd)
             D = np.random.randn(ns, nd)
-            args = (A, B, D)
         else:
-            args = (A, B)
+            D = None
+        c = np.random.randn(ns) if include_c else None
 
-        mpc.set_linear_dynamics(*args)
+        mpc.set_affine_dynamics(A, B, D, c)
 
         self.assertIn("dyn", mpc.constraints.keys())
         self.assertEqual(mpc.ng, (N + 1) * ns)
 
-    @parameterized.expand([(False,), (True,)])
-    def test_linear_dynamics__in_singleshooting__creates_states(self, include_d: bool):
+    @parameterized.expand(product((False, True), (False, True)))
+    def test_affine_dynamics__in_singleshooting__creates_states(
+        self, include_d: bool, include_c: bool
+    ):
         ns, na, nd, N = np.random.randint(4, 20, size=4)
         nlp = Nlp(sym_type="MX")
         mpc = Mpc(nlp=nlp, prediction_horizon=N)
@@ -328,11 +328,11 @@ class TestMpc(unittest.TestCase):
         if include_d:
             mpc.disturbance("d", nd)
             D = np.random.randn(ns, nd)
-            args = (A, B, D)
         else:
-            args = (A, B)
+            D = None
+        c = np.random.randn(ns) if include_c else None
 
-        mpc.set_linear_dynamics(*args)
+        mpc.set_affine_dynamics(A, B, D, c)
 
         for k in range(N):
             self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
