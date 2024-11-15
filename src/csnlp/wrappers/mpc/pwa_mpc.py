@@ -20,6 +20,26 @@ def _n(parname: str, prefix: str) -> str:
     return f"{parname}__{prefix}"
 
 
+def _create_atv_mats(
+    N: int, As: list[SymType], Bs: list[SymType], C: SymType
+) -> tuple[SymType, SymType, SymType]:
+    """Internal utility to build the affine time-varying (ATV) matrices."""
+    A0 = As[0]
+    ns = A0.size1()
+
+    row = eye = cs.DM.eye(ns)
+    rows = [cs.horzcat(row, cs.DM(ns, ns * (N - 1)))]
+    for k, A in enumerate(As[1:], start=1):
+        row = cs.horzcat(A @ row, eye)
+        rows.append(cs.horzcat(row, cs.DM(ns, ns * (N - k - 1))))
+    base = cs.vcat(rows)
+
+    F = base[:, :ns] @ A0
+    G = base @ cs.dcat(Bs)
+    L = base @ C
+    return F, G, L
+
+
 @dataclass
 class PwaRegion:
     """Stores the matrices defining the i-th region in a piecewise affine system."""
@@ -245,7 +265,9 @@ class PwaMpc(Mpc[SymType]):
         )
         self._dynamics_already_set = True
 
-    def set_affine_time_varying_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
+    def set_affine_time_varying_dynamics(
+        self, pwa_system: Sequence[PwaRegion]
+    ) -> tuple[Optional[SymType], Optional[SymType], Optional[SymType]]:
         r"""Sets affine time-varying dynamics as the controller's prediction model and
         creates the corresponding dynamics constraints. The dynamics in the affine
         time-varying form are described as
@@ -268,6 +290,13 @@ class PwaMpc(Mpc[SymType]):
             A sequence of :class:`PwaRegion` objects, where the i-th object contains
             the matrices defining the i-th region of the PWA system.
 
+        Returns
+        -------
+        Optional 3-tuple of symbolic or numerical arrays
+            In multiple shooting, returns a tuple of ``None``s. In single shooting,
+            returns the matrices :math:`F, G, L` that parametrize the dynamics. See,
+            e.g., :cite:`campi_scenario_2019`.
+
         Raises
         ------
         RuntimeError
@@ -289,14 +318,16 @@ class PwaMpc(Mpc[SymType]):
         prefix = self.tva_dynamics_name
         As = cs.vertsplit_n(self.parameter(_n("A", prefix), (ns * N, ns)), N)
         Bs = cs.vertsplit_n(self.parameter(_n("B", prefix), (ns * N, na)), N)
-        Cs = cs.vertsplit_n(self.parameter(_n("c", prefix), (ns * N, 1)), N)
+        C = self.parameter(_n("c", prefix), (ns * N, 1))
+        Cs = cs.vertsplit_n(C, N)
         Ss = cs.vertsplit_n(self.parameter(_n("S", prefix), (n_ineq * N, nsa)), N)
         T = self.parameter(_n("T", prefix), (n_ineq * N, 1))
 
         if self._is_multishooting:
             X, U = self._set_multishooting_tva_dynamics(As, Bs, Cs)
+            F = G = L = None
         else:
-            raise NotImplementedError("Single shooting not implemented yet.")
+            X, U, F, G, L = self._set_singleshooting_tva_dynamics(As, Bs, C)
 
         S = cs.dcat(Ss)
         XU = cs.vec(cs.vertcat(X[:, :-1], U))  # NOTE: different from vvcat!
@@ -305,6 +336,7 @@ class PwaMpc(Mpc[SymType]):
         self._pwa_system = pwa_system
         self._dynamics_already_set = True
         self._fixed_sequence_dynamics = True
+        return F, G, L
 
     def set_switching_sequence(self, sequence: Collection[int]) -> None:
         """Sets the sequence of regions to be active at each time step along the MPC
@@ -513,8 +545,26 @@ class PwaMpc(Mpc[SymType]):
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         X_next_ = []
-        for k, (A, B, C) in enumerate(zip(As, Bs, Cs)):
-            X_next_.append(A @ X[:, k] + B @ U[:, k] + C)
+        for k, (A, B, c) in enumerate(zip(As, Bs, Cs)):
+            X_next_.append(A @ X[:, k] + B @ U[:, k] + c)
         X_next = cs.hcat(X_next_)
         self.constraint("dynamics", X_next, "==", X[:, 1:])
         return X, U
+
+    def _set_singleshooting_tva_dynamics(
+        self, As: Iterable[SymType], Bs: Iterable[SymType], C: SymType
+    ) -> tuple[SymType, SymType, SymType, SymType, SymType]:
+        """Internal utility to create affine time-varying dynamics constraints in
+        mutple shooting."""
+        N = self._prediction_horizon
+        F, G, L = _create_atv_mats(self._prediction_horizon, As, Bs, C)
+        x_0 = cs.vcat(self._initial_states.values())
+        U = cs.vcat(self._actions_exp.values())
+        X_next = F @ x_0 + G @ cs.vec(U) + L
+
+        # append initial state, reshape and save to internal dict
+        ns = F.size2()
+        X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
+        cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
+        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+        return X, U, F, G, L

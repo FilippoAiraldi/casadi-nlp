@@ -351,7 +351,7 @@ class TestExamples(unittest.TestCase):
         D = cs.diagcat(D1, D2).sparse()
         E = np.concatenate((E1, E2))
         mpc = wrappers.PwaMpc(
-            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=4, shooting=shooting
+            nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
@@ -376,7 +376,7 @@ class TestExamples(unittest.TestCase):
         for name, val in expected.items():
             np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
 
-    @parameterized.expand([("multi",)])
+    @parameterized.expand([("single",), ("multi",)])
     def test__pwa_mpc__with_sequence(self, shooting: str):
         np_random = np.random.default_rng(42)
 
@@ -399,7 +399,7 @@ class TestExamples(unittest.TestCase):
         D2 = np.array([[1], [-1]])
         E2 = np.array([u_bnd, u_bnd])
         mpc = wrappers.PwaMpc(
-            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=4, shooting=shooting
+            nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
