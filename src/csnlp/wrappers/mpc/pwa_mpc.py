@@ -243,89 +243,6 @@ class PwaMpc(Mpc[SymType]):
         )
         self._dynamics_already_set = True
 
-    def _set_pwa_dynamics(
-        self,
-        regions: Collection[PwaRegion],
-        D: Union[npt.NDArray[np.floating], cs.DM],
-        E: npt.NDArray[np.floating],
-        clp_opts: dict[str, Any],
-        parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
-        max_num_threads: int,
-    ) -> None:
-        """Internal utility to create PWA dynamics constraints."""
-        # solve linear programs to determine bounds for big-M relaxations. These LPs are
-        # solved parallelly for each region and for each inequality defining the region.
-        D = cs.sparsify(D)  # can be sparse
-        S_, T_, AB_, C_ = [], [], [], []
-        for r in regions:
-            S_.append(r.S)
-            T_.append(r.T)
-            AB_.append(np.hstack((r.A, r.B)))
-            C_.append(r.c)
-        S = np.vstack(S_).T
-        T = np.asarray(T_)
-        AB = np.vstack(AB_).T
-        C = np.asarray(C_)
-
-        nr = len(regions)
-        n_ineq = r.T.size
-        ns, na = r.B.shape
-        nsa = ns + na
-        N = self._prediction_horizon
-
-        lp = {"h": cs.Sparsity(nsa, nsa), "a": D.sparsity()}
-        lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
-
-        mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
-        sol = mapped_lpsolver(g=S, a=D, uba=E)
-        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) + T
-
-        mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
-        sol = mapped_lpsolver(g=AB, a=D, uba=E)
-        tmp_lb = sol["cost"].toarray().reshape(nr, ns) + C
-        M_lb = tmp_lb.min(0)
-        sol = mapped_lpsolver(g=-AB, a=D, uba=E)
-        tmp_ub = -sol["cost"].toarray().reshape(nr, ns) + C
-        M_ub = tmp_ub.max(0)
-
-        # dynamics constraints - we now have to add constraints for all regions at each
-        # time-step, with the binary variable delta selecting the active region
-        z = [self.variable(f"z_{i}", (ns, N))[0] for i in range(nr)]
-        if self._is_multishooting:
-            X = cs.vcat(self._states.values())
-            self.constraint("dynamics", X[:, 1:], "==", sum(z))
-        else:
-            Xk = cs.vcat(self._initial_states.values())
-            X = cs.horzcat(Xk, sum(z))
-            cumsizes = np.cumsum(
-                [0] + [s.shape[0] for s in self._initial_states.values()]
-            )
-            self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
-
-        U = cs.vcat(self._actions_exp.values())
-        delta, _, _ = self.variable("delta", (nr, N), lb=0, ub=1, discrete=True)
-        self.constraint("delta_sum", cs.sum1(delta), "==", 1)
-        z_ub = []
-        z_lb = []
-        region = []
-        z_x_ub = []
-        z_x_lb = []
-        XU = cs.vertcat(X[:, :-1], U)
-        for i, r in enumerate(regions):
-            z_i = z[i]
-            delta_i = delta[i, :]
-            AB_i = AB_[i]
-            z_ub.append(z_i - M_ub @ delta_i)
-            z_lb.append(z_i - M_lb @ delta_i)
-            region.append(r.S @ XU - r.T - big_M[i, :] @ (1 - delta_i))
-            z_x_ub.append(z_i - (AB_i @ XU + r.c - M_lb @ (1 - delta_i)))
-            z_x_lb.append(z_i - (AB_i @ XU + r.c - M_ub @ (1 - delta_i)))
-        self.constraint("z_ub", cs.vcat(z_ub), "<=", 0)
-        self.constraint("z_lb", cs.vcat(z_lb), ">=", 0)
-        self.constraint("region", cs.vcat(region), "<=", 0)
-        self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
-        self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
-
     def set_time_varying_affine_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
         r"""Sets the time-varying affine dynamics of the system for the MPC controller.
         The possible values taken by the affine dynamics are defined by the sequence of
@@ -434,6 +351,32 @@ class PwaMpc(Mpc[SymType]):
                 )
         self._sequence = sequence
 
+    def solve(
+        self,
+        pars: Optional[dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[dict[str, npt.ArrayLike]] = None,
+    ) -> Solution[SymType]:
+        if self._fixed_sequence_dynamics:
+            regions = self._pwa_system
+            assert regions is not None, "PWA system should have been set!"
+            if self._sequence is None:
+                raise ValueError(
+                    "A sequence must be set via `set_switching_sequence` prior to "
+                    "solving the MPC because the dyanmics were set via "
+                    "`set_time_varying_affine_dynamics`. Use `set_pwa_dynamics` instead"
+                    " to optimize over the sequence as well."
+                )
+
+            if pars is None:
+                pars = {}
+            for k, idx in enumerate(self._sequence):
+                pars[_n("A", k)] = regions[idx].A
+                pars[_n("B", k)] = regions[idx].B
+                pars[_n("c", k)] = regions[idx].c
+                pars[_n("S", k)] = regions[idx].S
+                pars[_n("T", k)] = regions[idx].T
+        return self.nlp.solve(pars, vals0)
+
     @staticmethod
     def get_optimal_switching_sequence(
         sol: Solution[SymType],
@@ -466,28 +409,85 @@ class PwaMpc(Mpc[SymType]):
         """
         return sol.vals["delta"].toarray().argmax(0)
 
-    def solve(
+    def _set_pwa_dynamics(
         self,
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
-    ) -> Solution[SymType]:
-        if self._fixed_sequence_dynamics:
-            regions = self._pwa_system
-            assert regions is not None, "PWA system should have been set!"
-            if self._sequence is None:
-                raise ValueError(
-                    "A sequence must be set via `set_switching_sequence` prior to "
-                    "solving the MPC because the dyanmics were set via "
-                    "`set_time_varying_affine_dynamics`. Use `set_pwa_dynamics` instead"
-                    " to optimize over the sequence as well."
-                )
+        regions: Collection[PwaRegion],
+        D: Union[npt.NDArray[np.floating], cs.DM],
+        E: npt.NDArray[np.floating],
+        clp_opts: dict[str, Any],
+        parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
+        max_num_threads: int,
+    ) -> None:
+        """Internal utility to create PWA dynamics constraints."""
+        # solve linear programs to determine bounds for big-M relaxations. These LPs are
+        # solved parallelly for each region and for each inequality defining the region.
+        D = cs.sparsify(D)  # can be sparse
+        S_, T_, AB_, C_ = [], [], [], []
+        for r in regions:
+            S_.append(r.S)
+            T_.append(r.T)
+            AB_.append(np.hstack((r.A, r.B)))
+            C_.append(r.c)
+        S = np.vstack(S_).T
+        T = np.asarray(T_)
+        AB = np.vstack(AB_).T
+        C = np.asarray(C_)
 
-            if pars is None:
-                pars = {}
-            for k, idx in enumerate(self._sequence):
-                pars[_n("A", k)] = regions[idx].A
-                pars[_n("B", k)] = regions[idx].B
-                pars[_n("c", k)] = regions[idx].c
-                pars[_n("S", k)] = regions[idx].S
-                pars[_n("T", k)] = regions[idx].T
-        return self.nlp.solve(pars, vals0)
+        nr = len(regions)
+        n_ineq = r.T.size
+        ns, na = r.B.shape
+        nsa = ns + na
+        N = self._prediction_horizon
+
+        lp = {"h": cs.Sparsity(nsa, nsa), "a": D.sparsity()}
+        lpsolver = cs.conic("lpsolver", "clp", lp, clp_opts)
+
+        mapped_lpsolver = lpsolver.map(nr * n_ineq, parallelization, max_num_threads)
+        sol = mapped_lpsolver(g=S, a=D, uba=E)
+        big_M = -sol["cost"].toarray().reshape(nr, n_ineq) + T
+
+        mapped_lpsolver = lpsolver.map(nr * ns, parallelization, max_num_threads)
+        sol = mapped_lpsolver(g=AB, a=D, uba=E)
+        tmp_lb = sol["cost"].toarray().reshape(nr, ns) + C
+        M_lb = tmp_lb.min(0)
+        sol = mapped_lpsolver(g=-AB, a=D, uba=E)
+        tmp_ub = -sol["cost"].toarray().reshape(nr, ns) + C
+        M_ub = tmp_ub.max(0)
+
+        # dynamics constraints - we now have to add constraints for all regions at each
+        # time-step, with the binary variable delta selecting the active region
+        z = [self.variable(f"z_{i}", (ns, N))[0] for i in range(nr)]
+        if self._is_multishooting:
+            X = cs.vcat(self._states.values())
+            self.constraint("dynamics", X[:, 1:], "==", sum(z))
+        else:
+            Xk = cs.vcat(self._initial_states.values())
+            X = cs.horzcat(Xk, sum(z))
+            cumsizes = np.cumsum(
+                [0] + [s.shape[0] for s in self._initial_states.values()]
+            )
+            self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+
+        U = cs.vcat(self._actions_exp.values())
+        delta, _, _ = self.variable("delta", (nr, N), lb=0, ub=1, discrete=True)
+        self.constraint("delta_sum", cs.sum1(delta), "==", 1)
+        z_ub = []
+        z_lb = []
+        region = []
+        z_x_ub = []
+        z_x_lb = []
+        XU = cs.vertcat(X[:, :-1], U)
+        for i, r in enumerate(regions):
+            z_i = z[i]
+            delta_i = delta[i, :]
+            AB_i = AB_[i]
+            z_ub.append(z_i - M_ub @ delta_i)
+            z_lb.append(z_i - M_lb @ delta_i)
+            region.append(r.S @ XU - r.T - big_M[i, :] @ (1 - delta_i))
+            z_x_ub.append(z_i - (AB_i @ XU + r.c - M_lb @ (1 - delta_i)))
+            z_x_lb.append(z_i - (AB_i @ XU + r.c - M_ub @ (1 - delta_i)))
+        self.constraint("z_ub", cs.vcat(z_ub), "<=", 0)
+        self.constraint("z_lb", cs.vcat(z_lb), ">=", 0)
+        self.constraint("region", cs.vcat(region), "<=", 0)
+        self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
+        self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
