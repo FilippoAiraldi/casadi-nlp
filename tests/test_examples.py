@@ -12,7 +12,16 @@ from csnlp import Nlp, Solution, scaling, wrappers
 from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
 from csnlp.multistart.multistart_nlp import MultistartNlp
 
-OPTS = {
+QRQP_OPTS = {
+    "error_on_fail": True,
+    "expand": True,
+    "verbose": False,
+    "print_time": False,
+    "print_info": False,
+    "print_header": False,
+    "print_iter": False,
+}
+IPOPT_OPTS = {
     "expand": True,
     "print_time": False,
     "ipopt": {
@@ -59,7 +68,7 @@ class TestExamples(unittest.TestCase):
             (cs.sqrt(cs.diff(x) ** 2 + cs.diff(y) ** 2) - L / N) ** 2
         ) + g * m * cs.sum2(y)
         nlp.minimize(V)
-        nlp.init_solver(OPTS)
+        nlp.init_solver(IPOPT_OPTS)
         nlp.constraint("c1", p[:, 0], "==", [-2, 1])
         nlp.constraint("c2", p[:, -1], "==", [2, 1])
         nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
@@ -93,7 +102,7 @@ class TestExamples(unittest.TestCase):
             nlp.parameter("p0")
             nlp.parameter("p1")
             nlp.minimize(func(x))
-            nlp.init_solver(OPTS)
+            nlp.init_solver(IPOPT_OPTS)
             nlp = nlp.copy()
 
             best_sol: Solution = nlp.solve_multi(*args)
@@ -144,7 +153,7 @@ class TestExamples(unittest.TestCase):
             x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
             mpc.set_nonlinear_dynamics(F)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
-        mpc.init_solver(OPTS)
+        mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
         sol = mpc.solve(pars={"x_0": [0, 1]})
         u_opt = sol.vals["u"].full().flat
@@ -159,7 +168,7 @@ class TestExamples(unittest.TestCase):
         f = (1 - x[0]) ** 2 + (x[1] - x[0] ** 2) ** 2
         nlp.minimize(f)
         nlp.constraint("con1", cs.sumsqr(x), "<=", r)
-        nlp.init_solver(OPTS)
+        nlp.init_solver(IPOPT_OPTS)
         nlp = nlp.copy()
         r_values = np.linspace(1, 3, 25)
         f_values = []
@@ -261,7 +270,7 @@ class TestExamples(unittest.TestCase):
         x0 = cs.vertcat(0, 0, m0)
         mpc.constraint("yT", y[-1], "==", yT)
         mpc.minimize(m[0] - m[-1])
-        mpc.init_solver(OPTS)
+        mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
 
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
@@ -342,7 +351,7 @@ class TestExamples(unittest.TestCase):
         D = cs.diagcat(D1, D2).sparse()
         E = np.concatenate((E1, E2))
         mpc = wrappers.PwaMpc(
-            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
+            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=4, shooting=shooting
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
@@ -359,14 +368,9 @@ class TestExamples(unittest.TestCase):
 
         tols = (1e-6, 1e-6)
         expected = {
-            "u": np.asarray([[-3.751224743945753, -4.563681191310823]]),
-            "x": np.asarray(
-                [
-                    [-3.0, -2.9969528092116566, -1.5928861678523183],
-                    [0.0, 2.80203890175142, 5.000000009994731],
-                ]
-            ),
-            "delta": np.asarray([[1.0, 1.0], [0.0, 0.0]]),
+            "u": RESULTS["pwa_mpc_u"].reshape(u.shape[0], -1),
+            "x": RESULTS["pwa_mpc_x"],
+            "delta": RESULTS["pwa_mpc_delta"],
         }
         actual = {"u": sol.vals["u"], "x": sol.value(x), "delta": sol.vals["delta"]}
         for name, val in expected.items():
@@ -395,7 +399,7 @@ class TestExamples(unittest.TestCase):
         D2 = np.array([[1], [-1]])
         E2 = np.array([u_bnd, u_bnd])
         mpc = wrappers.PwaMpc(
-            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
+            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=4, shooting=shooting
         )
         x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
@@ -405,27 +409,14 @@ class TestExamples(unittest.TestCase):
         mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
         mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
-        mpc.init_solver(
-            {
-                "print_time": False,
-                "print_iter": False,
-                "print_info": False,
-                "print_header": False,
-            },
-            "qrqp",
-        )
-        mpc.set_switching_sequence([0, 0])
+        mpc.init_solver(QRQP_OPTS, "qrqp")
+        mpc.set_switching_sequence([0, 0, 0, 1])
         sol = mpc.solve(pars={"x_0": [-3, 0]})
 
         tols = (1e-6, 1e-6)
         expected = {
-            "u": np.asarray([[-3.751224743945753, -4.563681191310823]]),
-            "x": np.asarray(
-                [
-                    [-3.0, -2.9969528092116566, -1.5928861678523183],
-                    [0.0, 2.80203890175142, 5.000000009994731],
-                ]
-            ),
+            "u": RESULTS["pwa_mpc_u"].reshape(u.shape[0], -1),
+            "x": RESULTS["pwa_mpc_x"],
         }
         actual = {"u": sol.vals["u"], "x": sol.value(x)}
         for name, val in expected.items():
@@ -455,16 +446,7 @@ class TestExamples(unittest.TestCase):
         mpc.constraint("x_ub", x, "<=", x_bound)
         delta_u = cs.diff(u, 1, 1)
         mpc.minimize(cs.sumsqr(x) + 1e-4 * cs.sumsqr(delta_u))
-        opts = {
-            "error_on_fail": True,
-            "expand": True,
-            "verbose": False,
-            "print_time": False,
-            "print_info": False,
-            "print_header": False,
-            "print_iter": False,
-        }
-        mpc.init_solver(opts, "qrqp", type="conic")
+        mpc.init_solver(QRQP_OPTS, "qrqp", type="conic")
         x = RESULTS["lti_mpc_xs"][0]
         X, U = [x], []
         for _ in range(50):
