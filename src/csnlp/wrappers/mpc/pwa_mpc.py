@@ -15,9 +15,9 @@ from .mpc import Mpc
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-def _n(parname: str, index: int) -> str:
-    """Internal utility for the naming convention of the ``i``-th region parameters."""
-    return f"{parname}__{index}"
+def _n(parname: str, prefix: str) -> str:
+    """Internal utility for the naming convention of the TVA dynamics's parameters."""
+    return f"{parname}__{prefix}"
 
 
 @dataclass
@@ -101,6 +101,8 @@ class PwaMpc(Mpc[SymType]):
     ValueError
         Raises if the shooting method is invalid; or if any of the horizons are invalid;
         or if the number of scenarios is not a positive integer."""
+
+    tva_dynamics_name = "tva_dyn"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -244,9 +246,21 @@ class PwaMpc(Mpc[SymType]):
         self._dynamics_already_set = True
 
     def set_time_varying_affine_dynamics(self, pwa_system: Sequence[PwaRegion]) -> None:
-        r"""Sets the time-varying affine dynamics of the system for the MPC controller.
-        The possible values taken by the affine dynamics are defined by the sequence of
-        :class:`PwaRegion`.
+        r"""Sets time-varying affine dynamics as the controller's prediction model and
+        creates the corresponding dynamics constraints. The dynamics in the affine
+        time-varying form are described as
+
+        .. math:: x_{k+1} = A_k x_k + B_k u_k + c_k.
+
+        where :math:`x_k` and :math:`x_{k+1}` are the current and next state,
+        :math:`u_k` is the control action, :math:`w_k` is the disturbance, and
+        :math:`A_k, B_k, c_k` are the constant matrices of the region to be visited by
+        the state trajectory at time step `k`. By setting the dynamics with this method,
+        the user can then specify the switching sequence of regions to be active at each
+        time step along the prediction horizon via :meth:`set_switching_sequence`, and
+        solve a much simpler optimization problem, as the sequence is fixed. Instead, if
+        :meth:`set_pwa_dynamics` is used, the sequence of regions is optimized over via
+        a (usually expensive) mixed-integer optimization problem.
 
         Parameters
         ----------
@@ -261,7 +275,6 @@ class PwaMpc(Mpc[SymType]):
         ValueError
             Raises if the dimensions of any matrix in any region do not match the
             expected shape.
-
         """
         if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
@@ -273,32 +286,21 @@ class PwaMpc(Mpc[SymType]):
         nsa = ns + na
         n_ineq = pwa_system[0].T.size
 
-        # parameters defining time-varying dynamics
-        A = [self.parameter(f"A[{k}]", (ns, ns)) for k in range(N)]
-        B = [self.parameter(f"B[{k}]", (ns, na)) for k in range(N)]
-        c = [self.parameter(f"c[{k}]", (ns, 1)) for k in range(N)]
-        S = [self.parameter(f"S[{k}]", (n_ineq, nsa)) for k in range(N)]
-        T = [self.parameter(f"T[{k}]", (n_ineq, 1)) for k in range(N)]
+        prefix = self.tva_dynamics_name
+        As = cs.vertsplit_n(self.parameter(_n("A", prefix), (ns * N, ns)), N)
+        Bs = cs.vertsplit_n(self.parameter(_n("B", prefix), (ns * N, na)), N)
+        Cs = cs.vertsplit_n(self.parameter(_n("c", prefix), (ns * N, 1)), N)
+        Ss = cs.vertsplit_n(self.parameter(_n("S", prefix), (n_ineq * N, nsa)), N)
+        T = self.parameter(_n("T", prefix), (n_ineq * N, 1))
 
-        X = cs.vcat(self._states.values())
-        U = cs.vcat(self._actions_exp.values())
-
-        # set dynamics constraints and region constraints
-        if not self._is_multishooting:
+        if self._is_multishooting:
+            X, U = self._set_multishooting_tva_dynamics(As, Bs, Cs)
+        else:
             raise NotImplementedError("Single shooting not implemented yet.")
-        xs_next = []
-        for k in range(N):
-            x_next = A[k] @ X[:, k] + B[k] @ U[:, k] + c[k]
-            xs_next.append(x_next)
-        self.constraint(
-            "region",
-            cs.diagcat(*S)
-            @ cs.vertcat(*[cs.vertcat(X[:, k], U[:, k]) for k in range(N)])
-            - cs.vertcat(*T),
-            "<=",
-            0,
-        )
-        self.constraint("dyn", cs.hcat(xs_next), "==", X[:, 1:])
+
+        S = cs.dcat(Ss)
+        XU = cs.vec(cs.vertcat(X[:, :-1], U))  # NOTE: different from vvcat!
+        self.constraint("region", S @ XU - T, "<=", 0)
 
         self._pwa_system = pwa_system
         self._dynamics_already_set = True
@@ -369,12 +371,23 @@ class PwaMpc(Mpc[SymType]):
 
             if pars is None:
                 pars = {}
-            for k, idx in enumerate(self._sequence):
-                pars[_n("A", k)] = regions[idx].A
-                pars[_n("B", k)] = regions[idx].B
-                pars[_n("c", k)] = regions[idx].c
-                pars[_n("S", k)] = regions[idx].S
-                pars[_n("T", k)] = regions[idx].T
+            As = []
+            Bs = []
+            Cs = []
+            Ss = []
+            Ts = []
+            for idx in self._sequence:
+                As.append(regions[idx].A)
+                Bs.append(regions[idx].B)
+                Cs.append(regions[idx].c)
+                Ss.append(regions[idx].S)
+                Ts.append(regions[idx].T)
+            prefix = self.tva_dynamics_name
+            pars[_n("A", prefix)] = np.concatenate(As, 0)
+            pars[_n("B", prefix)] = np.concatenate(Bs, 0)
+            pars[_n("c", prefix)] = np.concatenate(Cs, 0)
+            pars[_n("S", prefix)] = np.concatenate(Ss, 0)
+            pars[_n("T", prefix)] = np.concatenate(Ts, 0)
         return self.nlp.solve(pars, vals0)
 
     @staticmethod
@@ -491,3 +504,17 @@ class PwaMpc(Mpc[SymType]):
         self.constraint("region", cs.vcat(region), "<=", 0)
         self.constraint("z_x_ub", cs.vcat(z_x_ub), "<=", 0)
         self.constraint("z_x_lb", cs.vcat(z_x_lb), ">=", 0)
+
+    def _set_multishooting_tva_dynamics(
+        self, As: Iterable[SymType], Bs: Iterable[SymType], Cs: Iterable[SymType]
+    ) -> tuple[SymType, SymType]:
+        """Internal utility to create time-varying affine dynamics constraints in
+        mutple shooting."""
+        X = cs.vcat(self._states.values())
+        U = cs.vcat(self._actions_exp.values())
+        X_next_ = []
+        for k, (A, B, C) in enumerate(zip(As, Bs, Cs)):
+            X_next_.append(A @ X[:, k] + B @ U[:, k] + C)
+        X_next = cs.hcat(X_next_)
+        self.constraint("dynamics", X_next, "==", X[:, 1:])
+        return X, U

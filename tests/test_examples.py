@@ -368,11 +368,66 @@ class TestExamples(unittest.TestCase):
             ),
             "delta": np.asarray([[1.0, 1.0], [0.0, 0.0]]),
         }
-        actual = {
-            "u": sol.vals["u"].full(),
-            "x": sol.value(x) if shooting == "single" else sol.value(x).full(),
-            "delta": sol.vals["delta"].full(),
+        actual = {"u": sol.vals["u"], "x": sol.value(x), "delta": sol.vals["delta"]}
+        for name, val in expected.items():
+            np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
+
+    @parameterized.expand([("multi",)])
+    def test__pwa_mpc__with_sequence(self, shooting: str):
+        np_random = np.random.default_rng(42)
+
+        tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
+        A1 = np.array([[1, tau], [-((tau * 2 * k1) / m), 1 - (tau * d) / m]])
+        A2 = np.array([[1, tau], [-((tau * 2 * k2) / m), 1 - (tau * d) / m]])
+        B1 = B2 = np.array([[0], [tau / m]])
+        C1, C2 = np_random.normal(scale=0.01, size=(2, A1.shape[0]))
+        S1 = np.array([[1, 0, 0]])
+        S2 = -S1
+        T1, T2 = np_random.normal(scale=0.01, size=(2, S1.shape[0]))
+        x_bnd = (5, 5)
+        u_bnd = 20
+        pwa_regions = (
+            wrappers.PwaRegion(A1, B1, C1, S1, T1),
+            wrappers.PwaRegion(A2, B2, C2, S2, T2),
+        )
+        D1 = np.array([[1, 0], [-1, 0], [0, 1], [0, -1]])
+        E1 = np.array([x_bnd[0], x_bnd[0], x_bnd[1], x_bnd[1]])
+        D2 = np.array([[1], [-1]])
+        E2 = np.array([u_bnd, u_bnd])
+        mpc = wrappers.PwaMpc(
+            nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=2, shooting=shooting
+        )
+        x, _ = mpc.state("x", 2)
+        u, _ = mpc.action("u")
+        mpc.set_time_varying_affine_dynamics(pwa_regions)
+        if shooting == "single":
+            x = mpc.states["x"]  # previous `x` is None if in single shooting
+        mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
+        mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
+        mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
+        mpc.init_solver(
+            {
+                "print_time": False,
+                "print_iter": False,
+                "print_info": False,
+                "print_header": False,
+            },
+            "qrqp",
+        )
+        mpc.set_switching_sequence([0, 0])
+        sol = mpc.solve(pars={"x_0": [-3, 0]})
+
+        tols = (1e-6, 1e-6)
+        expected = {
+            "u": np.asarray([[-3.751224743945753, -4.563681191310823]]),
+            "x": np.asarray(
+                [
+                    [-3.0, -2.9969528092116566, -1.5928861678523183],
+                    [0.0, 2.80203890175142, 5.000000009994731],
+                ]
+            ),
         }
+        actual = {"u": sol.vals["u"], "x": sol.value(x)}
         for name, val in expected.items():
             np.testing.assert_allclose(actual[name], val, *tols, err_msg=name)
 
