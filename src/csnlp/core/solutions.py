@@ -220,6 +220,10 @@ class Solution(_Protocol[SymType]):
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
 
+    @property
+    def sensitivities(self) -> dict[str, cs.DM]:
+        """The sensititivity information from the solution, if any."""
+
     def value(
         self, expr: Union[SymType, np.ndarray], eval: bool = True
     ) -> Union[SymType, cs.DM]:
@@ -359,7 +363,7 @@ class EagerSolution(Solution[SymType]):
         dual_vars: dict[str, SymType],
         dual_vals: dict[str, cs.DM],
         stats: dict[str, _Any],
-        solver_plugin: str,
+        sensitivities: Optional[dict[str, cs.DM]] = None,
     ) -> None:
         self._f = f
 
@@ -378,7 +382,9 @@ class EagerSolution(Solution[SymType]):
         self._dual_vals = dual_vals
 
         self._stats = stats
-        self._solver_plugin = solver_plugin
+        if sensitivities is None:
+            sensitivities = {}
+        self._sensitivities = sensitivities
 
     @property
     def f(self) -> float:
@@ -424,6 +430,10 @@ class EagerSolution(Solution[SymType]):
     def dual_vals(self) -> dict[str, cs.DM]:
         return self._dual_vals
 
+    @property
+    def sensitivities(self) -> dict[str, cs.DM]:
+        return self._sensitivities
+
     @staticmethod
     def from_casadi_solution(
         sol_with_stats: dict[str, _Any], nlp: "Nlp[SymType]"
@@ -459,6 +469,11 @@ class EagerSolution(Solution[SymType]):
             else:
                 raise RuntimeError(f"unknown dual variable type {n}")
 
+        sensitivities = {
+            k: sol[k]
+            for k in sol
+            if k.startswith("grad_") or k.startswith("jac_") or k.startswith("hess_")
+        }
         return EagerSolution(
             f,
             nlp._p,
@@ -474,7 +489,7 @@ class EagerSolution(Solution[SymType]):
             dual_vars,
             dual_vals,
             stats,
-            nlp.unwrapped._solver_plugin,
+            sensitivities,
         )
 
 
@@ -598,6 +613,15 @@ class LazySolution(Solution[SymType]):
             else:
                 raise RuntimeError(f"unknown dual variable type `{n}`")
         return dual_vals
+
+    @_cached_property
+    def sensitivities(self) -> dict[str, cs.DM]:
+        sol = self._sol
+        return {
+            k: sol[k]
+            for k in sol
+            if k.startswith("grad_") or k.startswith("jac_") or k.startswith("hess_")
+        }
 
     @staticmethod
     def from_casadi_solution(
