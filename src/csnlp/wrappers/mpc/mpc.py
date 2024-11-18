@@ -1,7 +1,7 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Generator
 from inspect import signature
 from math import ceil
-from typing import Callable, Literal, Optional, TypeVar, Union
+from typing import Any, Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -589,3 +589,138 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+
+    def rolling_quantities(
+        self,
+        dynamics: Union[
+            cs.Function,
+            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
+        ],
+        states_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
+        actions_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
+        disturbances_kwargs: Union[
+            None, dict[str, Any], Collection[dict[str, Any]]
+        ] = None,
+    ) -> Generator[
+        tuple[dict[str, Union[SymType, tuple[SymType, ...]]], ...], None, None
+    ]:
+        if self._dynamics is not None:
+            raise RuntimeError("Dynamics were already set.")
+        X = []
+        if isinstance(states_kwargs, dict):
+            states_kwargs = (states_kwargs,)
+        U, U_exp = [], []
+        if isinstance(actions_kwargs, dict):
+            actions_kwargs = (actions_kwargs,)
+        disturbed = disturbances_kwargs is not None
+        if disturbed:
+            if isinstance(disturbances_kwargs, dict):
+                disturbances_kwargs = (disturbances_kwargs,)
+            D = []
+
+        # create initial states' parameters
+        names = [kw["name"] for kw in states_kwargs]
+        sizes = [kw.get("size", 1) for kw in states_kwargs]
+        cumsizes = np.cumsum([0] + sizes)
+        states = {n: self.nlp.parameter(_n(n), (s, 1)) for n, s in zip(names, sizes)}
+        x = cs.vcat(states.values())
+        initial_states = {_n(n): s for n, s in states.items()}
+        if not self._is_multishooting:
+            X.append(x)
+
+        for k in range(self._prediction_horizon):
+            # create states - if single shooting, the state is given by the last state
+            # propagated via the dynamics; otherwise, if multiple shooting, create a new
+            # one and impose the dynamics via an equality constraint
+            if self._is_multishooting:
+                states = {}
+                for kw in states_kwargs:
+                    name = kw["name"]
+                    if k == 0 and not kw.get("bound_initial", True):
+                        lb, ub = -np.inf, +np.inf
+                    else:
+                        lb, ub = kw.get("lb", -np.inf), kw.get("ub", +np.inf)
+                    states[name] = self.nlp.variable(
+                        f"{name}{k}", (kw.get("size", 1), 1), lb, ub
+                    )
+                x_prev = x
+                x = cs.vcat([s[0] for s in states.values()])
+                self.nlp.constraint(f"dyn{k}", x_prev, "==", x)
+                X.append(x)
+
+            # create actions - do so only if we are still within the control horizon,
+            # and on a multiple of the spacing; otherwise, use last actions
+            if k % self._input_spacing == 0 and k < self._control_horizon:
+                actions = {
+                    kw["name"]: self.nlp.variable(
+                        f"{kw['name']}{k}",
+                        (kw.get("size", 1), 1),
+                        kw.get("lb", -np.inf),
+                        kw.get("ub", +np.inf),
+                    )
+                    for kw in actions_kwargs
+                }
+                u = cs.vcat([a[0] for a in actions.values()])
+                U.append(u)
+            U_exp.append(u)
+
+            # create disturbances
+            if disturbed:
+                disturbances = {
+                    kw["name"]: self.nlp.parameter(
+                        f"{kw['name']}{k}", (kw.get("size", 1), 1)
+                    )
+                    for kw in disturbances_kwargs
+                }
+                d = cs.vcat(disturbances.values())
+                D.append(d)
+
+            yield (states, actions, disturbances) if disturbed else (states, actions)
+
+            # compute next state via the dynamics
+            x = dynamics(x, u, d) if disturbed else dynamics(x, u)
+            if isinstance(x, (tuple, list)):
+                x = x[0]
+            if not self._is_multishooting:
+                states = dict(zip(names, cs.vertsplit(x, cumsizes)))
+                X.append(x)
+
+        # yield also the terminal state
+        if self._is_multishooting:
+            states = {}
+            for kw in states_kwargs:
+                name = kw["name"]
+                if not kw.get("bound_terminal", True):
+                    lb, ub = -np.inf, +np.inf
+                else:
+                    lb, ub = kw.get("lb", -np.inf), kw.get("ub", +np.inf)
+                states[name] = self.nlp.variable(
+                    f"{name}{k + 1}", (kw.get("size", 1), 1), lb, ub
+                )
+            x_prev = x
+            x = cs.vcat([s[0] for s in states.values()])
+            self.nlp.constraint(f"dyn{k + 1}", x_prev, "==", x)
+            X.append(x)
+
+        yield (states, {}, {}) if disturbed else (states, {})
+
+        # save all rolled-out lists of variables to internal dictionaries
+        X = cs.hcat(X)
+        self._states.update(zip(names, cs.vertsplit(X, cumsizes)))
+        self._initial_states.update(initial_states)
+
+        U, U_exp = cs.hcat(U), cs.hcat(U_exp)
+        names = [kw["name"] for kw in actions_kwargs]
+        cumsizes = np.cumsum([0] + [kw.get("size", 1) for kw in actions_kwargs])
+        self._actions.update(zip(names, cs.vertsplit(U, cumsizes)))
+        self._actions_exp.update(zip(names, cs.vertsplit(U_exp, cumsizes)))
+
+        if disturbed:
+            D = cs.hcat(D)
+            names = (kw["name"] for kw in disturbances_kwargs)
+            cumsizes = np.cumsum(
+                [0] + [kw.get("size", 1) for kw in disturbances_kwargs]
+            )
+            self._disturbances.update(zip(names, cs.vertsplit(D, cumsizes)))
+
+        self._dynamics = dynamics

@@ -354,6 +354,135 @@ class TestMpc(unittest.TestCase):
 
         self.assertIn(repr(mpc), repr(mpc2))
 
+    @parameterized.expand([("single",), ("multi",)])
+    def test_rolling_quantities(self, shooting: str):
+        Np = np.random.randint(10, 20)
+        Nc = np.random.randint((Np - 2) // 2, Np - 2)
+        space = np.random.randint(1, Nc // 2)
+        mpc = Mpc[cs.SX](
+            nlp=Nlp(sym_type="SX"),
+            prediction_horizon=Np,
+            control_horizon=Nc,
+            input_spacing=space,
+            shooting=shooting,
+        )
+        nxs = (2, 3)
+        nus = (1, 2)
+        nd = sum(nxs)
+        A = np.full((nd, nd), 1.0)
+        B = np.full((nd, sum(nus)), 1.0)
+        F = lambda x, u, d: (A @ x + B @ u + d, object())
+        x_kws = [
+            {
+                "name": "x0",
+                "size": nxs[0],
+                "lb": -1,
+                "ub": 2,
+                "bound_initial": False,
+                "bound_terminal": True,
+            },
+            {
+                "name": "x1",
+                "size": nxs[1],
+                "lb": -3,
+                "ub": 4,
+                "bound_initial": True,
+                "bound_terminal": False,
+            },
+        ]
+        u_kws = [
+            {"name": "u0", "size": nus[0], "lb": -5, "ub": 6},
+            {"name": "u1", "size": nus[1], "lb": -7, "ub": 8},
+        ]
+        d_kws = {"name": "d", "size": nd}
+
+        # checkout rolling outputs
+        generator = mpc.rolling_quantities(F, x_kws, u_kws, d_kws)
+        for k, (states, actions, disturbances) in enumerate(generator):
+            for i in range(len(nxs)):
+                name = f"x{i}"
+                self.assertTrue(name in states)
+                if shooting == "single":
+                    state = states[name]
+                    self.assertTupleEqual(state.shape, (nxs[i], 1))
+                else:
+                    state, lam_lbx, lam_ubx = states[name]
+                    expected_shape = (
+                        (0, 1)
+                        if (k == 0 and not x_kws[i]["bound_initial"])
+                        or (k == Np and not x_kws[i]["bound_terminal"])
+                        else (nxs[i], 1)
+                    )
+                    self.assertTupleEqual(state.shape, (nxs[i], 1))
+                    self.assertTupleEqual(lam_lbx.shape, expected_shape)
+                    self.assertTupleEqual(lam_ubx.shape, expected_shape)
+
+            if k < Np:
+                for i in range(len(nus)):
+                    name = f"u{i}"
+                    self.assertTrue(name in actions)
+                    action, lam_lbu, lam_ubu = actions[name]
+                    expected_shape = (nus[i], 1)
+                    self.assertTupleEqual(action.shape, expected_shape)
+                    self.assertTupleEqual(lam_lbu.shape, expected_shape)
+                    self.assertTupleEqual(lam_ubu.shape, expected_shape)
+                self.assertTrue("d" in disturbances)
+                self.assertTupleEqual(disturbances["d"].shape, (nd, 1))
+            else:
+                self.assertEqual(len(actions), 0)
+                self.assertEqual(len(disturbances), 0)
+
+        # check dict properties
+        for i in range(len(nxs)):
+            name = f"x{i}"
+            self.assertTrue(name in mpc.states)
+            self.assertTupleEqual(mpc.states[name].shape, (nxs[i], Np + 1))
+        for i in range(len(nus)):
+            name = f"u{i}"
+            self.assertTrue(name in mpc.actions)
+            self.assertTupleEqual(mpc.actions[name].shape, (nus[i], ceil(Nc / space)))
+            self.assertTrue(name in mpc.actions_expanded)
+            self.assertTupleEqual(mpc.actions_expanded[name].shape, (nus[i], Np))
+        self.assertTrue("d" in mpc.disturbances)
+        self.assertTupleEqual(mpc.disturbances["d"].shape, (nd, Np))
+
+        # check lb and ub on primal variables
+        lbx = [np.full(nx, kw["lb"]) for nx, kw in zip(nxs, x_kws)]
+        ubx = [np.full(nx, kw["ub"]) for nx, kw in zip(nxs, x_kws)]
+        lbu = np.concatenate([np.full(nu, kw["lb"]) for nu, kw in zip(nus, u_kws)])
+        ubu = np.concatenate([np.full(nu, kw["ub"]) for nu, kw in zip(nus, u_kws)])
+        if shooting == "single":
+            np.testing.assert_array_equal(np.tile(lbu, ceil(Nc / space)), mpc.lbx.data)
+            np.testing.assert_array_equal(np.tile(ubu, ceil(Nc / space)), mpc.ubx.data)
+        else:
+            LBX, UBX = [], []
+            for k in range(Np):
+                if k == 0:
+                    LBX.extend(
+                        np.full(nx, kw["lb"] if kw["bound_initial"] else -np.inf)
+                        for nx, kw in zip(nxs, x_kws)
+                    )
+                    UBX.extend(
+                        np.full(nx, kw["ub"] if kw["bound_initial"] else +np.inf)
+                        for nx, kw in zip(nxs, x_kws)
+                    )
+                else:
+                    LBX.extend(lbx)
+                    UBX.extend(ubx)
+                if k % space == 0 and k < Nc:
+                    LBX.append(lbu)
+                    UBX.append(ubu)
+            LBX.extend(
+                np.full(nx, kw["lb"] if kw["bound_terminal"] else -np.inf)
+                for nx, kw in zip(nxs, x_kws)
+            )
+            UBX.extend(
+                np.full(nx, kw["ub"] if kw["bound_terminal"] else +np.inf)
+                for nx, kw in zip(nxs, x_kws)
+            )
+            np.testing.assert_array_equal(np.concatenate(LBX), mpc.lbx.data)
+            np.testing.assert_array_equal(np.concatenate(UBX), mpc.ubx.data)
+
 
 class TestPwaMpc(unittest.TestCase):
     def test_pwa_dynamics__raises__if_dynamics_already_set(self):
