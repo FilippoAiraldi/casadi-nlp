@@ -13,7 +13,7 @@ classes and utilities to model, solve and analyse nonlinear (but not only) progr
 ==================== =======================================================
 """
 
-__version__ = "1.6.3rc2"
+__version__ = "1.6.3.post1"
 
 __all__ = ["Nlp", "Solution", "multistart", "scaling"]
 
