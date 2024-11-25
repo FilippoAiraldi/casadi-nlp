@@ -325,7 +325,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         )
 
     def set_affine_dynamics(
-        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType]
+        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType] = None
     ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
         if D is None:
             raise ValueError(
