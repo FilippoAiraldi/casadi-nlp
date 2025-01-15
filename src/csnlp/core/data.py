@@ -43,11 +43,12 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
     if ndim == 0:
         return x.item()
     if ndim == 1:
-        indices = range(x.shape[0])
-        shape = (x.shape[0], 1)
+        numel = x.size
+        shape = (numel, 1)
+        indices = range(numel)
     elif ndim == 2:
-        indices = itertools.product(range(x.shape[0]), range(x.shape[1]))
         shape = x.shape
+        indices = np.ndindex(shape)
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
     m: Union[cs.SX, cs.MX] = cls(*shape)
@@ -80,8 +81,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
     shape = x.shape
     y = np.empty(shape, object)
-    indices = itertools.product(range(shape[0]), range(shape[1]))
-    for idx in indices:
+    for idx in np.ndindex(shape):
         y[idx] = x[idx]
     return y
 

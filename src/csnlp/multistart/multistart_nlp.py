@@ -28,25 +28,31 @@ def _n(sym_name: str, scenario: int) -> str:
     return f"{sym_name}__{scenario}"
 
 
-def _chained_subevalf(
-    expr: Union[SymType, np.ndarray],
+def _chained_substitute(
+    expr: SymType,
     old_vars: dict[str, SymType],
     new_vars: dict[str, SymType],
     old_pars: dict[str, SymType],
     new_pars: dict[str, SymType],
     old_dual_vars: Optional[dict[str, SymType]] = None,
     new_dual_vars: Optional[dict[str, SymType]] = None,
-    eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
-    """Internal utility to perform :func:`subevalf` on variables, dual variables and
+    """Internal utility to perform substitutions on variables, dual variables and
     parameters in chain."""
-    if old_dual_vars is not None and old_dual_vars:
-        expr = subsevalf(expr, old_dual_vars, new_dual_vars, False)
-    if old_vars:
-        expr = subsevalf(expr, old_vars, new_vars, False)
-    if old_pars:
-        return subsevalf(expr, old_pars, new_pars, eval)
-    return cs.evalf(expr) if eval else expr
+    old = []
+    new = []
+    for n in old_vars:
+        old.append(old_vars[n])
+        new.append(new_vars[n])
+    for n in old_pars:
+        old.append(old_pars[n])
+        new.append(new_pars[n])
+    if old_dual_vars is not None:
+        assert new_dual_vars is not None, "Both old and new dual vars must be given."
+        for n in old_dual_vars:
+            old.append(old_dual_vars[n])
+            new.append(new_dual_vars[n])
+    return cs.substitute(expr, cs.vvcat(old), cs.vvcat(new))
 
 
 def _cmp_key(sol: dict[str, Any], plugin_solver: str) -> tuple[bool, bool, float]:
@@ -228,8 +234,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         expr_ = out[0]  # slack-relaxed expression in the form h(x,p)<=0 or g(x,p)==0
         op_: Literal["==", "<="] = "==" if op == "==" else "<="
         for i in range(self._starts):
-            expr_i = _chained_subevalf(
-                expr_, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
+            expr_i = _chained_substitute(
+                expr_, vars, self._vars_i(i), pars, self._pars_i(i)
             )
             self._stacked_nlp.constraint(_n(name, i), expr_i, op_, 0, False, False)
         return out
@@ -240,9 +246,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         vars = self.variables
         pars = self.parameters
         self._fs: list[SymType] = [
-            _chained_subevalf(
-                objective, vars, self._vars_i(i), pars, self._pars_i(i), eval=False
-            )
+            _chained_substitute(objective, vars, self._vars_i(i), pars, self._pars_i(i))
             for i in range(self._starts)
         ]
         self._stacked_nlp.minimize(sum(self._fs))
@@ -312,7 +316,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             # get the value of p, and, lam g, lam h and lam lbx and lam ubx in a single
             # substitution to save some time
             all_vals = multi_sol.value(
-                _chained_subevalf(
+                _chained_substitute(
                     all_vars,
                     vars_,
                     self._vars_i(idx),
@@ -320,7 +324,6 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
                     self._pars_i(idx),
                     duals_,
                     self._dual_vars_i(idx),
-                    False,
                 )
             )
             x, lam_g_and_h, lam_lbx_and_ubx, p = cs.vertsplit(all_vals, splits)

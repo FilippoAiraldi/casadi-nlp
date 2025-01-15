@@ -260,15 +260,18 @@ class HasObjective(HasConstraints[SymType]):
         vals0: Optional[dict[str, npt.ArrayLike]],
     ) -> dict[str, npt.ArrayLike]:
         """Internal utility to convert pars and initial-val dicts to solver kwargs."""
-        if pars is None:
-            pars = {}
-        if parsdiff := self._pars.keys() - pars.keys():
-            raise RuntimeError(
-                "Trying to solve the NLP with unspecified parameters: "
-                + ", ".join(parsdiff)
-                + "."
-            )
-        kwargs["p"] = subsevalf(self._p, self._pars, pars)
+        if self._pars:
+            if pars is None:
+                pars = {}
+            if parsdiff := self._pars.keys() - pars.keys():
+                raise RuntimeError(
+                    "Trying to solve the NLP with unspecified parameters: "
+                    + ", ".join(parsdiff)
+                    + "."
+                )
+            kwargs["p"] = subsevalf(self._p, self._pars, pars)
+        else:
+            kwargs["p"] = cs.DM()
         if vals0 is not None:
             if vals0diff := self._vars.keys() - vals0.keys():
                 vals0.update({v: 0 for v in vals0diff})
