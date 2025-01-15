@@ -5,7 +5,7 @@ import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from csnlp.multistart.multistart_nlp import _chained_subevalf, _n
+from csnlp.multistart.multistart_nlp import _chained_substitute, _n
 
 from ..wrapper import Nlp
 from .mpc import Mpc, _callable2csfunc, _create_ati_mats
@@ -274,7 +274,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         if soft:
             slacks = []
         for i in range(self._n_scenarios):
-            expr_i = _chained_subevalf(
+            expr_i = _chained_substitute(
                 expr,
                 self.single_states,
                 self.states_i(i),
@@ -282,7 +282,6 @@ class ScenarioBasedMpc(Mpc[SymType]):
                 self.disturbances_i(i),
                 self.single_slacks,
                 self.slacks_i(i),
-                eval=False,
             )
 
             out = self.constraint(_n(name, i), expr_i, op, 0, soft)
@@ -310,7 +309,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         objective_ = objective / self._n_scenarios
         return self.nlp.minimize(
             sum(
-                _chained_subevalf(
+                _chained_substitute(
                     objective_,
                     self.single_states,
                     self.states_i(i),
@@ -318,7 +317,6 @@ class ScenarioBasedMpc(Mpc[SymType]):
                     self.disturbances_i(i),
                     self.single_slacks,
                     self.slacks_i(i),
-                    eval=False,
                 )
                 for i in range(self._n_scenarios)
             )
