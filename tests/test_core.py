@@ -6,7 +6,6 @@ from typing import Union
 
 import casadi as cs
 import numpy as np
-from casadi.tools import entry, struct_MX, struct_SX
 from parameterized import parameterized
 
 from csnlp import Nlp
@@ -176,23 +175,17 @@ class TestSolutions(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             subsevalf(x**2, x, y, eval=True)
 
-    @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
+    @parameterized.expand([(cs.SX,), (cs.MX,)])
     def test_subsevalf__computes_correct_value(
-        self,
-        XX: Union[type[cs.SX], type[cs.MX]],
-        struct_X: Union[type[struct_SX], type[struct_MX]],
+        self, XX: Union[type[cs.SX], type[cs.MX]]
     ):
         shape = (3, 4)
-
         V = {
             "x": (XX.sym("x", *shape), np.random.rand(*shape) * 10),
             "y": (XX.sym("y", *shape), np.random.rand(*shape) * 5),
             "z": (XX.sym("z"), np.random.rand() + 1),
         }
-        V_vec = cs.vertcat(*(cs.vec(v) for _, v in V.values()))
-        V_struct = struct_X([entry(n, expr=s) for n, (s, _) in V.items()])
         expr, expected_val = ((V["x"][i] / V["y"][i]) ** V["z"][i] for i in range(2))
-
         actual_vals = [
             subsevalf(
                 subsevalf(
@@ -217,16 +210,13 @@ class TestSolutions(unittest.TestCase):
                 {n: v for n, (_, v) in V.items()},
                 eval=True,
             ),
-            subsevalf(expr, V_struct, V_struct(V_vec), eval=True),
         ]
         for actual_val in actual_vals:
             np.testing.assert_allclose(expected_val, actual_val)
 
-    @parameterized.expand([(cs.SX, struct_SX), (cs.MX, struct_MX)])
+    @parameterized.expand([(cs.SX,), (cs.MX,)])
     def test_eager_solution__computes_correct_value(
-        self,
-        XX: Union[type[cs.SX], type[cs.MX]],
-        struct_X: Union[type[struct_SX], type[struct_MX]],
+        self, XX: Union[type[cs.SX], type[cs.MX]]
     ):
         shape = (3, 4)
         V = {
@@ -256,11 +246,6 @@ class TestSolutions(unittest.TestCase):
             )
             for i in range(2)
         )
-
-        V_vec = cs.vertcat(*(cs.vec(v) for _, v in V.values()))
-        D_vec = cs.vertcat(*(cs.vec(d) for _, d in D.values()))
-        V_struct = struct_X([entry(n, expr=s) for n, (s, _) in V.items()])
-        D_struct = struct_X([entry(n, expr=s) for n, (s, _) in D.items()])
         S = EagerSolution(
             0.0,
             V["p"][0],
@@ -271,10 +256,10 @@ class TestSolutions(unittest.TestCase):
             cs.veccat(D["g"][1], D["h"][1]),
             cs.veccat(D["lbx"][0], D["ubx"][0]),
             cs.veccat(D["lbx"][1], D["ubx"][1]),
-            V_struct,
-            V_struct(V_vec),
-            D_struct,
-            D_struct(D_vec),
+            {n: s for n, (s, _) in V.items()},
+            {n: v for n, (_, v) in V.items()},
+            {n: s for n, (s, _) in D.items()},
+            {n: v for n, (_, v) in D.items()},
             {},
             "a_solver_plugin",
         )

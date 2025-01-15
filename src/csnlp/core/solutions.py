@@ -14,8 +14,6 @@ from typing import Union
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
-from casadi.tools.structure3 import CasadiStructured as _CasadiStructured
-from casadi.tools.structure3 import DMStruct as _DMStruct
 
 from .data import array2cs as _array2cs
 from .data import cs2array as _cs2array
@@ -637,14 +635,14 @@ def _internal_subsevalf_cs(
     eval: bool,
 ) -> Union[SymType, cs.DM]:
     """Internal utility for substituting and evaluting casadi objects."""
-    if isinstance(expr, (cs.DM, _DMStruct)):
+    if isinstance(expr, cs.DM):
         return expr
 
     if isinstance(old, dict):
         for name, o in old.items():
             expr = cs.substitute(expr, o, new[name])  # type: ignore[index]
     elif isinstance(old, _Iterable) and not isinstance(
-        old, (cs.SX, cs.MX, _CasadiStructured)
+        old, (cs.SX, cs.MX)
     ):
         for o, n in zip(old, new):
             expr = cs.substitute(expr, o, n)
@@ -706,9 +704,9 @@ def subsevalf(
     ----------
     expr : casadi.SX, MX or an array of these
         Expression for substitution and, possibly, evaluation.
-    old : casadi.SX or MX or struct, dict, iterable of these
+    old : casadi.SX or MX or dict, iterable of these
         Old variable to be substituted.
-    new : numpy.array or casadi.SX, MX, DM or struct, dict, iterable of these
+    new : numpy.array or casadi.SX, MX, DM or dict, iterable of these
         New variable that substitutes the old one. If a collection, it is
         assumed the type is the same of ``old`` (so, old and new should share
         collection type).
