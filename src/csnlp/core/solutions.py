@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from ..nlps.nlp import Nlp
 
 SymType = _TypeVar("SymType", cs.SX, cs.MX)
+SymOrNumType = _TypeVar("SymOrNumType", cs.SX, cs.MX, cs.DM, int, float, np.ndarray)
 
 
 def _is_infeas(status: str, solver_plugin: str) -> Optional[bool]:
@@ -628,36 +629,53 @@ class LazySolution(Solution[SymType]):
         )
 
 
+def _broadcast_like(x: SymOrNumType, other: SymOrNumType) -> Union[SymType, np.ndarray]:
+    """Internal utility to broadcast a value, if numerical, to the other's shape."""
+    if isinstance(x, (np.ndarray, cs.DM)):
+        target_shape = other.shape
+        if x.shape == target_shape or (
+            other.is_vector()
+            and (x.size if isinstance(x, np.ndarray) else x.numel()) == other.numel()
+        ):
+            return x
+        return np.broadcast_to(x, target_shape)
+    if isinstance(x, (int, float)):
+        return np.full(other.shape, x)
+    return x  # cs.SX or cs.MX
+
+
 def _internal_subsevalf_cs(
     expr: SymType,
     old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
     eval: bool,
 ) -> Union[SymType, cs.DM]:
     """Internal utility for substituting and evaluting casadi objects."""
     if isinstance(expr, cs.DM):
         return expr
-
-    if isinstance(old, dict):
-        for name, o in old.items():
-            expr = cs.substitute(expr, o, new[name])  # type: ignore[index]
-    elif isinstance(old, _Iterable) and not isinstance(
-        old, (cs.SX, cs.MX)
-    ):
-        for o, n in zip(old, new):
-            expr = cs.substitute(expr, o, n)
+    if isinstance(old, (cs.SX, cs.MX)):
+        new_expr = cs.substitute(expr, old, new)
     else:
-        expr = cs.substitute(expr, old, new)
-
-    if eval:
-        expr = cs.evalf(expr)
-    return expr
+        old_vals = []
+        new_vals = []
+        if isinstance(old, dict):
+            assert isinstance(new, dict), "old and new should be of the same type"
+            for name, old_val in old.items():
+                new_val = new[name]
+                old_vals.append(old_val)
+                new_vals.append(_broadcast_like(new_val, old_val))
+        else:  # iterable
+            for old_val, new_val in zip(old, new):
+                old_vals.append(old_val)
+                new_vals.append(_broadcast_like(new_val, old_val))
+        new_expr = cs.substitute(expr, cs.vvcat(old_vals), cs.vvcat(new_vals))
+    return cs.evalf(new_expr) if eval else new_expr
 
 
 def _internal_subsevalf_np(
     expr: np.ndarray,
     old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
     eval: bool,
 ) -> Union[SymType, np.ndarray, cs.DM]:
     """Internal utility for substituting and evaluting arrays of casadi objects."""
@@ -694,7 +712,7 @@ def _internal_subsevalf_np(
 def subsevalf(
     expr: Union[SymType, np.ndarray],
     old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymType, dict[str, SymType], _Iterable[SymType]],
+    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
     eval: bool = True,
 ) -> Union[SymType, cs.DM, np.ndarray]:
     """Substitutes the old variables with the new ones in the symbolic expression,
@@ -704,12 +722,12 @@ def subsevalf(
     ----------
     expr : casadi.SX, MX or an array of these
         Expression for substitution and, possibly, evaluation.
-    old : casadi.SX or MX or dict, iterable of these
+    old : casadi.SX or MX or dict/iterable of these
         Old variable to be substituted.
-    new : numpy.array or casadi.SX, MX, DM or dict, iterable of these
+    new : numpy.array or casadi.SX, MX, DM, int, float, or dict/iterable of these
         New variable that substitutes the old one. If a collection, it is
         assumed the type is the same of ``old`` (so, old and new should share
-        collection type).
+        collection type), e.g., if ``old`` is a dict, ``new`` should be a dict.
     eval : bool, optional
         Evaluates numerically the new expression. By default, ``True``.
 
