@@ -8,6 +8,7 @@
 import pickle
 from copy import _reconstruct
 from copy import deepcopy as _deepcopy
+from functools import partial
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
 from typing import TYPE_CHECKING
@@ -217,7 +218,7 @@ def save(
 
         expected_ext = ".bl2"
         open_fun = open
-        compress_fun = blosc2.compress
+        compress_fun = partial(blosc2.compress, typesize=None)
     elif compression == "matlab":
         expected_ext = ".mat"
     elif compression == "numpy":
