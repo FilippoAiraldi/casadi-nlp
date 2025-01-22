@@ -4,16 +4,30 @@ not optimized for performance. They are meant to be used as a fallback when the 
 really does not provide the required functionality.
 """
 
-from math import sqrt as _sqrt
+import decimal as D
+import math
+from itertools import product as _product
 from typing import TYPE_CHECKING, Literal, TypeVar, Union
 
 import casadi as cs
+import numpy as np
+import numpy.typing as npt
 
 if TYPE_CHECKING:
     from ..nlps.nlp import Nlp
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
-SQRT2 = _sqrt(2)
+SQRT2 = math.sqrt(2)
+E = D.Decimal.exp(D.Decimal("1"))
+HALF = D.Decimal("0.5")
+PI = D.Decimal(  # 258 decimal digits
+    "3.14159265358979323846264338327950288419716939937510582097494459230781640628620899"
+    "8628034825342117067982148086513282306647093844609550582231725359408128481117450284"
+    "1027019385211055596446229489549303819644288109756659334461284756482337867831652712"
+    "01909145648566"
+)
+SQRT2PI = (2 * PI).sqrt()
+LNSQRT2PI = SQRT2PI.ln()
 
 
 def log(
@@ -299,3 +313,165 @@ def norm_inf(
     nlp.constraint(f"{name}_norm_inf_aux_con_lb", x, ">=", -t)
     nlp.constraint(f"{name}_norm_inf_aux_con_ub", x, "<=", t)
     return t
+
+
+def godfrey_coefficients(
+    g: Union[int, float], n: int, scaled: bool = True
+) -> npt.NDArray[np.object_]:
+    """Computes the coefficients of the Godfrey series for the Lanczos' approximation of
+    the gamma function.
+
+    Parameters
+    ----------
+    g : int or float
+        The constant :math:`g` in the Lanczos' approximation.
+    n : int
+        The number of coefficients to compute.
+    prec : int, optional
+        The precision of the computations for :class:`decimal.Decimal`, by default 128.
+
+    Returns
+    -------
+    array of decimal.Decimal
+        Returns a 1D array of the coefficients of the Godfrey series. These are
+        instances of :class:`decimal.Decimal`.
+
+    Notes
+    -----
+    Requires :mod:`scipy` to be installed. For important details, see
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/sf_gamma/lgamma.html
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/lanczos.html
+     - https://www.mrob.com/pub/ries/lanczos-gamma.html
+    """
+    # to increase precision
+    #  - we use python ints instead of numpy ints (that's the reason for dtype=object)
+    #  - we use decimals for the final computations instead of floats
+
+    from scipy.special import factorial, factorial2
+
+    N = np.arange(2 * n)
+    FAC = factorial(N, exact=True).astype(object)
+
+    # compute Dc (ints)
+    Dc = 2 * factorial2(2 * N[:n] - 1, exact=True)
+    Dc[0] = Dc[1]  # correct how factorial2(0) works
+
+    # compute Dr (ints)
+    elems = [-FAC[2 * k + 2] // (2 * FAC[k] * FAC[k + 1]) for k in range(n - 1)]
+    Dr = np.asarray([1] + elems, dtype=object)
+
+    # compute C (ints)
+    C = np.empty((n, n), dtype=object)
+    for r, c in _product(range(n), repeat=2):
+        if c > r:
+            C[r, c] = 0
+        elif r == 0 and c == 0:
+            C[r, c] = 1  # C(1, 1) = 1 / 2 in reality
+        else:
+            sign = 1 if (r + c) % 2 == 0 else -1
+            C[r, c] = (
+                sign
+                * 2  # times 2
+                * 4**c
+                * r
+                * FAC[r + c - 1]
+                // FAC[r - c]
+                // FAC[2 * c]
+            )
+
+    # compute B (ints)
+    B = np.empty((n, n), dtype=object)
+    for r, c in _product(range(n), repeat=2):
+        if r == 0:
+            B[r, c] = 1
+        elif r > c:
+            B[r, c] = 0
+        else:
+            sign = 1 if (c - r) % 2 == 0 else -1
+            B[r, c] = sign * math.comb(c + r - 1, 2 * r - 1)
+
+    # compute F and final coefficients (decimals)
+    v = N[:n]
+    G = D.Decimal(str(g))
+    F = 2 ** (-HALF) * (E / (2 * (v + G) + 1)) ** (v + HALF)  # div 2
+
+    # compute coefficients
+    coeffs = ((Dr.reshape(-1, 1) * B) @ (C * Dc)) @ F
+    return coeffs * G.exp() / SQRT2PI if scaled else coeffs
+
+
+def gammaln(
+    z: Union[cs.SX, cs.MX, cs.DM], g: Union[int, float], n: int, prec: int = 128
+) -> Union[cs.SX, cs.MX, cs.DM]:
+    """Computes the logarithm of the gamma function using the Lanczos approximation.
+    Only valid for non-negative real scalars.
+
+    Parameters
+    ----------
+    z : casadi.SX, MX or DM
+        The value at which to compute the logarithm of the gamma function.
+    g : int or float
+        The constant :math:`g` in the Lanczos' approximation.
+    n : int
+        The number of coefficients to compute for the approximation.
+    prec : int, optional
+        The precision of the computations for :class:`decimal.Decimal`, by default 128.
+
+    Returns
+    -------
+    casadi.SX, MX or DM
+        The value of the logarithm of the gamma function at ``z``.
+
+    Notes
+    -----
+    Requires :mod:`scipy` to be installed. For important details, see
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/sf_gamma/lgamma.html
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/lanczos.html
+     - https://www.mrob.com/pub/ries/lanczos-gamma.html
+    """
+    assert z.is_scalar(), "z must be a scalar"
+
+    with D.localcontext() as ctx:
+        ctx.prec = prec
+        p = godfrey_coefficients(g, n, False)
+        logLg_const = p[0].ln()
+
+    A = 0.0
+    for i in range(1, len(p)):
+        A += float(p[i] / p[0]) / (z - 1 + i)
+    logLg = float(logLg_const) + cs.log1p(A)
+    return (z - 0.5) * cs.log((z + g - 0.5) / math.e) + logLg
+    # cs.if_else(z < 1, cs.substitute(out, z, z + 1) - cs.log(z), out)
+
+
+def digamma(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
+    """Computes the digamma function via asymptotic expansion.
+    Only valid for non-negative real scalars.
+
+    Parameters
+    ----------
+    z : casadi.SX, MX or DM
+        The value at which to compute the logarithm of the gamma function.
+    n : int, optional
+        The number of coefficients to compute for the approximation.
+
+    Returns
+    -------
+    casadi.SX, MX or DM
+        The value of the digamma function at ``z``.
+
+    Notes
+    -----
+    Requires :mod:`scipy` to be installed. For important details, see
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/sf_gamma/digamma.html
+    """
+    # we shift by one since digamma(z) = digamma(z + 1) - 1 / z, and the approximation
+    # is not good for z < 1
+
+    from scipy.special import bernoulli
+
+    N_2 = 2 * np.arange(1, n + 1)
+    B = bernoulli(2 * n)[2::2]
+    z1p = z + 1
+    powers = cs.power(z1p, N_2)
+    return -1 / z + cs.log1p(z) - 0.5 / z1p - cs.sum1(1 / ((N_2 / B) * powers))
