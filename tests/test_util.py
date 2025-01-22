@@ -10,6 +10,7 @@ import casadi as cs
 import cvxpy as cp
 import numpy as np
 from parameterized import parameterized
+from scipy.special import digamma, gammaln
 from scipy.stats import norm
 
 from csnlp import Nlp
@@ -212,6 +213,101 @@ class TestMath(unittest.TestCase):
 
         np.testing.assert_allclose(f_cp, f_csnlp, rtol=1e-6, atol=1e-6)
         np.testing.assert_allclose(x_cp, x_csnlp, rtol=1e-6, atol=1e-6)
+
+    @parameterized.expand(
+        [
+            (
+                5,
+                7,
+                [
+                    1.000000000190015,
+                    76.18009172947146,
+                    -86.50532032941677,
+                    24.01409824083091,
+                    -1.231739572450155,
+                    0.1208650973866179e-2,
+                    -0.5395239384953e-5,
+                ],
+            ),
+            (
+                7,
+                9,
+                [
+                    0.99999999999980993227684700473478,
+                    676.520368121885098567009190444019,
+                    -1259.13921672240287047156078755283,
+                    771.3234287776530788486528258894,
+                    -176.61502916214059906584551354,
+                    12.507343278686904814458936853,
+                    -0.13857109526572011689554707,
+                    9.984369578019570859563e-6,
+                    1.50563273514931155834e-7,
+                ],
+            ),
+            (
+                8,
+                12,
+                [
+                    0.9999999999999999298,
+                    1975.3739023578852322,
+                    -4397.3823927922428918,
+                    3462.6328459862717019,
+                    -1156.9851431631167820,
+                    154.53815050252775060,
+                    -6.2536716123689161798,
+                    0.034642762454736807441,
+                    -7.4776171974442977377e-7,
+                    6.3041253821852264261e-8,
+                    -2.7405717035683877489e-8,
+                    4.0486948817567609101e-9,
+                ],
+            ),
+            (
+                4.7421875,
+                15,
+                [
+                    0.99999999999999709182,
+                    57.156235665862923517,
+                    -59.597960355475491248,
+                    14.136097974741747174,
+                    -0.49191381609762019978,
+                    0.33994649984811888699e-4,
+                    0.46523628927048575665e-4,
+                    -0.98374475304879564677e-4,
+                    0.15808870322491248884e-3,
+                    -0.21026444172410488319e-3,
+                    0.21743961811521264320e-3,
+                    -0.16431810653676389022e-3,
+                    0.84418223983852743293e-4,
+                    -0.26190838401581408670e-4,
+                    0.36899182659531622704e-5,
+                ],
+            ),
+        ]
+    )
+    def test_godfrey_coefficients(self, g, n, expected):
+        actual = math.godfrey_coefficients(g, n).astype(float)
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+
+    def test_gammaln(self):
+        z = cs.SX.sym("z")
+        y = math.gammaln(z, 9, 12)
+        cs_gammaln = cs.Function("gammaln", [z], [y])
+
+        z = np.linspace(0.0, 10, 10000)
+        expected = gammaln(z)
+        actual = cs_gammaln(z).full().flatten()
+        np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
+
+    def test_digamma(self):
+        z = cs.SX.sym("z")
+        y = math.digamma(z, 3)
+        cs_digamma = cs.Function("digamma", [z], [y])
+
+        z = np.linspace(1e-6, 10, 10000)
+        expected = digamma(z)
+        actual = cs_digamma(z).full().flatten()
+        np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
 
 
 if __name__ == "__main__":
