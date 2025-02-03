@@ -2,7 +2,6 @@
 to convert to and from numpy arrays and CasADi symbolic variables, and how to find
 the indices of a symbolic variable in a vector of symbols."""
 
-import itertools
 from typing import Union
 
 import casadi as cs
