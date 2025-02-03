@@ -15,7 +15,6 @@ from ..core.solutions import (
     LazySolution,
     Solution,
     _is_infeas,
-    subsevalf,
 )
 from ..nlps.nlp import Nlp
 from ..nlps.objective import _solve_and_get_stats
