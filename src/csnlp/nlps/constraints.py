@@ -453,12 +453,13 @@ class HasConstraints(HasVariables[SymType]):
 
             # remove constraints and re-create corresponding multipliers
             old_con = cs.vec(old_con)  # flatten the constraint - cannot do otherwise
-            idx_ = [i for i in range(old_con.size1()) if i not in idx_to_remove]
-            new_con = old_con[idx_]
-            self._cons[name] = new_con
-            self._dual_vars[this_name_lam] = self._sym_type.sym(
-                this_name_lam, new_con.size1()
-            )
+            idx_to_keep = [i for i in range(old_con.size1()) if i not in idx_to_remove]
+            if idx_to_keep:
+                new_con = old_con[idx_to_keep]
+                self._cons[name] = new_con
+                self._dual_vars[this_name_lam] = self._sym_type.sym(
+                    this_name_lam, new_con.size1()
+                )
 
         # re-create constraints and multipliers vectors, and refresh the solver
         new_cons = []
