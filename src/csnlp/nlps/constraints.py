@@ -229,7 +229,7 @@ class HasConstraints(HasVariables[SymType]):
         mub: np.ma.MaskedArray = np.ma.masked_array(ub, np.ma.nomask)
         if self._remove_redundant_x_bounds:
             mlb.mask = np.isneginf(lb)
-            mub.mask = np.isposinf(lb)
+            mub.mask = np.isposinf(ub)
 
         self._lbx = np.ma.concatenate((self._lbx, mlb))
         self._ubx = np.ma.concatenate((self._ubx, mub))
