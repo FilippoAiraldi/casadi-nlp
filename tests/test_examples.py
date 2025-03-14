@@ -73,7 +73,7 @@ class TestExamples(unittest.TestCase):
         nlp.constraint("c2", p[:, -1], "==", [2, 1])
         nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
         nlp = nlp.copy()
-        sol = nlp(vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))})
+        sol = nlp(vals0={"p": np.vstack((np.linspace(-2, 2, N), np.ones(y.shape)))})
         np.testing.assert_allclose(sol.vals["p"], RESULTS["chain_p"])
 
     def test__multistart_nlp(self):

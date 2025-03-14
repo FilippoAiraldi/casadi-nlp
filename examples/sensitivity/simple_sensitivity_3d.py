@@ -117,7 +117,7 @@ for p_value in p_values:
 
 N = 50  # NOTE: increase at leasure
 P = np.meshgrid(np.linspace(1, 2.5, N), np.linspace(1, 2, N))
-P_flattened = np.row_stack([P[0].flat, P[1].flat])
+P_flattened = np.vstack([P[0].flat, P[1].flat])
 Z_grid = Zfun(P_flattened, 0).full().reshape(N, N)
 
 fig, ax = plt.subplots(

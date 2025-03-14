@@ -94,7 +94,7 @@ V = D * cs.sum2(
     (cs.sqrt(cs.diff(x) ** 2 + cs.diff(y) ** 2) - L / N) ** 2
 ) + g * m * cs.sum2(y)
 nlp.minimize(V)
-sol3 = nlp.solve(vals0={"p": np.row_stack((np.linspace(-2, 2, N), np.ones(y.shape)))})
+sol3 = nlp.solve(vals0={"p": np.vstack((np.linspace(-2, 2, N), np.ones(y.shape)))})
 
 
 # %%

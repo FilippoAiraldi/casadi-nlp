@@ -175,11 +175,11 @@ for p_value in p_values:
 # sensitivities follow the actual plot.
 
 N = 300
-p_values_all = np.row_stack((np.full(N, 0.2), np.linspace(1, 2, N)))
+p_values_all = np.vstack((np.full(N, 0.2), np.linspace(1, 2, N)))
 z_values_all = np.concatenate([Zfcn(p, 0.0) for p in p_values_all.T], axis=1)
 
 # %%
-# We can not pot the function :math:`Z` for the different values of :math:`p_2`. After
+# We can now plot the function :math:`Z` for the different values of :math:`p_2`. After
 # that, we can plot the parametric sensitivities. To do so, we plot the second order
 # Taylor expansion that approximates the function :math:`Z` around the optimal solution
 # for different values of :math:`p_2`. This approximation obviously makes use of the
