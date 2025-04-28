@@ -444,6 +444,35 @@ def gammaln(
     # cs.if_else(z < 1, cs.substitute(out, z, z + 1) - cs.log(z), out)
 
 
+def digamma1p(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
+    """Computes the digamma function evaluated at :math:`z+1` via asymptotic expansion.
+    Only valid for non-negative real scalars.
+
+    Parameters
+    ----------
+    z : casadi.SX, MX or DM
+        The value at which to compute the logarithm of the gamma function.
+    n : int, optional
+        The number of coefficients to compute for the approximation.
+
+    Returns
+    -------
+    casadi.SX, MX or DM
+        The value of the digamma function at ``z``.
+
+    Notes
+    -----
+    Requires :mod:`scipy` to be installed. For important details, see
+     - https://www.boost.org/doc/libs/1_87_0/libs/math/doc/html/math_toolkit/sf_gamma/digamma.html
+    """
+    from scipy.special import bernoulli
+
+    N_2 = 2 * np.arange(1, n + 1)
+    B = bernoulli(2 * n)[2::2]
+    z1p = z + 1
+    powers = cs.power(z1p, N_2)
+    return cs.log1p(z) - 0.5 / z1p - cs.sum1(1 / ((N_2 / B) * powers))
+
 def digamma(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
     """Computes the digamma function via asymptotic expansion.
     Only valid for non-negative real scalars.
@@ -467,11 +496,4 @@ def digamma(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]
     """
     # we shift by one since digamma(z) = digamma(z + 1) - 1 / z, and the approximation
     # is not good for z < 1
-
-    from scipy.special import bernoulli
-
-    N_2 = 2 * np.arange(1, n + 1)
-    B = bernoulli(2 * n)[2::2]
-    z1p = z + 1
-    powers = cs.power(z1p, N_2)
-    return -1 / z + cs.log1p(z) - 0.5 / z1p - cs.sum1(1 / ((N_2 / B) * powers))
+    return digamma1p(z, n) - 1 / z

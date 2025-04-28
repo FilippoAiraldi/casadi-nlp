@@ -299,12 +299,22 @@ class TestMath(unittest.TestCase):
         actual = cs_gammaln(z).full().flatten()
         np.testing.assert_allclose(actual, expected, rtol=1e-6, atol=1e-6)
 
+    def test_digamma1p(self):
+        z = cs.SX.sym("z")
+        y = math.digamma1p(z, 3)
+        cs_digamma1p = cs.Function("digamma1p", [z], [y])
+
+        z = np.linspace(1e-6, 10, 10_000)
+        expected = digamma(z + 1)
+        actual = cs_digamma1p(z).full().flatten()
+        np.testing.assert_allclose(actual, expected, rtol=1e-2, atol=1e-3)
+
     def test_digamma(self):
         z = cs.SX.sym("z")
         y = math.digamma(z, 3)
         cs_digamma = cs.Function("digamma", [z], [y])
 
-        z = np.linspace(1e-6, 10, 10000)
+        z = np.linspace(1e-6, 10, 10_000)
         expected = digamma(z)
         actual = cs_digamma(z).full().flatten()
         np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)

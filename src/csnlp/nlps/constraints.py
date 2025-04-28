@@ -228,8 +228,8 @@ class HasConstraints(HasVariables[SymType]):
         mlb: np.ma.MaskedArray = np.ma.masked_array(lb, np.ma.nomask)
         mub: np.ma.MaskedArray = np.ma.masked_array(ub, np.ma.nomask)
         if self._remove_redundant_x_bounds:
-            mlb.mask = lb == -np.inf
-            mub.mask = ub == +np.inf
+            mlb.mask = np.isneginf(lb)
+            mub.mask = np.isposinf(ub)
 
         self._lbx = np.ma.concatenate((self._lbx, mlb))
         self._ubx = np.ma.concatenate((self._ubx, mub))
@@ -453,12 +453,13 @@ class HasConstraints(HasVariables[SymType]):
 
             # remove constraints and re-create corresponding multipliers
             old_con = cs.vec(old_con)  # flatten the constraint - cannot do otherwise
-            idx_ = [i for i in range(old_con.size1()) if i not in idx_to_remove]
-            new_con = old_con[idx_]
-            self._cons[name] = new_con
-            self._dual_vars[this_name_lam] = self._sym_type.sym(
-                this_name_lam, new_con.size1()
-            )
+            idx_to_keep = [i for i in range(old_con.size1()) if i not in idx_to_remove]
+            if idx_to_keep:
+                new_con = old_con[idx_to_keep]
+                self._cons[name] = new_con
+                self._dual_vars[this_name_lam] = self._sym_type.sym(
+                    this_name_lam, new_con.size1()
+                )
 
         # re-create constraints and multipliers vectors, and refresh the solver
         new_cons = []
