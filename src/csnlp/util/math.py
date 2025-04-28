@@ -473,6 +473,7 @@ def digamma1p(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.D
     powers = cs.power(z1p, N_2)
     return cs.log1p(z) - 0.5 / z1p - cs.sum1(1 / ((N_2 / B) * powers))
 
+
 def digamma(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
     """Computes the digamma function via asymptotic expansion.
     Only valid for non-negative real scalars.
