@@ -58,7 +58,7 @@ def _cmp_key(sol: dict[str, Any], plugin_solver: str) -> tuple[bool, bool, float
     """Internal utility, similar to :func:`Solution.cmp_key`, but for native CasADi's
     solution dictionaries."""
     stats = sol["stats"]
-    status = stats["return_status"]
+    status = str(stats["return_status"])
     is_infeas = _is_infeas(status, plugin_solver)
     if is_infeas is None:
         is_infeas = "infeas" in status.lower()
