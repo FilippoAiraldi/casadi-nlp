@@ -473,17 +473,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         ] = "thread",
         max_num_threads_or_unrolling_base: Optional[int] = None,
     ) -> None:
-        """Sets nonlinear dynamics of the controller's prediction model and creates the
-        corresponding dynamics constraints.
+        """Sets the nonlinear dynamics of the controller's prediction model and creates
+        the corresponding dynamics constraints.
 
         Parameters
         ----------
         F : casadi.Function or callable
             A CasADi function of the form :math:`x_+ = F(x,u)` or :math:`x+ = F(x,u,d)`,
-            where :math:`x,u,d` are the state, action, disturbances respectively,
+            where :math:`x,u,d` are the state, action, and disturbance respectively,
             :math:`F` is a generic nonlinear function and :math:`x_+` is the next state.
-            The function can have multiple outputs, in which case :math:`x_+` is assumed
-            to be the first one.
         parallelization : "serial", "unroll", "inline", "thread", "openmp"
             The type of parallelization to use (see :func:`casadi.Function.map`) when
             applying the dynamics along the horizon in multiple shooting. By default,
@@ -497,10 +495,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         Raises
         ------
         ValueError
-            When setting, raises if the dynamics do not accept 2 or 3 input arguments.
+            Raises if the dynamics do not accept 2 or 3 input arguments.
         RuntimeError
-            When setting, raises if the dynamics have been already set; or if the
-            function ``F`` does not take accept the expected input sizes.
+            Raises if the dynamics have been already set; or if the function ``F`` does
+            not accept the expected input sizes.
         """
         if self._dynamics_already_set:
             raise RuntimeError("Dynamics were already set.")
