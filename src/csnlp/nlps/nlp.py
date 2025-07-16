@@ -189,7 +189,6 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             Fin = Fin.wrap()
             Fout = Fout.wrap()
             ins = [Fin.mx_in(i) for i in range(n_ins)]
-            outs = [Fout.mx_out(i) for i in range(n_outs)]
         x0, p = Fin(*ins)
         sol = S(
             x0=x0,
