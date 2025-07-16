@@ -33,7 +33,7 @@ jobs:
         run: |
           coverage run -m unittest discover ./tests
           coverage lcov -o coverage.lcov
-      - name: Coverage with Code Climate (main, 3.9 only)
+      - name: Coverage with Qlty (main, 3.9 only)
         if: github.ref == 'refs/heads/main' && matrix.python-version == '3.9'
         uses: qltysh/qlty-action/coverage@v1
         with:

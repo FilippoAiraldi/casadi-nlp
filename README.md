@@ -18,8 +18,8 @@ optimization purposes.
 [![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml)
 [![Docs](https://readthedocs.org/projects/casadi-nlp/badge/?version=stable)](https://casadi-nlp.readthedocs.io/en/stable/?badge=stable)
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
-[![Maintainability](https://api.codeclimate.com/v1/badges/e27aa9154db412199fec/maintainability)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/maintainability)
-[![Test Coverage](https://api.codeclimate.com/v1/badges/e27aa9154db412199fec/test_coverage)](https://codeclimate.com/github/FilippoAiraldi/casadi-nlp/test_coverage)
+[![Maintainability](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp/maintainability.svg)](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp)
+[![Code Coverage](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp/coverage.svg)](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 ---
