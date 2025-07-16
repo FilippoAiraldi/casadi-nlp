@@ -1,4 +1,3 @@
-import warnings
 from collections.abc import Iterator, Sequence
 from itertools import count
 from typing import Any, ClassVar, Literal, Optional, TypeVar, Union
@@ -130,30 +129,34 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         name_in: Optional[Sequence[str]] = None,
         name_out: Optional[Sequence[str]] = None,
         opts: Optional[dict[Any, Any]] = None,
+        mx_prewrap: bool = False,
     ) -> cs.Function:
-        """Converts the optimization problem to an ``MX`` symbolic
-        :class:`casadi.Function`. If the NLP is modelled in ``SX``, the function will
-        still be converted to ``MX`` since the IPOPT interface cannot expand ``SX``
-        for now.
+        """Converts the optimization problem to an ``SX`` or ``MX`` symbolic
+        :class:`casadi.Function`. If the NLP is modelled in ``SX``, the function can be
+        pre-wrapped in ``MX``.
 
         Parameters
         ----------
         name : str
             Name of the function.
         ins : sequence of casadi.SX or MX
-            Input variables of the function. These must be expressions
-            providing the parameters of the NLP and the initial conditions of
-            the primal variables ``x``.
+            Input variables of the function. These must be expressions providing the
+            parameters of the NLP and the initial conditions of the primal variables
+            ``x``.
         outs : sequence of casadi.SX or MX
-            Output variables of the function. These must be expressions
-            depending on the primal variable ``x``, parameters ``p``, and dual
-            variables ``lam_g``, ``lam_h``, ``lam_lbx``, ``lam_ubx`` of the NLP.
+            Output variables of the function. These must be expressions depending on the
+            primal variable ``x``, parameters ``p``, and dual variables ``lam_g``,
+            ``lam_h``, ``lam_lbx``, ``lam_ubx`` of the NLP.
         name_in : sequence of str, optional
-            Name of the inputs, by default None.
+            Name of the inputs, by default ``None``.
         name_out : sequence of str, optional
-            Name of the outpus, by default None.
+            Name of the outpus, by default ``None``.
         opts : dict[Any, Any], optional
-            Options to be passed to :class:`casadi.Function`, by default None.
+            Options to be passed to :class:`casadi.Function`, by default ``None``.
+        mx_prewrap : bool, optional
+            If ``True``, wraps the CasADi interface in an ``MX`` wrapper prior to
+            turning it into the function. This is useful when the NLP is defined in
+            ``SX`` but the interface is only supported in ``MX``. By default, ``False``.
 
         Returns
         -------
@@ -167,12 +170,6 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
             have free variables that are not provided or cannot be computed by the
             solver.
         """
-        if self._sym_type is cs.SX:
-            warnings.warn(
-                "CasADi interfaces often do not support SX expansion, so the function"
-                " will be wrapped in MX.",
-                RuntimeWarning,
-            )
         S = self._solver
         if S is None:
             raise RuntimeError("Solver not yet initialized.")
@@ -188,7 +185,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         )
 
         # call the solver
-        if self._sym_type is cs.SX:
+        if mx_prewrap:
             Fin = Fin.wrap()
             Fout = Fout.wrap()
             ins = [Fin.mx_in(i) for i in range(n_ins)]
@@ -209,10 +206,9 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         lam_h = sol["lam_g"][self.ng :, :]
         lam_lbx = -cs.fmin(sol["lam_x"], 0)[self.nonmasked_lbx_idx, :]
         lam_ubx = cs.fmax(sol["lam_x"], 0)[self.nonmasked_ubx_idx, :]
-        Fsol = cs.Function("Fsol", ins, [x, lam_g, lam_h, lam_lbx, lam_ubx])
 
         # build final function
-        final_outs = Fout(p, *Fsol(*ins))
+        final_outs = Fout(p, x, lam_g, lam_h, lam_lbx, lam_ubx)
         if n_outs == 1:
             final_outs = [final_outs]
         args = [name, ins, final_outs]
