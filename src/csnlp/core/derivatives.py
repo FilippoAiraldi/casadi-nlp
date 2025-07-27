@@ -15,7 +15,7 @@ from .data import cs2array as _cs2array
 
 
 def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
-    """Computes jacobian on higher-order matrices, i.e.,
+    """Computes jacobian on higher-order matrices, not just vectors.
 
     Parameters
     ----------
