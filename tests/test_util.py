@@ -15,7 +15,7 @@ from scipy.stats import norm
 
 from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.util import io, math
+from csnlp.util import docs, io, math
 
 TMPFILENAME: str = ""
 
@@ -318,6 +318,33 @@ class TestMath(unittest.TestCase):
         expected = digamma(z)
         actual = cs_digamma(z).full().flatten()
         np.testing.assert_allclose(actual, expected, rtol=1e-4, atol=1e-4)
+
+
+class TestDocs(unittest.TestCase):
+    def test_get_casadi_plugins(self):
+        all_plugins = docs.get_casadi_plugins()
+        self.assertIsInstance(all_plugins, dict)
+        self.assertGreater(len(all_plugins), 0)
+        for name, plugins in all_plugins.items():
+            self.assertIsInstance(name, str)
+            self.assertIsInstance(plugins, list)
+            for p in plugins:
+                self.assertIsInstance(p, str)
+
+    def test_list_available_solvers(self):
+        solvers = docs.list_available_solvers()
+        self.assertIsInstance(solvers, dict)
+        self.assertIn("nlp", solvers)
+        self.assertIn("qp", solvers)
+        for key in ("nlp", "qp"):
+            self.assertIsInstance(solvers[key], list)
+            for solver in solvers[key]:
+                self.assertIsInstance(solver, str)
+                self.assertGreater(len(solver), 0)
+
+    def test_get_solver_options(self):
+        options = docs.get_solver_options("ipopt", False)
+        self.assertIsInstance(options, dict)
 
 
 if __name__ == "__main__":
