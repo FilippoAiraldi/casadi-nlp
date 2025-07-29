@@ -561,7 +561,10 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         # NOTE: the mapped solver does not return the stats, so we have to use the
         # original solver to get them - this likely returns the stats of the last
         # run of the mapped solver, but it's the best we can do up to this point
-        stats = self._solver.func.stats()
+        try:
+            stats = self._solver.func.stats()
+        except RuntimeError:
+            stats = self._mapped_solver.func.stats()
 
         # if the user wants the mapped solution, return it, though it's not a Solution
         # and it's mostly for debugging
