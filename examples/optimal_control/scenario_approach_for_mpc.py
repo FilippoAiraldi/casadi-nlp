@@ -1,4 +1,6 @@
 r"""
+.. _scenario_based_mpc_example:
+
 Scenario-based MPC
 ==================
 

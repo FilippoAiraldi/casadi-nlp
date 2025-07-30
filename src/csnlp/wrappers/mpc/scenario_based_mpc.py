@@ -274,13 +274,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         if soft:
             slacks = []
         for i in range(self._n_scenarios):
-            expr_i = _chained_substitute(
-                expr,
-                (self.single_states, self.states_i(i)),
-                (self.single_disturbances, self.disturbances_i(i)),
-                (self.single_slacks, self.slacks_i(i)),
-            )
-
+            expr_i = self._chained_substitution_for_scenario_i(expr, i)
             out = self.constraint(_n(name, i), expr_i, op, 0, soft)
             cons.append(out[0])
             lams.append(out[1])
@@ -303,17 +297,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
         disturbances, and slacks, returned as first output by the methods :meth:`state`,
         :meth:`disturbance`, and :meth:`constraint_from_single`, respectively.
         """
-        objective_ = objective / self._n_scenarios
         return self.nlp.minimize(
             sum(
-                _chained_substitute(
-                    objective_,
-                    (self.single_states, self.states_i(i)),
-                    (self.single_disturbances, self.disturbances_i(i)),
-                    (self.single_slacks, self.slacks_i(i)),
-                )
+                self._chained_substitution_for_scenario_i(objective, i)
                 for i in range(self._n_scenarios)
             )
+            / self._n_scenarios
         )
 
     def set_affine_dynamics(
@@ -460,3 +449,14 @@ class ScenarioBasedMpc(Mpc[SymType]):
             X_i_split = cs.vertsplit(X_i, cumsizes)
             for n, x in zip(state_names, X_i_split):
                 self._states[_n(n, i)] = x
+
+    def _chained_substitution_for_scenario_i(
+        self, expr: SymType, i: int
+    ) -> Union[SymType, cs.DM]:
+        """Iternal utility to perform substitutions in chain for the i-th scenario."""
+        return _chained_substitute(
+            expr,
+            (self.single_states, self.states_i(i)),
+            (self.single_disturbances, self.disturbances_i(i)),
+            (self.single_slacks, self.slacks_i(i)),
+        )
