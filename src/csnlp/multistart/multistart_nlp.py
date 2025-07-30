@@ -558,13 +558,15 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         }
         single_sol: dict[str, cs.DM] = self._mapped_solver(**single_kwargs)
 
-        # NOTE: the mapped solver does not return the stats, so we have to use the
+        # NOTE: the mapped solver may not return the stats, so we may have to use the
         # original solver to get them - this likely returns the stats of the last
-        # run of the mapped solver, but it's the best we can do up to this point
+        # run of the mapped solver, if any, but it's the best we can do up. If still
+        # empty, populate the stats with default values.
+        stats = {"success": True}
         try:
-            stats = self._solver.func.stats()
+            stats |= self._solver.func.stats()
         except RuntimeError:
-            stats = self._mapped_solver.func.stats()
+            stats |= self._mapped_solver.func.stats()
 
         # if the user wants the mapped solution, return it, though it's not a Solution
         # and it's mostly for debugging
