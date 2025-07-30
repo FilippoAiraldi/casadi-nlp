@@ -104,7 +104,8 @@ E = np.concatenate((E1, E2))
 # ------------------
 # The MPC controller is built in the same way as for other MPC classes. The main
 # difference is that now we must use the :meth:`csnlp.wrappers.PwaMpc.set_pwa_dynamics`
-# instead of :meth:`csnlp.wrappers.Mpc.set_dynamics` to set the dynamics of the system.
+# instead of :meth:`csnlp.wrappers.Mpc.set_affine_dynamics` to set the dynamics of the
+# system.
 
 N = 10
 mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)

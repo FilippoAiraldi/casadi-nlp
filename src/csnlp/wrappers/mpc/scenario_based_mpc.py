@@ -276,12 +276,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
         for i in range(self._n_scenarios):
             expr_i = _chained_substitute(
                 expr,
-                self.single_states,
-                self.states_i(i),
-                self.single_disturbances,
-                self.disturbances_i(i),
-                self.single_slacks,
-                self.slacks_i(i),
+                (self.single_states, self.states_i(i)),
+                (self.single_disturbances, self.disturbances_i(i)),
+                (self.single_slacks, self.slacks_i(i)),
             )
 
             out = self.constraint(_n(name, i), expr_i, op, 0, soft)
@@ -311,27 +308,36 @@ class ScenarioBasedMpc(Mpc[SymType]):
             sum(
                 _chained_substitute(
                     objective_,
-                    self.single_states,
-                    self.states_i(i),
-                    self.single_disturbances,
-                    self.disturbances_i(i),
-                    self.single_slacks,
-                    self.slacks_i(i),
+                    (self.single_states, self.states_i(i)),
+                    (self.single_disturbances, self.disturbances_i(i)),
+                    (self.single_slacks, self.slacks_i(i)),
                 )
                 for i in range(self._n_scenarios)
             )
         )
 
     def set_affine_dynamics(
-        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType] = None
-    ) -> tuple[Optional[MatType], Optional[MatType], Optional[MatType]]:
+        self,
+        A: MatType,
+        B: MatType,
+        D: MatType,
+        c: Optional[MatType] = None,
+        parallelization: Literal[
+            "serial", "unroll", "inline", "thread", "openmp"
+        ] = "thread",
+        max_num_threads: Optional[int] = None,
+    ) -> tuple[
+        Optional[MatType], Optional[MatType], Optional[MatType], Optional[MatType]
+    ]:
         if D is None:
             raise ValueError(
                 "The dynamics matrix D must be given, as SCMPC is a tool to account for"
                 " stochastic disturbances, and if there are none, a nominal MPC should "
                 "suffice (see `Mpc` wrapper)."
             )
-        return super().set_affine_dynamics(A, B, D, c)
+        if max_num_threads is None:
+            max_num_threads = max(self._prediction_horizon, self._n_scenarios)
+        return super().set_affine_dynamics(A, B, D, c, parallelization, max_num_threads)
 
     def set_nonlinear_dynamics(
         self,
@@ -443,7 +449,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         )
 
         N = self._prediction_horizon
-        Fmapaccum = F.mapaccum(N, {"base": base})
+        Fmapaccum = F.mapaccum(N, {"base": base, "allow_free": True})
         X_next_hcat = Fmapaccum(X0, U, D_all)
 
         state_names = self.single_states.keys()

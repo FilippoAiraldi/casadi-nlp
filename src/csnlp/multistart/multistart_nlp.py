@@ -28,30 +28,17 @@ def _n(sym_name: str, scenario: int) -> str:
 
 
 def _chained_substitute(
-    expr: SymType,
-    old_vars: dict[str, SymType],
-    new_vars: dict[str, SymType],
-    old_pars: dict[str, SymType],
-    new_pars: dict[str, SymType],
-    old_dual_vars: Optional[dict[str, SymType]] = None,
-    new_dual_vars: Optional[dict[str, SymType]] = None,
-) -> Union[SymType, cs.DM, np.ndarray]:
-    """Internal utility to perform substitutions on variables, dual variables and
-    parameters in chain."""
-    old = []
-    new = []
-    for n in old_vars:
-        old.append(old_vars[n])
-        new.append(new_vars[n])
-    for n in old_pars:
-        old.append(old_pars[n])
-        new.append(new_pars[n])
-    if old_dual_vars is not None:
-        assert new_dual_vars is not None, "Both old and new dual vars must be given."
-        for n in old_dual_vars:
-            old.append(old_dual_vars[n])
-            new.append(new_dual_vars[n])
-    return cs.substitute(expr, cs.vvcat(old), cs.vvcat(new))
+    expr: SymType, *old_and_new: tuple[dict[str, SymType], dict[str, SymType]]
+) -> Union[SymType, cs.DM]:
+    """Internal utility to perform substitutions in chain."""
+    OLD = []
+    NEW = []
+    for old, new in old_and_new:
+        if old and new:
+            for n, old_ in old.items():
+                OLD.append(old_)
+                NEW.append(new[n])
+    return cs.substitute(expr, cs.vvcat(OLD), cs.vvcat(NEW))
 
 
 def _cmp_key(sol: dict[str, Any], plugin_solver: str) -> tuple[bool, bool, float]:
@@ -234,7 +221,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         op_: Literal["==", "<="] = "==" if op == "==" else "<="
         for i in range(self._starts):
             expr_i = _chained_substitute(
-                expr_, vars, self._vars_i(i), pars, self._pars_i(i)
+                expr_, (vars, self._vars_i(i)), (pars, self._pars_i(i))
             )
             self._stacked_nlp.constraint(_n(name, i), expr_i, op_, 0, False, False)
         return out
@@ -245,7 +232,9 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         vars = self.variables
         pars = self.parameters
         self._fs: list[SymType] = [
-            _chained_substitute(objective, vars, self._vars_i(i), pars, self._pars_i(i))
+            _chained_substitute(
+                objective, (vars, self._vars_i(i)), (pars, self._pars_i(i))
+            )
             for i in range(self._starts)
         ]
         self._stacked_nlp.minimize(sum(self._fs))
@@ -317,12 +306,9 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             all_vals = multi_sol.value(
                 _chained_substitute(
                     all_vars,
-                    vars_,
-                    self._vars_i(idx),
-                    pars_,
-                    self._pars_i(idx),
-                    duals_,
-                    self._dual_vars_i(idx),
+                    (vars_, self._vars_i(idx)),
+                    (pars_, self._pars_i(idx)),
+                    (duals_, self._dual_vars_i(idx)),
                 )
             )
             x, lam_g_and_h, lam_lbx_and_ubx, p = cs.vertsplit(all_vals, splits)

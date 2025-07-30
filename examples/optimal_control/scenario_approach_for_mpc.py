@@ -79,7 +79,7 @@ scmpc.set_nonlinear_dynamics(F)
 # Since the SCMPC internally defines ``K`` copies of the state and disturbances, how
 # can we define a constraint that should be applied to each of the scenarios? We can
 # use the method :meth:`csnlp.wrappers.ScenarioBasedMpc.constraint_from_single`, which
-# will automatically decline the constraint to each scenario. In this case, we impose
+# will automatically translate the constraint to each scenario. In this case, we impose
 # a lower bound on the state (we could have achieved the same result by passing `lb=1`
 # to the state definition).
 
@@ -90,6 +90,7 @@ _ = scmpc.constraint_from_single("x_lb", x[:, 1:], ">=", 1)  # equivalent to a l
 # one scenario, and then call
 # :meth:`csnlp.wrappers.ScenarioBasedMpc.minimize_from_single`, which will automatically
 # compute the average objective across all scenarios.
+
 scmpc.minimize_from_single(
     sum(cs.sumsqr(x[:, i]) + cs.sumsqr(u[:, i]) for i in range(N))
 )
