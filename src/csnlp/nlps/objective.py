@@ -154,9 +154,9 @@ class HasObjective(HasConstraints[SymType]):
         opts = {} if opts is None else opts.copy()
         if "discrete" in opts:
             raise ValueError("The 'discrete' key is reserved for the variable domains.")
-        if self.has_discrete:
-            disc = self.discrete
-            opts["discrete"] = [disc.item()] if disc.size == 1 else disc  # bugfix
+        disc = self.discrete
+        opts["discrete"] = disc.tolist() if disc.size == 1 else disc  # bugfix
+
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
