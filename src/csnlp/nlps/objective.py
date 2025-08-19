@@ -152,17 +152,22 @@ class HasObjective(HasConstraints[SymType]):
             raise RuntimeError("NLP objective not set.")
 
         opts = {} if opts is None else opts.copy()
-        if "discrete" in opts:
-            raise ValueError("The 'discrete' key is reserved for the variable domains.")
+        if "discrete" in opts or "equality" in opts:
+            raise ValueError("'discrete' and 'equality' options are reserved.")
         disc = self.discrete
         opts["discrete"] = disc.tolist() if disc.size == 1 else disc  # bugfix
+        eq = np.concatenate(
+            (np.full(self.ng, True, dtype=bool), np.full(self.nh, False, dtype=bool))
+        )
+        opts["equality"] = eq.tolist() if eq.size == 1 else eq  # bugfix
 
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
-
         self._solver = self._cache.cache(solver_func)
+
         opts.pop("discrete", None)
+        opts.pop("equality", None)
         self._solver_opts = opts
         self._solver_plugin = solver
         self._solver_type = type
