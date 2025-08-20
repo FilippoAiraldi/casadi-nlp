@@ -81,8 +81,8 @@ def _get_kkt_stats(
     lam_ubx = np.maximum(lam_x[nonmasked_ubx_idx], 0)
     x = np.asarray(sol["x"].elements())
     if (
-        (np.abs(lam_lbx * (lbx - x)) > tol_comp).any()
-        or (np.abs(lam_ubx * (x - ubx)) > tol_comp).any()
+        (np.abs(lam_lbx * (lbx - x[nonmasked_lbx_idx])) > tol_comp).any()
+        or (np.abs(lam_ubx * (x[nonmasked_ubx_idx] - ubx)) > tol_comp).any()
         or (np.abs(lam_h * h) > tol_comp).any()
     ):
         return {"success": False, "return_status": "infeasible (complementary)"}
@@ -631,7 +631,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         tol_comp = self._tol_comp
         tol_stat = self._tol_stat
         for i, p in enumerate(ps):
-            sol_i = {k: v[:, i] for k, v in single_sol.items()}
+            sol_i = {k: v[:, i] if v.size2() else v for k, v in single_sol.items()}
             sol_i["p"] = ps[i]
             sol_i["stats"] = _get_kkt_stats(
                 sol_i,
