@@ -223,7 +223,7 @@ class HasObjective(HasConstraints[SymType]):
         ----------
         pars : dict[str, array_like], optional
             Dictionary or structure containing, for each parameter in the NLP scheme,
-            the corresponding numerical value. Can be `None` if no parameters are
+            the corresponding numerical value. Can be ``None`` if no parameters are
             present.
         vals0 : dict[str, array_like], optional
             Dictionary or structure containing, for each variable in the NLP scheme, the
