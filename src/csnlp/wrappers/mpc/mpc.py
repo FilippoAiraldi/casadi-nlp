@@ -131,7 +131,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
         self._states: dict[str, SymType] = {}
         if self._is_multishooting:
-            self._initial_states_idx: npt.NDArray[np.int64] = np.empty(0, dtype=int)
+            self._initial_states_idx: npt.NDArray[np.int_] = np.empty(0, dtype=int)
         else:
             self._initial_states: dict[str, SymType] = {}
         self._actions: dict[str, SymType] = {}
@@ -225,8 +225,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         bound_terminal: bool = True,
     ) -> Optional[SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
-        horizon. Automatically creates the constraint on the initial conditions for this
-        state.
+        horizon.
 
         Parameters
         ----------
