@@ -124,7 +124,7 @@ class PwaMpc(Mpc[SymType]):
 
     tva_dynamics_name = "tva_dyn"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._fixed_sequence_dynamics = False
         self._pwa_system: Optional[Sequence[PwaRegion]] = None
@@ -236,7 +236,8 @@ class PwaMpc(Mpc[SymType]):
                 "arguments `D` and `E` of `set_pwa_dyanmics` instead."
             )
         if self._is_multishooting:
-            X = cs.vvcat(self._states.values())
+            # NOTE: exclude first states from the following check
+            X = cs.vvcat([s[:, 1:] for s in self._states.values()])
             idx = find_index_in_vector(self.x, X)
             lbx = self.lbx[idx].data
             ubx = self.ubx[idx].data
@@ -387,6 +388,7 @@ class PwaMpc(Mpc[SymType]):
 
     def solve(
         self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
         pars: Optional[dict[str, npt.ArrayLike]] = None,
         vals0: Optional[dict[str, npt.ArrayLike]] = None,
     ) -> Solution[SymType]:
@@ -420,6 +422,7 @@ class PwaMpc(Mpc[SymType]):
             pars[_n("c", prefix)] = np.concatenate(Cs, 0)
             pars[_n("S", prefix)] = np.concatenate(Ss, 0)
             pars[_n("T", prefix)] = np.concatenate(Ts, 0)
+        pars = self._prepare_for_solve(initial_conditions, pars)
         return self.nlp.solve(pars, vals0)
 
     @staticmethod

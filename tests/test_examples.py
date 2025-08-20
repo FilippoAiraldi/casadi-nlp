@@ -398,7 +398,7 @@ class TestExamples(unittest.TestCase):
         mpc = wrappers.PwaMpc(
             nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
-        x, _ = mpc.state("x", 2)
+        x = mpc.state("x", 2)
         u, _ = mpc.action("u")
         with nostdout():
             mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="serial")
@@ -409,7 +409,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(solver="bonmin")
         with nostdout():
-            sol = mpc.solve(pars={"x_0": [-3, 0]})
+            sol = mpc.solve({"x": [-3, 0]})
 
         tols = (1e-6, 1e-6)
         expected = {
@@ -446,7 +446,7 @@ class TestExamples(unittest.TestCase):
         mpc = wrappers.PwaMpc(
             nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
-        x, _ = mpc.state("x", 2)
+        x = mpc.state("x", 2)
         u, _ = mpc.action("u")
         mpc.set_affine_time_varying_dynamics(pwa_regions)
         if shooting == "single":
@@ -456,7 +456,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(QRQP_OPTS, "qrqp")
         mpc.set_switching_sequence([0, 0, 0, 1])
-        sol = mpc.solve(pars={"x_0": [-3, 0]})
+        sol = mpc.solve([-3, 0])
 
         tols = (1e-6, 1e-6)
         expected = {
