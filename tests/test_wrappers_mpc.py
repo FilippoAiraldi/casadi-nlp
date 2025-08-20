@@ -356,6 +356,30 @@ class TestMpc(unittest.TestCase):
 
         self.assertIn(repr(mpc), repr(mpc2))
 
+    def test_interleaved_states_and_actions__raises__if_single_shooting(self):
+        mpc = Mpc(nlp=Nlp(), prediction_horizon=10, shooting="single")
+        with self.assertRaises(RuntimeError):
+            list(mpc.interleaved_states_and_actions({}, {}))
+
+    def test_interleaved_states_and_actions__creates_states_and_actions(self):
+        N = 10
+        mpc = Mpc(nlp=Nlp(), prediction_horizon=N, control_horizon=N // 2)
+        state_kw = [{"name": "x", "size": 2}, {"name": "y", "size": 3}]
+        action_kw = [{"name": "u", "size": 15}, {"name": "w", "size": 2}]
+        for _ in mpc.interleaved_states_and_actions(state_kw, action_kw):
+            pass
+
+        for kw in state_kw:
+            name = kw["name"]
+            size = kw["size"]
+            self.assertIn(name, mpc.states)
+            self.assertTupleEqual(mpc.states[name].shape, (size, N + 1))
+        for kw in action_kw:
+            name = kw["name"]
+            size = kw["size"]
+            self.assertIn(name, mpc.actions)
+            self.assertTupleEqual(mpc.actions[name].shape, (size, N // 2))
+
 
 class TestPwaMpc(unittest.TestCase):
     def test_pwa_dynamics__raises__if_dynamics_already_set(self):

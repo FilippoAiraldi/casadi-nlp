@@ -161,6 +161,41 @@ class TestExamples(unittest.TestCase):
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
         )
 
+    def test__optimal_ctrl__with__interleaved_states_and_actions(self):
+        x = cs.MX.sym("x", 2)
+        u = cs.MX.sym("u")
+        ode = cs.vertcat((1 - x[1] ** 2) * x[0] - x[1] + u, x[0])
+        f = cs.Function("f", [x, u], [ode], ["x", "u"], ["ode"])
+        T = 10
+        N = 20
+        intg_options = {"simplify": True, "number_of_finite_elements": 4}
+        dae = {"x": x, "p": u, "ode": f(x, u)}
+        intg = cs.integrator("intg", "rk", dae, 0.0, T / N, intg_options)
+        res = intg(x0=x, p=u)
+        x_next = res["xf"]
+        F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
+        mpc = wrappers.Mpc(nlp=Nlp(sym_type=self.sym_type), prediction_horizon=N)
+        cost = 0
+        for k, (states, actions, next_states) in enumerate(
+            mpc.interleaved_states_and_actions(
+                {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
+            )
+        ):
+            x, _, _ = states["x"]
+            u, _, _ = actions["u"]
+            x_new, _, _ = next_states["x"]
+            mpc.constraint(f"dyn{k}", x_new, "==", F(x, u))
+            cost += cs.sumsqr(x) + cs.sumsqr(u)
+        cost += cs.sumsqr(x_new)
+        mpc.minimize(cost)
+        mpc.init_solver(IPOPT_OPTS)
+        mpc = mpc.copy()
+        sol = mpc.solve(pars={"x_0": [0, 1]})
+        u_opt = np.asarray([float(sol.vals[f"u{k}"]) for k in range(N)])
+        np.testing.assert_allclose(
+            u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
+        )
+
     def test__rosenbrock(self):
         nlp = Nlp(sym_type=self.sym_type)
         x = nlp.variable("x", (2, 1))[0]
