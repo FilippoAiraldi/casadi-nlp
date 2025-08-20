@@ -9,7 +9,11 @@ from parameterized import parameterized, parameterized_class
 from scipy import io
 
 from csnlp import Nlp, Solution, scaling, wrappers
-from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
+from csnlp.multistart import (
+    MappedMultistartNlp,
+    ParallelMultistartNlp,
+    StackedMultistartNlp,
+)
 from csnlp.multistart.multistart_nlp import MultistartNlp
 
 QRQP_OPTS = {
@@ -261,10 +265,12 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_j"], j0, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
-    @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
+    @parameterized.expand(
+        [(StackedMultistartNlp,), (ParallelMultistartNlp,), (MappedMultistartNlp,)]
+    )
     def test__scaling(self, multinlp_cls: type):
         def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
-            x, u = cs.SX.sym("x", 3), cs.SX.sym("u")
+            x, u = cs.MX.sym("x", 3), cs.MX.sym("u")
             x_next = x + cs.vertcat(x[1], u / x[2] - g, -alpha * u) * dt
             return cs.Function("F", [x, u], [x_next], ["x", "u"], ["x+"])
 
@@ -278,12 +284,13 @@ class TestExamples(unittest.TestCase):
         alpha = 1 / (300 * g)
         seed = 69
         rng = np.random.default_rng(seed)
-        kwargs = (
-            {"parallel_kwargs": {"n_jobs": -1}}
-            if multinlp_cls is ParallelMultistartNlp
-            else {}
-        )
-        nlp = multinlp_cls(sym_type="SX", starts=K, **kwargs)
+        if multinlp_cls is ParallelMultistartNlp:
+            kwargs = {"parallel_kwargs": {"n_jobs": -1}}
+        elif multinlp_cls is MappedMultistartNlp:
+            kwargs = {"parallelization": "thread"}
+        else:
+            kwargs = {}
+        nlp = multinlp_cls(sym_type=self.sym_type, starts=K, **kwargs)
 
         y_nom = 1e5
         v_nom = 2e3
@@ -292,12 +299,11 @@ class TestExamples(unittest.TestCase):
         u_nom = 1e8
         scaler = scaling.Scaler()
         scaler.register("x", scale=x_nom)
-        scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
         nlp = wrappers.NlpScaling(nlp, scaler=scaler)
 
         mpc = wrappers.Mpc(nlp, prediction_horizon=N)
-        x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
+        x = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
         y = x[0, :]
         m = x[2, :]
         u, _ = mpc.action("u", lb=0, ub=5e7)
@@ -310,7 +316,8 @@ class TestExamples(unittest.TestCase):
 
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 
-        pars = [{"x_0": x0}] * K
+        # NOTE: have to manually scale the initial conditions!
+        IC = {"x": scaler.scale("x", x0).toarray().flatten()}
         vals0 = [
             {
                 "x": x_init + rng.random(x_init.shape) * 1e4,
@@ -320,7 +327,10 @@ class TestExamples(unittest.TestCase):
         ]
         us, fs = [], []
         for i in range(K + 1):
-            sol = mpc.solve(pars[i], vals0[i]) if i != K else mpc(pars, vals0)
+            if i != K:
+                sol = mpc.solve(IC, vals0=vals0[i])
+            else:
+                sol = mpc(IC, vals0=vals0)  # solve last with multistart
             fs.append(sol.f)
             us.append(sol.value(u))
         us, fs = np.asarray(us).squeeze(), np.asarray(fs).squeeze()
