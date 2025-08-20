@@ -150,12 +150,12 @@ class TestExamples(unittest.TestCase):
             x = mpc.states["x"]  # only accessible after dynamics have been set
             mpc.constraint("c0", x, ">=", -0.2)
         else:
-            x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
+            x = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
             mpc.set_nonlinear_dynamics(F)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
-        sol = mpc.solve(pars={"x_0": [0, 1]})
+        sol = mpc.solve({"x": [0, 1]})
         u_opt = sol.vals["u"].full().flat
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
@@ -190,7 +190,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cost)
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
-        sol = mpc.solve(pars={"x_0": [0, 1]})
+        sol = mpc.solve({"x": [0, 1]})
         u_opt = np.asarray([float(sol.vals[f"u{k}"]) for k in range(N)])
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
@@ -485,7 +485,7 @@ class TestExamples(unittest.TestCase):
         x = RESULTS["lti_mpc_xs"][0]
         X, U = [x], []
         for _ in range(50):
-            sol = mpc.solve(pars={"x_0": x})
+            sol = mpc.solve(x)
             u_opt = sol.vals["u"][:, 0].full().reshape(na)
             x = A @ x + B @ u_opt
             X.append(x)

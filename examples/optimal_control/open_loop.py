@@ -78,18 +78,17 @@ mpc = wrappers.Mpc[cs.SX](
     nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N, shooting="multi"
 )
 u, _ = mpc.action("u", lb=-1, ub=+1)
-x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
+x = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
 mpc.set_nonlinear_dynamics(F)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 
 # %%
 # Before solving, the solver is initialized, and then called with the value of the
-# initial state ``x_0``, which has been defined as a parameter by
-# :meth:`csnlp.wrappers.Mpc.set_nonlinear_dynamics`.
+# initial state ``x`` as initial condition.
 
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
 mpc.init_solver(opts)
-sol = mpc.solve(pars={"x_0": [0, 1]})
+sol = mpc.solve({"x": [0, 1]})
 
 t = np.linspace(0, T, N + 1)
 plt.plot(t, sol.value(x).T)
@@ -117,7 +116,7 @@ x = mpc.states["x"]  # only accessible after dynamics have been set
 mpc.constraint("x_lb", x[:, 1:], ">=", -0.2)  # equivalent to a lb on x
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(opts)
-sol = mpc.solve(pars={"x_0": [0, 1]})
+sol = mpc.solve({"x": [0, 1]})
 
 # %%
 # We can again plot the solution. It should look somewhat similar to the one obtained

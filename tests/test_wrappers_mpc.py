@@ -60,40 +60,30 @@ class TestMpc(unittest.TestCase):
         N = 10
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting=shooting)
-        x1, x1_0 = mpc.state("x1", 2)
+        x1 = mpc.state("x1", 2)
         if shooting == "multi":
             self.assertEqual(x1.shape, (2, N + 1))
             self.assertEqual(x1.shape, mpc.states["x1"].shape)
-            self.assertEqual(mpc.constraints["x1_0"].shape, (2, 1))
         else:
             self.assertIsNone(x1)
-        self.assertEqual(x1_0.shape, (2, 1))
-        self.assertEqual(x1_0.shape, mpc.initial_states["x1_0"].shape)
-        self.assertEqual(mpc.ns, x1_0.shape[0])
-        x2, x2_0 = mpc.state("x2", 1)
+        x2 = mpc.state("x2", 1)
         if shooting == "multi":
             self.assertEqual(x2.shape, (1, N + 1))
             self.assertEqual(x2.shape, mpc.states["x2"].shape)
-            self.assertEqual(mpc.constraints["x2_0"].shape, (1, 1))
         else:
             self.assertIsNone(x2)
-        self.assertEqual(x2_0.shape, (1, 1))
-        self.assertEqual(x2_0.shape, mpc.initial_states["x2_0"].shape)
-        self.assertEqual(mpc.ns, x1_0.shape[0] + x2_0.shape[0])
 
-    @parameterized.expand(product((False, True), (False, True)))
-    def test_state__removes_bounds_properly(self, initial: bool, terminal: bool):
+    @parameterized.expand([(False,), (True,)])
+    def test_state__removes_bounds_properly(self, terminal: bool):
         N = 10
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting="multi")
 
         shape = (2, N + 1)
         nlp.variable = Mock(return_value=cs.MX.sym("x", *shape))
-        mpc.state("x", 2, lb=0, ub=1, bound_initial=initial, bound_terminal=terminal)
+        mpc.state("x", 2, lb=0, ub=1, bound_terminal=terminal)
 
         lb, ub = np.full(shape, 0.0), np.full(shape, 1.0)
-        if not initial:
-            lb[:, 0], ub[:, 0] = -np.inf, np.inf
         if not terminal:
             lb[:, -1], ub[:, -1] = -np.inf, np.inf
         nlp.variable.assert_called_once()
@@ -143,7 +133,7 @@ class TestMpc(unittest.TestCase):
     def test_constraint__constructs_slack_correctly(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10)
-        x, _ = mpc.state("x1", 3)
+        x = mpc.state("x1", 3)
         _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertIn(slack.name(), mpc.slacks)
@@ -199,8 +189,8 @@ class TestMpc(unittest.TestCase):
         mpc = Mpc[cs.SX](
             nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="multi"
         )
-        x1, _ = mpc.state("x1", 2)
-        x2, _ = mpc.state("x2", 3)
+        x1 = mpc.state("x1", 2)
+        x2 = mpc.state("x2", 3)
         u1, _ = mpc.action("u1", 3)
         u2, _ = mpc.action("u2", 1)
         x = cs.vertcat(x1[:, 0], x2[:, 0])
@@ -214,7 +204,7 @@ class TestMpc(unittest.TestCase):
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_nonlinear_dynamics(F)
         self.assertIn("dyn", mpc.constraints.keys())
-        self.assertEqual(mpc.ng, (1 + N) * 5)
+        self.assertEqual(mpc.ng, N * (x1.size1() + x2.size1()))
 
     @parameterized.expand([(0,), (1,)])
     def test_nonlinear_dynamics__in_singleshooting__creates_states(self, i: int):
@@ -314,7 +304,7 @@ class TestMpc(unittest.TestCase):
         mpc.set_affine_dynamics(A, B, D, c)
 
         self.assertIn("dyn", mpc.constraints.keys())
-        self.assertEqual(mpc.ng, (N + 1) * ns)
+        self.assertEqual(mpc.ng, N * ns)
 
     @parameterized.expand(product((False, True), (False, True)))
     def test_affine_dynamics__in_singleshooting__creates_states(
