@@ -9,13 +9,16 @@ from typing import (
     TypeVar,
     Union,
 )
+from warnings import warn
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
 from ...core.solutions import Solution
+from ...multistart import StackedMultistartNlp
 from ...util.math import repeat
+from ..scaling import NlpScaling
 from ..wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -136,6 +139,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._slacks: dict[str, SymType] = {}
         self._disturbances: dict[str, SymType] = {}
         self._dynamics_already_set = False
+        self._is_stacked_ms_nlp = isinstance(self.nlp.unwrapped, StackedMultistartNlp)
+        if nlp.is_wrapped(NlpScaling):
+            warn(
+                "Initial conditions have to be manually scaled before being passed to "
+                "`solve` or `solve_multi`",
+                RuntimeWarning,
+            )
 
     @property
     def prediction_horizon(self) -> int:
@@ -594,29 +604,58 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
     ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
         """Internal method to prepare the input data before solving the MPC."""
-        if self._is_multishooting:
+        # convert the initial conditions to a dict either if 1) in multishooting but as
+        # an instance of `StackedMultistartNlp`, or 3) in single shooting
+        is_multishooting = self._is_multishooting
+        is_stacked_ms_nlp = self._is_stacked_ms_nlp
+        states = self.states
+        if is_stacked_ms_nlp or not is_multishooting:
+            # convert initial conditions to a dict
+            if isinstance(initial_conditions, dict):
+                x0_dict = {_n(k): initial_conditions[k] for k in states}
+            else:
+                if len(states) == 1:
+                    x0s = (initial_conditions,)
+                else:
+                    x0s = np.split(
+                        np.asarray(initial_conditions),
+                        np.cumsum([s.shape[0] for s in states.values()][:-1]),
+                    )
+                x0_dict = {_n(k): v for k, v in zip(states, x0s)}
+
+        # finally we can process the initial conditions. If in multiple shooting, we
+        # enforce them via lbx and ubx (with a special edge case for
+        # `StackedMultistartNlp`); for single shooting, we pass them as parameters.
+        if is_multishooting:
             # convert initial conditions to an array-like
             if isinstance(initial_conditions, dict):
-                x0_vec = np.concatenate([initial_conditions[k] for k in self.states])
+                x0_vec = np.concatenate([initial_conditions[k] for k in states])
             else:
                 x0_vec = initial_conditions
 
-            # enforce initial conditions with lbx and ubx
+            # enforce initial conditions via lbx and ubx
             idx = self._initial_states_idx
-            self.nlp.lbx[idx] = self.nlp.ubx[idx] = x0_vec
-        else:
-            # convert initial conditions to a dictionary of initial conditions
-            if isinstance(initial_conditions, dict):
-                x0_dict = {k: initial_conditions[k] for k in self._initial_states}
-            else:
-                mpcstates = self.states
-                if len(mpcstates) == 1:
-                    states = (initial_conditions,)
-                else:
-                    cumsizes = np.cumsum([s.shape[0] for s in mpcstates.values()][:-1])
-                    states = np.split(np.asarray(initial_conditions), cumsizes)
-                x0_dict = dict(zip(mpcstates.keys(), states))
+            nlp = self.nlp
+            nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
 
+            # take care of the edge case in which `StackedMultistartNlp` is used;
+            # requires setting the bounds for multiple repetitions of the states
+            if is_stacked_ms_nlp:
+                nlp_unwrapped: StackedMultistartNlp = nlp.unwrapped
+                cnt = 0
+                lbx = nlp_unwrapped._stacked_nlp.lbx
+                ubx = nlp_unwrapped._stacked_nlp.ubx
+                for name, var in nlp_unwrapped.variables.items():
+                    numel = var.numel()
+                    if name in self.states:
+                        x0 = x0_dict[_n(name)]
+                        size = var.size1()
+                        for i in range(nlp_unwrapped.starts):
+                            idx_ = cnt + i * numel
+                            lbx[idx_ : idx_ + size] = ubx[idx_ : idx_ + size] = x0
+                    cnt += numel * nlp_unwrapped.starts
+
+        else:
             # pass initial conditions as parameters
             if pars is None:
                 pars = x0_dict
