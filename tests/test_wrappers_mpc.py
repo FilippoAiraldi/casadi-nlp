@@ -847,7 +847,7 @@ class TestMultiScenarioMpc(unittest.TestCase):
         msmpc.set_nonlinear_dynamics(F)
 
         self.assertIn("dyn", msmpc.constraints.keys())
-        self.assertEqual(msmpc.nlp.ng, (1 + N) * nx * K)
+        self.assertEqual(msmpc.nlp.ng, N * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
     def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
