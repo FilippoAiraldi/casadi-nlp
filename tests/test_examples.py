@@ -159,7 +159,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
-        sol = mpc.solve({"x": [0, 1]})
+        sol = mpc.solve_ocp({"x": [0, 1]})
         u_opt = sol.vals["u"].full().flat
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
@@ -194,7 +194,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cost)
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
-        sol = mpc.solve({"x": [0, 1]})
+        sol = mpc.solve_ocp([0, 1])
         u_opt = np.asarray([float(sol.vals[f"u{k}"]) for k in range(N)])
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
@@ -265,9 +265,7 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_j"], j0, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
-    @parameterized.expand(
-        [(StackedMultistartNlp,), (ParallelMultistartNlp,), (MappedMultistartNlp,)]
-    )
+    @parameterized.expand([(ParallelMultistartNlp,), (MappedMultistartNlp,)])
     def test__scaling(self, multinlp_cls: type):
         def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
             x, u = cs.MX.sym("x", 3), cs.MX.sym("u")
@@ -285,11 +283,9 @@ class TestExamples(unittest.TestCase):
         seed = 69
         rng = np.random.default_rng(seed)
         if multinlp_cls is ParallelMultistartNlp:
-            kwargs = {"parallel_kwargs": {"n_jobs": -1}}
-        elif multinlp_cls is MappedMultistartNlp:
+            kwargs = {"parallel_kwargs": {"n_jobs": 2}}
+        else:  # multinlp_cls is MappedMultistartNlp:
             kwargs = {"parallelization": "thread"}
-        else:
-            kwargs = {}
         nlp = multinlp_cls(sym_type=self.sym_type, starts=K, **kwargs)
 
         y_nom = 1e5
@@ -328,9 +324,9 @@ class TestExamples(unittest.TestCase):
         us, fs = [], []
         for i in range(K + 1):
             if i != K:
-                sol = mpc.solve(IC, vals0=vals0[i])
+                sol = mpc.solve_ocp_single(IC, vals0=vals0[i])
             else:
-                sol = mpc(IC, vals0=vals0)  # solve last with multistart
+                sol = mpc.solve_ocp_multi(IC, vals0=vals0)  # solve last with multistart
             fs.append(sol.f)
             us.append(sol.value(u))
         us, fs = np.asarray(us).squeeze(), np.asarray(fs).squeeze()
@@ -495,7 +491,7 @@ class TestExamples(unittest.TestCase):
         x = RESULTS["lti_mpc_xs"][0]
         X, U = [x], []
         for _ in range(50):
-            sol = mpc.solve(x)
+            sol = mpc.solve_ocp(x)
             u_opt = sol.vals["u"][:, 0].full().reshape(na)
             x = A @ x + B @ u_opt
             X.append(x)

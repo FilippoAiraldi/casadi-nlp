@@ -111,7 +111,7 @@ X, U, C = [x], [], []
 times = []
 
 for _ in range(50):
-    sol = mpc.solve({"x": x})
+    sol = mpc.solve_ocp(x)
     times.append(sol.stats["t_wall_solver"])
     u_opt = sol.vals["u"][:, 0].full().reshape(na)
     x = A @ x + B @ u_opt
