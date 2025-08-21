@@ -199,6 +199,7 @@ class Solution(_Protocol[SymType]):
             ``status == "PROXQP_DUAL_INFEASIBLE"``
           - **qpoases** (F): ``"infeasib" in status``
           - **qrqp** (F): ``status == "Failed to calculate search direction"``
+          - **hpipm** (F): unclear; native return status does not indicate infeasibility
 
         * LPs
 
