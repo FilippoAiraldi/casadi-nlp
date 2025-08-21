@@ -124,7 +124,7 @@ mpc.init_solver({"record_time": True}, "bonmin")  # "bonmin", "knitro", "gurobi"
 # problem.
 
 x_0 = [-3, 0]
-sol_mixint = mpc.solve({"x": x_0})
+sol_mixint = mpc.solve_ocp(x_0)
 
 # %%
 # ----------------------------
@@ -167,7 +167,7 @@ mpc.init_solver({"record_time": True}, "osqp")
 
 opt_sequence = wrappers.PwaMpc.get_optimal_switching_sequence(sol_mixint)
 mpc.set_switching_sequence(opt_sequence)
-sol_qp = mpc.solve(x_0)
+sol_qp = mpc.solve_ocp(x_0)
 
 # %%
 # Effects of suboptimal sequences
@@ -180,7 +180,7 @@ sol_qp = mpc.solve(x_0)
 subopt_sequence = opt_sequence.copy()
 subopt_sequence[3] = 0
 mpc.set_switching_sequence(subopt_sequence)
-sol_qp_suboptimal = mpc.solve(x_0)
+sol_qp_suboptimal = mpc.solve_ocp(x_0)
 
 # %%
 # -------

@@ -863,7 +863,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
         pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
     ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
-        """Internal method to prepare the input data before solving the MPC."""
+        """Internal method to pre-process the initial conditions before solving MPC."""
         # Process the initial conditions. If in multiple shooting, we
         # enforce them via lbx and ubx (with a special edge case for
         # `StackedMultistartNlp`); for single shooting, we pass them as parameters.
