@@ -894,10 +894,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     ) -> Union[dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
         """Internal method to pre-process the initial conditions before solving MPC
         in single shooting."""
-        initial_states = self._initial_states
         if isinstance(initial_conditions, dict):
-            x0_dict = {n: initial_conditions[n] for n in initial_states}
+            x0_dict = {_n(n): initial_conditions[n] for n in self._states}
         else:
+            initial_states = self._initial_states
             if len(initial_states) == 1:
                 x0s = (initial_conditions,)
             else:

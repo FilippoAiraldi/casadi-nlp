@@ -179,23 +179,22 @@ class TestExamples(unittest.TestCase):
         x_next = res["xf"]
         F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
         mpc = wrappers.Mpc(nlp=Nlp(sym_type=self.sym_type), prediction_horizon=N)
-        cost = 0
-        for k, (states, actions, next_states) in enumerate(
-            mpc.interleaved_states_and_actions(
-                {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
-            )
-        ):
-            x, _, _ = states["x"]
-            u, _, _ = actions["u"]
-            x_new, _, _ = next_states["x"]
+        states, actions, _ = mpc.interleaved_states_and_actions(
+            {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
+        )
+        X = states["x"]
+        U = actions["u"]
+        objective = 0
+        for k in range(N):
+            x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
             mpc.constraint(f"dyn{k}", x_new, "==", F(x, u))
-            cost += cs.sumsqr(x) + cs.sumsqr(u)
-        cost += cs.sumsqr(x_new)
-        mpc.minimize(cost)
+            objective += cs.sumsqr(x) + cs.sumsqr(u)
+        objective += cs.sumsqr(x_new)
+        mpc.minimize(objective)
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
         sol = mpc.solve_ocp([0, 1])
-        u_opt = np.asarray([float(sol.vals[f"u{k}"]) for k in range(N)])
+        u_opt = sol.vals["u"].full().flat
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
         )

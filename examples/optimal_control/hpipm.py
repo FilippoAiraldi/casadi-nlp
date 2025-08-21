@@ -76,7 +76,7 @@ mpc = wrappers.Mpc(nlp=Nlp(), prediction_horizon=N)
 # variables. However, here we have only one state and one action, so we do not really
 # care about these dictionaries too much. The code looks as follows:
 
-X, U, _ = mpc.interleaved_states_and_actions(
+X, _, U = mpc.interleaved_states_and_actions(
     {"name": "x", "size": 2, "lb": -100, "ub": 100},
     {"name": "u", "lb": -100, "ub": 100},
 )
