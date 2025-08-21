@@ -179,11 +179,13 @@ class TestExamples(unittest.TestCase):
         x_next = res["xf"]
         F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
         mpc = wrappers.Mpc(nlp=Nlp(sym_type=self.sym_type), prediction_horizon=N)
-        states, actions, _ = mpc.interleaved_states_and_actions(
-            {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
+        list(
+            mpc.interleaved_states_and_actions(
+                {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
+            )
         )
-        X = states["x"]
-        U = actions["u"]
+        X = mpc.states["x"]
+        U = mpc.actions["u"]
         objective = 0
         for k in range(N):
             x, u, x_new = X[:, k], U[:, k], X[:, k + 1]

@@ -368,9 +368,12 @@ class TestMpc(unittest.TestCase):
         mpc.action("v", nv, lb=-100, ub=100)
         state_kw = [{"name": "x", "size": nx, "lb": 0}, {"name": "y", "size": ny}]
         action_kw = [{"name": "u", "size": nu}, {"name": "w", "size": nw}]
-        states, actions, actions_exp = mpc.interleaved_states_and_actions(
-            state_kw, action_kw
-        )
+        generator = mpc.interleaved_states_and_actions(state_kw, action_kw)
+        try:
+            while True:
+                next(generator)
+        except StopIteration as e:
+            states, actions, actions_exp = e.value
 
         self.assertIn("z", mpc.states)
         self.assertIn("v", mpc.actions)
@@ -417,8 +420,10 @@ class TestMpc(unittest.TestCase):
             self.assertIn(f"lam_ub_{name}", duals)
             self.assertEqual(duals[f"lam_ub_{name}"].numel(), 0)
 
-    @parameterized.expand([("SX",), ("MX",)])
-    def test_interleaved_states_and_actions__with_hpipm(self, sym_type: str):
+    @parameterized.expand(product(("SX", "MX"), range(3)))
+    def test_interleaved_states_and_actions__with_hpipm(
+        self, sym_type: str, style: int
+    ):
         # casadi/test/python/conic.py:test_hpipm
         x1 = cs.MX.sym("x1")
         x2 = cs.MX.sym("x2")
@@ -438,11 +443,37 @@ class TestMpc(unittest.TestCase):
         )
         F = cs.Function("F", [x, u], [x + xdot, cost], ["x", "u"], ["x_next", "cost"])
         mpc = Mpc(nlp=Nlp(sym_type), prediction_horizon=N)
-        X, U, _ = mpc.interleaved_states_and_actions(
+        generator = mpc.interleaved_states_and_actions(
             {"name": "x", "size": 2, "lb": -100, "ub": 100},
             {"name": "u", "lb": -100, "ub": 100},
         )
-        X, U = X["x"], U["u"]
+
+        # style 0: normal for loop
+        if style == 0:
+            Xs, Us = [], []
+            for (x,), (u,) in generator:
+                Xs.append(x)
+                if u is not None:
+                    Us.append(u)
+            X, U = cs.hcat(Xs), cs.hcat(Us)
+
+        # style 1: exhausted generator's return
+        elif style == 1:
+            try:
+                while True:
+                    next(generator)
+            except StopIteration as e:
+                X, U, _ = e.value
+                X, U = X["x"], U["u"]
+
+        # style 3: exhaust generator + use states and actions dicts
+        elif style == 2:
+            list(generator)
+            X, U = mpc.states["x"], mpc.actions["u"]
+
+        else:
+            raise NotImplementedError()
+
         objective = 0
         for k in range(N):
             x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
