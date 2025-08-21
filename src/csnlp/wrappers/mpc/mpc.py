@@ -865,40 +865,52 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
         """Internal method to pre-process the initial conditions before solving MPC."""
         # Process the initial conditions. If in multiple shooting, we
-        # enforce them via lbx and ubx (with a special edge case for
-        # `StackedMultistartNlp`); for single shooting, we pass them as parameters.
-        states = self.states
+        # enforce them via lbx and ubx; for single shooting, we pass them as parameters.
         if self._is_multishooting:
-            # convert initial conditions to an array-like
-            if isinstance(initial_conditions, dict):
-                x0_vec = np.concatenate([initial_conditions[n] for n in states])
-            else:
-                x0_vec = initial_conditions
+            self._preprocess_initial_conditions_in_multishooting(initial_conditions)
+            return pars
+        return self._preprocess_initial_conditions_in_singleshooting(
+            initial_conditions, pars
+        )
 
-            # enforce initial conditions via lbx and ubx
-            idx = self._initial_states_idx
-            nlp = self.nlp
-            nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
-
+    def _preprocess_initial_conditions_in_multishooting(
+        self, initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]]
+    ) -> None:
+        """Internal method to pre-process the initial conditions before solving MPC
+        in multiple shooting."""
+        if isinstance(initial_conditions, dict):
+            x0_vec = np.concatenate([initial_conditions[n] for n in self.states])
         else:
-            # convert initial conditions to a dict
-            if isinstance(initial_conditions, dict):
-                x0_dict = {_n(n): initial_conditions[n] for n in states}
-            else:
-                if len(states) == 1:
-                    x0s = (initial_conditions,)
-                else:
-                    x0s = np.split(
-                        np.asarray(initial_conditions),
-                        np.cumsum([s.shape[0] for s in states.values()][:-1]),
-                    )
-                x0_dict = {_n(n): s for n, s in zip(states, x0s)}
+            x0_vec = initial_conditions
 
-            # pass initial conditions as parameters
-            if pars is None:
-                pars = x0_dict
-            elif isinstance(pars, dict):
-                pars.update(x0_dict)
+        idx = self._initial_states_idx
+        nlp = self.nlp
+        nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
+
+    def _preprocess_initial_conditions_in_singleshooting(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
+    ) -> Union[dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
+        """Internal method to pre-process the initial conditions before solving MPC
+        in single shooting."""
+        initial_states = self._initial_states
+        if isinstance(initial_conditions, dict):
+            x0_dict = {n: initial_conditions[n] for n in initial_states}
+        else:
+            if len(initial_states) == 1:
+                x0s = (initial_conditions,)
             else:
-                pars = (p | x0_dict for p in pars)
+                x0s = np.split(
+                    np.asarray(initial_conditions),
+                    np.cumsum([s.shape[0] for s in initial_states.values()][:-1]),
+                )
+            x0_dict = {n: s for n, s in zip(initial_states, x0s)}
+
+        if pars is None:
+            pars = x0_dict
+        elif isinstance(pars, dict):
+            pars.update(x0_dict)
+        else:
+            pars = (p | x0_dict for p in pars)
         return pars

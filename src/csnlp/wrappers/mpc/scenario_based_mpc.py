@@ -1,3 +1,4 @@
+from collections import defaultdict
 from inspect import signature
 from typing import Callable, Literal, Optional, TypeVar, Union
 
@@ -68,11 +69,20 @@ class ScenarioBasedMpc(Mpc[SymType]):
         self.single_states: dict[str, SymType] = {}
         self.single_disturbances: dict[str, SymType] = {}
         self.single_slacks: dict[str, SymType] = {}
+        if self._is_multishooting:
+            del self._initial_states_idx
+            self._initial_states_idxs: defaultdict[str, npt.NDArray[np.int_]] = (
+                defaultdict(lambda: np.empty(0, dtype=int))
+            )
 
     @property
     def n_scenarios(self) -> int:
         """Gets the number of scenarios."""
         return self._n_scenarios
+
+    @property
+    def ns(self) -> int:
+        return sum(x0.shape[0] for x0 in self.single_states.values())
 
     @property
     def ns_all(self) -> int:
@@ -113,11 +123,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
         discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
-        bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> tuple[SymType, list[Optional[SymType]], SymType]:
-        """Adds one state variable per scenario to the SCMPC controller. Automatically
-        creates the (shared) constraint on the initial conditions for these states.
+    ) -> tuple[SymType, list[Optional[SymType]]]:
+        """Adds one state variable per scenario to the SCMPC controller.
 
         Parameters
         ----------
@@ -131,13 +139,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
             Hard lower bound of the state, by default ``-np.inf``.
         ub : array_like, casadi.DM, optional
             Hard upper bound of the state, by default ``+np.inf``.
-        bound_initial : bool, optional
-            If ``False``, then the upper and lower bounds on the initial state are not
-            imposed, i.e., set to ``+/- np.inf`` (since the initial state is constrained
-            to be equal to the current state of the system, it is sometimes advantageous
-            to remove its bounds). By default ``True``.
         bound_terminal : bool, optional
-            Same as above, but for the terminal state. By default ``True``.
+            If ``False``, then the upper and lower bounds on the terminal state are not
+            imposed, i.e., set to ``+/- np.inf``. By default ``True``.
 
         Returns
         -------
@@ -150,8 +154,6 @@ class ScenarioBasedMpc(Mpc[SymType]):
             The list of the state symbolic variable. If `shooting=single`, then
             `None` is returned since the states will only be available once the dynamics
             are set.
-        initial state : casadi.SX or MX
-            The initial state symbolic parameter.
 
         Raises
         ------
@@ -162,43 +164,47 @@ class ScenarioBasedMpc(Mpc[SymType]):
             since these can only be set after the dynamics have been set via the
             `constraint` method.
         """
+        nlp = self.nlp
         N = self._prediction_horizon
-        if self._is_multishooting:
+        is_multishooting = self._is_multishooting
+        if is_multishooting:
             shape = (size, N + 1)
             lb = np.broadcast_to(lb, shape).astype(float)
             ub = np.broadcast_to(ub, shape).astype(float)
-            if not bound_initial:
-                lb[:, 0] = -np.inf
-                ub[:, 0] = +np.inf
+            lb[:, 0] = ub[:, 0] = 0.0  # always force bounds for initial state
             if not bound_terminal:
                 lb[:, -1] = -np.inf
                 ub[:, -1] = +np.inf
-        elif np.any(lb != -np.inf) or np.any(ub != +np.inf):
-            raise RuntimeError(
-                "in single shooting, lower and upper state bounds can only be "
-                "created after the dynamics have been set"
-            )
+        else:
+            if np.any(lb != -np.inf) or np.any(ub != +np.inf):
+                raise RuntimeError(
+                    "in single shooting, lower and upper state bounds can only be "
+                    "created after the dynamics have been set"
+                )
 
-        # create as many states as scenarions, but only one initial state
-        x0_name = _name_init_state(name)
-        x0 = self.nlp.parameter(x0_name, (size, 1))
-        self._initial_states[x0_name] = x0
+            # create as many states as scenarions, but only one initial state
+            x0_name = _name_init_state(name)
+            x0 = nlp.parameter(x0_name, (size, 1))
+            self._initial_states[x0_name] = x0
 
         xs = []
         for i in range(self._n_scenarios):
             name_i = _n(name, i)
-            if self._is_multishooting:
-                x_i = self.nlp.variable(name_i, shape, discrete, lb, ub)[0]
-                self.nlp.constraint(_n(x0_name, i), x_i[:, 0], "==", x0)
+            if is_multishooting:
+                nx = nlp.nx
+                self._initial_states_idxs[name] = np.concatenate(
+                    (self._initial_states_idxs[name], np.arange(nx, nx + size))
+                )
+                x_i = nlp.variable(name_i, shape, discrete, lb, ub)[0]
             else:
                 x_i = None
             xs.append(x_i)
             self._states[name_i] = x_i
 
         # create also a single symbol for the state
-        x_single = self.nlp._sym_type.sym(name, size, N + 1)
+        x_single = nlp._sym_type.sym(name, size, N + 1)
         self.single_states[name] = x_single
-        return x_single, xs, x0
+        return x_single, xs
 
     def disturbance(self, name: str, size: int = 1) -> tuple[SymType, list[SymType]]:
         """Adds one disturbance parameter per scenario to the SCMPC controller along the
@@ -460,3 +466,33 @@ class ScenarioBasedMpc(Mpc[SymType]):
             (self.single_disturbances, self.disturbances_i(i)),
             (self.single_slacks, self.slacks_i(i)),
         )
+
+    def _preprocess_initial_conditions_in_multishooting(
+        self, initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]]
+    ) -> None:
+        # NOTE: instead of using `np.tile`, we reshape-repeat-reshape (faster)
+        nlp = self.nlp
+        K = self._n_scenarios
+        initial_states_idxs = self._initial_states_idxs
+
+        if isinstance(initial_conditions, dict):
+            for name, idx in initial_states_idxs.items():
+                IC = initial_conditions[name]
+                x0_tiled = np.reshape(IC, (1, -1)).repeat(K, 0).reshape(-1)
+                nlp.lbx[idx] = nlp.ubx[idx] = x0_tiled
+            return
+
+        single_states = self.single_states
+        if len(single_states) == 1:
+            x0_tiled = np.reshape(initial_conditions, (1, -1)).repeat(K, 0).reshape(-1)
+            idx = next(iter(self._initial_states_idxs.values()))
+            nlp.lbx[idx] = nlp.ubx[idx] = x0_tiled
+            return
+
+        x0s = np.split(
+            np.asarray(initial_conditions),
+            np.cumsum([s.shape[0] for s in single_states.values()][:-1]),
+        )
+        for (name, idx), IC in zip(initial_states_idxs.items(), x0s):
+            x0_tiled = np.reshape(IC, (1, -1)).repeat(K, 0).reshape(-1)
+            nlp.lbx[idx] = nlp.ubx[idx] = x0_tiled

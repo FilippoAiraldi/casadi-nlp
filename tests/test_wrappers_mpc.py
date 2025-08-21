@@ -598,8 +598,8 @@ class TestScenarioBasedMpc(unittest.TestCase):
         ny = ns // 2
         nx = ns - ny
         scmpc = SCMPC[cs.MX](Nlp(sym_type="MX"), K, N, shooting=shooting)
-        x, xs, _ = scmpc.state("x", nx, bound_initial=False, bound_terminal=False)
-        y, ys, _ = scmpc.state("y", ny, bound_initial=False, bound_terminal=False)
+        x, xs = scmpc.state("x", nx, bound_terminal=False)
+        y, ys = scmpc.state("y", ny, bound_terminal=False)
 
         self.assertEqual(len(xs), K)
         self.assertEqual(len(ys), K)
@@ -642,7 +642,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.set_nonlinear_dynamics(F)
 
         self.assertIn("dyn", scmpc.constraints.keys())
-        self.assertEqual(scmpc.nlp.ng, (1 + N) * nx * K)
+        self.assertEqual(scmpc.nlp.ng, N * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
     def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
@@ -672,7 +672,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
     ):
         N, K = 10, np.random.randint(2, 20)
         scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting=shooting)
-        x, _, _ = scmpc.state("x", 2)
+        x, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
         scmpc.set_nonlinear_dynamics(lambda x, u, d: x + u + d[:2] - d[2:])
@@ -714,7 +714,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
     def test_minimize_from_single__creates_objective_for_all_scenarios(self):
         N, K = 10, np.random.randint(2, 20)
         scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting="multi")
-        x, _, _ = scmpc.state("x", 2)
+        x, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
         lhs = cs.vertcat(cs.sum2(cs.exp(x)), cs.sum2(cs.log(u)))
