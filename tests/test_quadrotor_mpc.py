@@ -735,7 +735,7 @@ class TestQuadRotorMpc(unittest.TestCase):
                 "perturbation": np.random.randn(3, 1) * 0.5,
             }
             sol_expected = mpc_expected.solve(pars, vals_expected)
-            sol_actual: Solution[cs.SX] = mpc_actual.solve(
+            sol_actual: Solution[cs.SX] = mpc_actual.solve_ocp(
                 pars.pop("x0").flatten(), pars, vals_actual
             )
 
