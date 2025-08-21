@@ -30,7 +30,8 @@ and it consists of the following MPC problem
             & x_{2,1} = 0^\top,
     \end{aligned}
 
-where the cost and dynamics matrices can be found later in the code.
+where the cost and dynamics matrices can be found later in the code. Note the presence
+of an equality constraint on the first state at time step :math:`k=2`.
 """
 
 # %%
@@ -68,41 +69,36 @@ N = 4
 mpc = wrappers.Mpc(nlp=Nlp(), prediction_horizon=N)
 
 # %%
-# Then, for the new part: do not create the symbolic states and actions via
+# Now, for the new part: do not create the symbolic states and actions via
 # :meth:`csnlp.wrappers.Mpc.state` and :meth:`csnlp.wrappers.Mpc.action`, but use
 # :meth:`csnlp.wrappers.Mpc.interleaved_states_and_actions`. This method can create
-# multiple states and actions in one call, so it takes as inputs dictionaries of
-# keywords for each variable. For the same reason, it also returns dictionaries of
-# variables. However, here we have only one state and one action, so we do not really
-# care about these dictionaries too much. The code looks as follows:
-
-X, _, U = mpc.interleaved_states_and_actions(
-    {"name": "x", "size": 2, "lb": -100, "ub": 100},
-    {"name": "u", "lb": -100, "ub": 100},
-)
-X, U = X["x"], U["u"]
-
-# %%
-# Note that we have added a non-infinite lower and upper bounds to each state and action
-# since HPIPM prefers it this way. To adhere to the OCP structure required by HPIPM, we
-# then proceed to create the dynamics constraints (and any other constraints, for this
-# matter) in a stage-wise manner. Since we are already here, we also accumulate the
-# stage cost into the objective.
+# multiple states and actions (as a generator), so it takes as inputs dictionaries of
+# keywords for each variable. For the same reason, it also yields tuples of
+# state-action-next state at each time step. The code looks as follows:
 
 objective = 0
 
-for k in range(N):
-    x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
+generator = mpc.interleaved_states_and_actions(
+    {"name": "x", "size": 2, "lb": -100, "ub": 100},
+    {"name": "u", "lb": -100, "ub": 100},
+)
+(x,), (u,) = next(generator)
+for k, ((x_new,), (u_new,)) in enumerate(generator):
     x_new_predicted, stage_cost = F(x, u)
-
     mpc.constraint(f"dyn{k}", x_new, "==", x_new_predicted)
-
     if k == 2:
         mpc.constraint("other-constraint", x[0], "==", 0.0)  # custom constraint
-
     objective += stage_cost
+    x, u = x_new, u_new
 
-objective += cs.dot(x_new, x_new)  # terminal cost
+objective += cs.sumsqr(x_new)  # terminal cost
+
+# %%
+# Note how we have added a non-infinite lower and upper bounds to each state and action
+# since HPIPM prefers it this way. To adhere to the OCP structure required by HPIPM, we
+# also have created the dynamics constraints (and any other constraints, for this
+# matter) in a stage-wise manner. At the same time, we have also accumulated the
+# stage cost into the objective.
 
 # %%
 # Lastly, set the objective and initialize the solver. Then, call

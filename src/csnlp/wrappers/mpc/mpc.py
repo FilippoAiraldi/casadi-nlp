@@ -1,4 +1,4 @@
-from collections.abc import Collection, Iterable, Sequence
+from collections.abc import Collection, Generator, Iterable, Sequence
 from inspect import signature
 from math import ceil
 from typing import (
@@ -349,7 +349,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         states_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
         actions_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
-    ) -> tuple[dict[str, SymType], dict[str, SymType], dict[str, SymType]]:
+    ) -> Generator[
+        tuple[tuple[SymType, ...], tuple[Optional[SymType], ...]],
+        None,
+        tuple[dict[str, SymType], dict[str, SymType], dict[str, SymType]],
+    ]:
         """Allows to create states and actions in an interleaved manner. In constrast to
         creating all states and then all actions, this method alternates, at each time
         step along the prediction horizon, creating a state and an action.
@@ -362,6 +366,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             dictionaries to create multiple states at each time step.
         actions_kwargs : kwargs or collection of kwargs
             Similar to `states_kwargs`, but for the actions. See :meth:`action`.
+
+        Yields
+        ------
+        2 tuples
+            At each iteration (i.e., for each time step), yields two tuples:
+
+            - states at the current time step :math:`k`
+            - actions at :math:`k` (``None`` at the last iteration).
 
         Returns
         -------
@@ -389,15 +401,19 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             states_kwargs = (states_kwargs,)
         if isinstance(actions_kwargs, dict):
             actions_kwargs = (actions_kwargs,)
+        stage_states: list[SymType] = []
+        stage_actions: list[SymType] = []
 
         # create first states (k=0) and record the initial states indices
+        stage_states.clear()
         nx_before = nlp.nx
         for kw in states_kwargs:
             name = kw["name"]
             shape = (kw.get("size", 1), 1)
             discrete = kw.get("discrete", False)
             lb = ub = 0.0  # always force bounds for initial state
-            nlp.variable(_n(name, 0), shape, discrete, lb, ub)
+            x = nlp.variable(_n(name, 0), shape, discrete, lb, ub)[0]
+            stage_states.append(x)
         self._initial_states_idx = np.concatenate(
             (self._initial_states_idx, np.arange(nx_before, nlp.nx))
         )
@@ -406,15 +422,21 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         for k in range(Np):
             # create actions at time step k
             if k % spacing == 0 and k < Nc:
+                stage_actions.clear()
                 for kw in actions_kwargs:
                     name = kw["name"]
                     shape = (kw.get("size", 1), 1)
                     discrete = kw.get("discrete", False)
                     lb = kw.get("lb", -np.inf)
                     ub = kw.get("ub", np.inf)
-                    nlp.variable(_n(name, k), shape, discrete, lb, ub)
+                    u = nlp.variable(_n(name, k), shape, discrete, lb, ub)[0]
+                    stage_actions.append(u)
 
-            # create next states at time step k+1
+            # yield current triplet and shift states by one time step
+            yield tuple(stage_states), tuple(stage_actions)
+
+            # create states at time step k+1
+            stage_states.clear()
             for kw in states_kwargs:
                 name = kw["name"]
                 shape = (kw.get("size", 1), 1)
@@ -425,7 +447,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
                 else:
                     lb = kw.get("lb", -np.inf)
                     ub = kw.get("ub", np.inf)
-                nlp.variable(_n(name, k + 1), shape, discrete, lb, ub)
+                x = nlp.variable(_n(name, k + 1), shape, discrete, lb, ub)[0]
+                stage_states.append(x)
+
+        # yield the last time step, where no actions are created
+        yield tuple(stage_states), tuple(None for _ in actions_kwargs)
 
         # compact the create states and actions per stage into single variables. This
         # requires removing (popping) the stage entries from the `variables` and
