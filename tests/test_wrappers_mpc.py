@@ -351,26 +351,72 @@ class TestMpc(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             list(mpc.interleaved_states_and_actions({}, {}))
 
-    def test_interleaved_states_and_actions__creates_states_and_actions(self):
-        N = 10
-        mpc = Mpc(nlp=Nlp(), prediction_horizon=N, control_horizon=N // 2)
-        state_kw = [{"name": "x", "size": 2}, {"name": "y", "size": 3}]
-        action_kw = [{"name": "u", "size": 15}, {"name": "w", "size": 2}]
-        for _ in mpc.interleaved_states_and_actions(state_kw, action_kw):
-            pass
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_interleaved_states_and_actions__creates_states_and_actions(
+        self, sym_type: str
+    ):
+        Np = np.random.randint(10, 30)
+        Nc = np.random.randint(7, Np)
+        spacing = np.random.choice([1, 3])
+        n_actions = ceil(Nc / spacing)
+        mpc = Mpc(Nlp(sym_type), Np, Nc, spacing, "multi")
+        nz, nv, nx, ny, nu, nw = np.random.randint(1, 10, size=6)
+        # pre-create some other states and actions to create noise
+        mpc.state("z", nz, lb=-100, ub=100)
+        mpc.action("v", nv, lb=-100, ub=100)
+        state_kw = [{"name": "x", "size": nx, "lb": 0}, {"name": "y", "size": ny}]
+        action_kw = [{"name": "u", "size": nu}, {"name": "w", "size": nw}]
+        states, actions, actions_exp = mpc.interleaved_states_and_actions(
+            state_kw, action_kw
+        )
+
+        self.assertIn("z", mpc.states)
+        self.assertIn("v", mpc.actions)
+        variables = mpc.variables
+        duals = mpc.dual_variables
+        for name in ("z", "v"):
+            self.assertIn(name, variables)
+            self.assertIn(f"lam_lb_{name}", duals)
+            self.assertIn(f"lam_ub_{name}", duals)
+
+        offset = nz * (Np + 1) + nv * n_actions
+        expected = list(range(nz)) + list(range(offset, offset + nx + ny))
+        np.testing.assert_array_equal(mpc._initial_states_idx, expected)
 
         for kw in state_kw:
             name = kw["name"]
             size = kw["size"]
+            self.assertIn(name, variables)
+            self.assertTupleEqual(variables[name].shape, (size, Np + 1))
+            self.assertIn(name, states)
+            self.assertTupleEqual(states[name].shape, (size, Np + 1))
             self.assertIn(name, mpc.states)
-            self.assertTupleEqual(mpc.states[name].shape, (size, N + 1))
+            self.assertTupleEqual(mpc.states[name].shape, (size, Np + 1))
+            self.assertIn(f"lam_lb_{name}", duals)
+            self.assertEqual(
+                duals[f"lam_lb_{name}"].numel(), nx * (Np + 1) if name == "x" else ny
+            )
+            self.assertIn(f"lam_ub_{name}", duals)
+            self.assertEqual(duals[f"lam_ub_{name}"].numel(), nx if name == "x" else ny)
+
         for kw in action_kw:
             name = kw["name"]
             size = kw["size"]
+            self.assertIn(name, variables)
+            self.assertTupleEqual(variables[name].shape, (size, n_actions))
+            self.assertIn(name, actions)
+            self.assertTupleEqual(actions[name].shape, (size, n_actions))
+            self.assertIn(name, actions_exp)
+            self.assertTupleEqual(actions_exp[name].shape, (size, Np))
             self.assertIn(name, mpc.actions)
-            self.assertTupleEqual(mpc.actions[name].shape, (size, N // 2))
+            self.assertTupleEqual(mpc.actions[name].shape, (size, n_actions))
+            self.assertIn(f"lam_lb_{name}", duals)
+            self.assertEqual(duals[f"lam_lb_{name}"].numel(), 0)
+            self.assertIn(f"lam_ub_{name}", duals)
+            self.assertEqual(duals[f"lam_ub_{name}"].numel(), 0)
 
-    def test_interleaved_states_and_actions__with_hpipm(self):
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_interleaved_states_and_actions__with_hpipm(self, sym_type: str):
         # casadi/test/python/conic.py:test_hpipm
         x1 = cs.MX.sym("x1")
         x2 = cs.MX.sym("x2")
@@ -389,24 +435,21 @@ class TestMpc(unittest.TestCase):
             - 2 * x2
         )
         F = cs.Function("F", [x, u], [x + xdot, cost], ["x", "u"], ["x_next", "cost"])
-        mpc = Mpc(nlp=Nlp(), prediction_horizon=N)
+        mpc = Mpc(nlp=Nlp(sym_type), prediction_horizon=N)
+        X, U, _ = mpc.interleaved_states_and_actions(
+            {"name": "x", "size": 2, "lb": -100, "ub": 100},
+            {"name": "u", "lb": -100, "ub": 100},
+        )
+        X, U = X["x"], U["u"]
         objective = 0
-        for k, (states, actions, next_states) in enumerate(
-            mpc.interleaved_states_and_actions(
-                {"name": "x", "size": 2, "lb": -100, "ub": 100},
-                {"name": "u", "lb": -100, "ub": 100},
-            )
-        ):
-            x, _, _ = states["x"]
-            u, _, _ = actions["u"]
-            x_new, _, _ = next_states["x"]
+        for k in range(N):
+            x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
             x_new_predicted, stage_cost = F(x, u)
             mpc.constraint(f"dyn{k}", x_new, "==", x_new_predicted)
             if k == 2:
-                mpc.constraint("other-constraint", x[0], "==", 0.0)
+                mpc.constraint("other-constraint", x[0], "==", 0.0)  # custom constr.
             objective += stage_cost
-
-        objective += cs.dot(x_new, x_new)
+        objective += cs.dot(x_new, x_new)  # terminal cost
         mpc.minimize(objective)
         mpc.init_solver(
             {
