@@ -879,9 +879,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         """Internal method to pre-process the initial conditions before solving MPC
         in multiple shooting."""
         if isinstance(initial_conditions, dict):
-            x0_vec = np.concatenate([initial_conditions[n] for n in self.states])
+            try:
+                x0_vec = np.concatenate([initial_conditions[n] for n in self.states])
+            except ValueError:
+                # NOTE: above fails for a list of scalars
+                x0_vec = np.asarray([initial_conditions[n] for n in self.states])
         else:
-            x0_vec = initial_conditions
+            x0_vec = np.reshape(initial_conditions, -1)
 
         idx = self._initial_states_idx
         nlp = self.nlp
