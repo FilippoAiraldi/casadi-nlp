@@ -88,7 +88,7 @@ mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
 mpc.init_solver(opts)
-sol = mpc.solve({"x": [0, 1]})
+sol = mpc.solve_ocp([0, 1])
 
 t = np.linspace(0, T, N + 1)
 plt.plot(t, sol.value(x).T)
@@ -116,7 +116,7 @@ x = mpc.states["x"]  # only accessible after dynamics have been set
 mpc.constraint("x_lb", x[:, 1:], ">=", -0.2)  # equivalent to a lb on x
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(opts)
-sol = mpc.solve({"x": [0, 1]})
+sol = mpc.solve_ocp([0, 1])
 
 # %%
 # We can again plot the solution. It should look somewhat similar to the one obtained

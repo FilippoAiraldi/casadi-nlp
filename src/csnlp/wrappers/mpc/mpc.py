@@ -90,7 +90,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     Raises
     ------
     ValueError
-        Raises if the shooting method is invalid; or if any of the horizons are invalid.
+        Raises if the shooting method is invalid; or if any of the horizons are invalid;
+        or if the NLP is a multistart NLP of type `StackedMultistartNlp`, which is not
+        supported by this wrapper.
     """
 
     def __init__(
@@ -129,6 +131,19 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         else:
             self._input_spacing = input_spacing
 
+        if nlp.is_wrapped(NlpScaling):
+            warn(
+                "Initial conditions have to be manually scaled before being passed to "
+                "`solve` or `solve_multi`",
+                RuntimeWarning,
+            )
+
+        if isinstance(nlp, StackedMultistartNlp):
+            raise ValueError(
+                "NLPs of type `StackedMultistartNlp` are not supported by "
+                f"{self.__class__.__name__}."
+            )
+
         self._states: dict[str, SymType] = {}
         if self._is_multishooting:
             self._initial_states_idx: npt.NDArray[np.int_] = np.empty(0, dtype=int)
@@ -139,13 +154,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._slacks: dict[str, SymType] = {}
         self._disturbances: dict[str, SymType] = {}
         self._dynamics_already_set = False
-        self._is_stacked_ms_nlp = isinstance(self.nlp.unwrapped, StackedMultistartNlp)
-        if nlp.is_wrapped(NlpScaling):
-            warn(
-                "Initial conditions have to be manually scaled before being passed to "
-                "`solve` or `solve_multi`",
-                RuntimeWarning,
-            )
 
     @property
     def prediction_horizon(self) -> int:
@@ -507,173 +515,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             self._slacks[f"slack_{name}"] = out[2]
         return out
 
-    def __call__(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        # Similar logic to `Wrapper.__call__` but with an additional argument
-        if not self.nlp.is_multi or (
-            (pars is None or isinstance(pars, dict))
-            and (vals0 is None or isinstance(vals0, dict))
-        ):
-            return self.solve(initial_conditions, pars, vals0)
-        return self.solve_multi(initial_conditions, pars, vals0, **kwargs)
-
-    def solve(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
-    ) -> Solution[SymType]:
-        """Solves the MPC optimization problem.
-
-        Parameters
-        ----------
-        initial_conditions : array_like or dict (str, array_like)
-            Initial conditions for the states of the MPC controller. If a dictionary is
-            provided, it must contain the initial conditions for each state variable
-            (the keys must match the names of the states). If an array is provided, it
-            must be a vector of the same length as the total number of states in the MPC
-            controller (i.e., the sum of the sizes of all states).
-        pars : dict (str, array_like), optional
-            Dictionary or structure containing, for each parameter in the MPC scheme,
-            the corresponding numerical value. Can be ``None`` if no parameters are
-            present.
-        vals0 : dict (str, array_like), optional
-            Dictionary or structure containing, for each variable in the MPC scheme, the
-            corresponding initial guess. By default, initial guesses are not passed to
-            the solver.
-
-        Returns
-        -------
-        sol : Solution
-            A solution object containing all the information on the MPC solution.
-        """
-        pars = self._prepare_for_solve(initial_conditions, pars)
-        return self.nlp.solve(pars, vals0)
-
-    def solve_multi(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        return_all_sols: bool = False,
-        **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        """Solves the MPC with multiple parameters and guesses.
-
-        Parameters
-        ----------
-        initial_conditions : array_like or dict (str, array_like)
-            Initial conditions for the states of the MPC controller. If a dictionary is
-            provided, it must contain the initial conditions for each state variable
-            (the keys must match the names of the states). If an array is provided, it
-            must be a vector of the same length as the total number of states in the MPC
-            controller (i.e., the sum of the sizes of all states). Note that these
-            initial conditions are shared among all multistarts.
-        pars : dict of (str, array_like) or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            parameter in the MPC scheme, the corresponding numerical value. In case a
-            single dict is passed, the same is used across all scenarions. Can be
-            ``None`` if no parameters are present.
-        vals0 : dict of (str, array_like) or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            variable in the MPC scheme, the corresponding initial guess. In case a
-            single dict is passed, the same is used across all scenarions. By default
-            ``None``, in which case  initial guesses are not passed to the solver.
-        return_all_sols : bool, optional
-            If ``True``, returns the solution of each multistart of the MPC; otherwise,
-            only the best solution is returned. By default, ``False``.
-
-        Returns
-        -------
-        Solution or list of Solutions
-            Depending on the flags ``return_all_sols``, returns
-
-            - the best solution out of all multiple starts
-            - all the solutions (one per start).
-        """
-        pars = self._prepare_for_solve(initial_conditions, pars)
-        return self.nlp.solve_multi(pars, vals0, return_all_sols, **kwargs)
-
-    def _prepare_for_solve(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
-    ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
-        """Internal method to prepare the input data before solving the MPC."""
-        # convert the initial conditions to a dict either if 1) in multishooting but as
-        # an instance of `StackedMultistartNlp`, or 3) in single shooting
-        is_multishooting = self._is_multishooting
-        is_stacked_ms_nlp = self._is_stacked_ms_nlp
-        states = self.states
-        if is_stacked_ms_nlp or not is_multishooting:
-            # convert initial conditions to a dict
-            if isinstance(initial_conditions, dict):
-                x0_dict = {_n(k): initial_conditions[k] for k in states}
-            else:
-                if len(states) == 1:
-                    x0s = (initial_conditions,)
-                else:
-                    x0s = np.split(
-                        np.asarray(initial_conditions),
-                        np.cumsum([s.shape[0] for s in states.values()][:-1]),
-                    )
-                x0_dict = {_n(k): v for k, v in zip(states, x0s)}
-
-        # finally we can process the initial conditions. If in multiple shooting, we
-        # enforce them via lbx and ubx (with a special edge case for
-        # `StackedMultistartNlp`); for single shooting, we pass them as parameters.
-        if is_multishooting:
-            # convert initial conditions to an array-like
-            if isinstance(initial_conditions, dict):
-                x0_vec = np.concatenate([initial_conditions[k] for k in states])
-            else:
-                x0_vec = initial_conditions
-
-            # enforce initial conditions via lbx and ubx
-            idx = self._initial_states_idx
-            nlp = self.nlp
-            nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
-
-            # take care of the edge case in which `StackedMultistartNlp` is used;
-            # requires setting the bounds for multiple repetitions of the states
-            if is_stacked_ms_nlp:
-                nlp_unwrapped: StackedMultistartNlp = nlp.unwrapped
-                cnt = 0
-                lbx = nlp_unwrapped._stacked_nlp.lbx
-                ubx = nlp_unwrapped._stacked_nlp.ubx
-                for name, var in nlp_unwrapped.variables.items():
-                    numel = var.numel()
-                    if name in self.states:
-                        x0 = x0_dict[_n(name)]
-                        size = var.size1()
-                        for i in range(nlp_unwrapped.starts):
-                            idx_ = cnt + i * numel
-                            lbx[idx_ : idx_ + size] = ubx[idx_ : idx_ + size] = x0
-                    cnt += numel * nlp_unwrapped.starts
-
-        else:
-            # pass initial conditions as parameters
-            if pars is None:
-                pars = x0_dict
-            elif isinstance(pars, dict):
-                pars.update(x0_dict)
-            else:
-                pars = (p | x0_dict for p in pars)
-        return pars
-
     def set_affine_dynamics(
         self,
         A: MatType,
@@ -911,3 +752,153 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+
+    def solve_ocp(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        **kwargs: Any,
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+        """Solves the MPC optimal control problem, possibly for multiple parameters
+        and initial guesses. For more information, see :meth:`solve_ocp_single` and
+        :meth:`solve_ocp_multi`."""
+        # Similar logic to `Wrapper.__call__`
+        if not self.nlp.is_multi or (
+            (pars is None or isinstance(pars, dict))
+            and (vals0 is None or isinstance(vals0, dict))
+        ):
+            return self.solve_ocp_single(initial_conditions, pars, vals0)
+        return self.solve_ocp_multi(initial_conditions, pars, vals0, **kwargs)
+
+    def solve_ocp_single(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Optional[dict[str, npt.ArrayLike]] = None,
+        vals0: Optional[dict[str, npt.ArrayLike]] = None,
+    ) -> Solution[SymType]:
+        """Solves the MPC optimal control problem.
+
+        Parameters
+        ----------
+        initial_conditions : array_like or dict (str, array_like)
+            Initial conditions for the states of the MPC controller. If a dictionary is
+            provided, it must contain the initial conditions for each state variable
+            (keys must match names of the states). If an array is provided, it must be a
+            vector of the same length as the total number of states in the controller
+            (i.e., the sum of the sizes of all states).
+        pars : dict (str, array_like), optional
+            Dictionary or structure containing, for each parameter in the MPC scheme,
+            the corresponding numerical value. Can be ``None`` if no parameters are
+            present.
+        vals0 : dict (str, array_like), optional
+            Dictionary or structure containing, for each variable in the MPC scheme, the
+            corresponding initial guess. By default ``None``, in which case initial
+            guesses are not passed to the solver.
+
+        Returns
+        -------
+        sol : Solution
+            A solution object containing all the information on the MPC solution.
+        """
+        pars = self._preprocess_initial_conditions(initial_conditions, pars)
+        return self.nlp.solve(pars, vals0)
+
+    def solve_ocp_multi(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        vals0: Union[
+            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
+        ] = None,
+        return_all_sols: bool = False,
+        **kwargs: Any,
+    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+        """Solves the MPC optimal control problem for multiple parameters and initial
+        guesses (a.k.a., multistart). Multistarting is only enabled if the underlying
+        NLP is an instance of :class:`csnlp.multistart.MultistartNlp`.
+
+        Parameters
+        ----------
+        initial_conditions : array_like or dict (str, array_like)
+            Initial conditions for the states of the MPC controller. If a dictionary is
+            provided, it must contain the initial conditions for each state variable
+            (the keys must match the names of the states). If an array is provided, it
+            must be a vector of the same length as the total number of states in the MPC
+            controller (i.e., the sum of the sizes of all states). Note that these
+            initial conditions are shared among all multistarts.
+        pars : dict of (str, array_like) or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            parameter in the MPC scheme, the corresponding numerical value. In case a
+            single dict is passed, the same is used across all scenarions. Can be
+            ``None`` if no parameters are present.
+        vals0 : dict of (str, array_like) or iterable of, optional
+            An iterable that, for each multistart, contains a dictionary with, for each
+            variable in the MPC scheme, the corresponding initial guess. In case a
+            single dict is passed, the same is used across all scenarions. By default
+            ``None``, in which case  initial guesses are not passed to the solver.
+        return_all_sols : bool, optional
+            If ``True``, returns the solution of each multistart of the MPC; otherwise,
+            only the best solution is returned. By default, ``False``.
+
+        Returns
+        -------
+        Solution or list of Solutions
+            Depending on the flags ``return_all_sols``, returns
+
+            - the best solution out of all multiple starts
+            - all the solutions (one per start).
+        """
+        pars = self._preprocess_initial_conditions(initial_conditions, pars)
+        return self.nlp.solve_multi(pars, vals0, return_all_sols, **kwargs)
+
+    def _preprocess_initial_conditions(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
+    ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
+        """Internal method to prepare the input data before solving the MPC."""
+        # Process the initial conditions. If in multiple shooting, we
+        # enforce them via lbx and ubx (with a special edge case for
+        # `StackedMultistartNlp`); for single shooting, we pass them as parameters.
+        states = self.states
+        if self._is_multishooting:
+            # convert initial conditions to an array-like
+            if isinstance(initial_conditions, dict):
+                x0_vec = np.concatenate([initial_conditions[n] for n in states])
+            else:
+                x0_vec = initial_conditions
+
+            # enforce initial conditions via lbx and ubx
+            idx = self._initial_states_idx
+            nlp = self.nlp
+            nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
+
+        else:
+            # convert initial conditions to a dict
+            if isinstance(initial_conditions, dict):
+                x0_dict = {_n(n): initial_conditions[n] for n in states}
+            else:
+                if len(states) == 1:
+                    x0s = (initial_conditions,)
+                else:
+                    x0s = np.split(
+                        np.asarray(initial_conditions),
+                        np.cumsum([s.shape[0] for s in states.values()][:-1]),
+                    )
+                x0_dict = {_n(n): s for n, s in zip(states, x0s)}
+
+            # pass initial conditions as parameters
+            if pars is None:
+                pars = x0_dict
+            elif isinstance(pars, dict):
+                pars.update(x0_dict)
+            else:
+                pars = (p | x0_dict for p in pars)
+        return pars

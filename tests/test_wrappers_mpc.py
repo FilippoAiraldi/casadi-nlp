@@ -465,7 +465,7 @@ class TestMpc(unittest.TestCase):
             "conic",
         )
         mpc = mpc.copy()
-        sol = mpc.solve([2, 1])
+        sol = mpc.solve_ocp([2, 1])
         np.testing.assert_allclose(sol.f, 219.22188605113826, rtol=1e-6, atol=1e-6)
 
 
