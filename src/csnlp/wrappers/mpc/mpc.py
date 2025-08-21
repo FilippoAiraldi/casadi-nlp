@@ -1,4 +1,4 @@
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Collection, Iterable, Sequence
 from inspect import signature
 from math import ceil
 from typing import (
@@ -25,9 +25,9 @@ SymType = TypeVar("SymType", cs.SX, cs.MX)
 MatType = TypeVar("MatType", SymType, cs.DM, np.ndarray)
 
 
-def _n(statename: str) -> str:
-    """Internal utility for naming initial states."""
-    return f"{statename}_0"
+def _n(statename: str, k: int = 0) -> str:
+    """Internal utility for naming states at different time steps."""
+    return f"{statename}_{k}"
 
 
 def _callable2csfunc(
@@ -341,15 +341,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         states_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
         actions_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
-    ) -> Generator[
-        tuple[
-            dict[str, tuple[SymType, SymType, SymType]],
-            dict[str, tuple[SymType, SymType, SymType]],
-            dict[str, tuple[SymType, SymType, SymType]],
-        ],
-        None,
-        None,
-    ]:
+    ) -> tuple[dict[str, SymType], dict[str, SymType], dict[str, SymType]]:
         """Allows to create states and actions in an interleaved manner. In constrast to
         creating all states and then all actions, this method alternates, at each time
         step along the prediction horizon, creating a state and an action.
@@ -363,13 +355,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         actions_kwargs : kwargs or collection of kwargs
             Similar to `states_kwargs`, but for the actions. See :meth:`action`.
 
-        Yields
-        ------
-        tuple of 3 dicts
-            Yields, for each time step, three dictionaries with the current state, the
-            current action, and lastly the next state. Each dictionary contains the
-            symbolic variable and the multipliers for its lower and upper bounds
-            (see :meth:`variable`).
+        Returns
+        -------
+        3 dictionaries
+            Returns three dictionaries. The first contains the symbolic variables for
+            the created states, while the second and third contains the symbolic
+            variables for the created actions and their expanded version
+            (see :meth:`action`).
 
         Raises
         ------
@@ -380,87 +372,105 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             raise RuntimeError(
                 "Interleaved states and actions are not supported in single-shooting."
             )
+
+        nlp = self.nlp
+        Np = self._prediction_horizon
+        Nc = self._control_horizon
+        spacing = self._input_spacing
         if isinstance(states_kwargs, dict):
             states_kwargs = (states_kwargs,)
         if isinstance(actions_kwargs, dict):
             actions_kwargs = (actions_kwargs,)
-        X = []
-        U = []
-        U_exp = []
-        Np = self._prediction_horizon
 
-        # define some helper functions
-        def _create_states(k):
-            states = {}
+        # create first states (k=0) and record the initial states indices
+        nx_before = nlp.nx
+        for kw in states_kwargs:
+            name = kw["name"]
+            shape = (kw.get("size", 1), 1)
+            discrete = kw.get("discrete", False)
+            lb = ub = 0.0  # always force bounds for initial state
+            nlp.variable(_n(name, 0), shape, discrete, lb, ub)
+        self._initial_states_idx = np.concatenate(
+            (self._initial_states_idx, np.arange(nx_before, nlp.nx))
+        )
+
+        # create rest of states and actions
+        for k in range(Np):
+            # create actions at time step k
+            if k % spacing == 0 and k < Nc:
+                for kw in actions_kwargs:
+                    name = kw["name"]
+                    shape = (kw.get("size", 1), 1)
+                    discrete = kw.get("discrete", False)
+                    lb = kw.get("lb", -np.inf)
+                    ub = kw.get("ub", np.inf)
+                    nlp.variable(_n(name, k), shape, discrete, lb, ub)
+
+            # create next states at time step k+1
             for kw in states_kwargs:
                 name = kw["name"]
-                if k == 0:
-                    lb = ub = 0.0  # always force bounds for initial state
-                elif k == Np and not kw.get("bound_terminal", True):
+                shape = (kw.get("size", 1), 1)
+                discrete = kw.get("discrete", False)
+                if k + 1 == Np and not kw.get("bound_terminal", True):
                     lb = -np.inf
                     ub = np.inf
                 else:
                     lb = kw.get("lb", -np.inf)
                     ub = kw.get("ub", np.inf)
-                shape = (kw.get("size", 1), 1)
-                discrete = kw.get("discrete", False)
-                states[name] = self.nlp.variable(f"{name}{k}", shape, discrete, lb, ub)
-            x = cs.vcat([s[0] for s in states.values()])
-            return states, x
+                nlp.variable(_n(name, k + 1), shape, discrete, lb, ub)
 
-        def _create_actions(k):
-            actions = {}
-            for kw in actions_kwargs:
-                name = kw["name"]
-                actions[name] = self.nlp.variable(
-                    f"{name}{k}",
-                    (kw.get("size", 1), 1),
-                    kw.get("discrete", False),
-                    kw.get("lb", -np.inf),
-                    kw.get("ub", np.inf),
-                )
-            u = cs.vcat([a[0] for a in actions.values()])
-            return actions, u
+        # compact the create states and actions per stage into single variables. This
+        # requires removing (popping) the stage entries from the `variables` and
+        # `dual_variables` dicts, and replacing them with the compacted/concatenated
+        # variables. At the same time, create also the output dictionaries with the
+        # states and actions created in this call.
+        variables = nlp.variables
+        duals = nlp.dual_variables
+        variables_: list[SymType] = []
+        duals_lb_: list[SymType] = []
+        duals_ub_: list[SymType] = []
+        # for states
+        out_states: dict[str, SymType] = {}
+        states = self._states
+        for kw in states_kwargs:
+            variables_.clear()
+            duals_lb_.clear()
+            duals_ub_.clear()
+            name = kw["name"]
+            for k in range(Np + 1):
+                n = _n(name, k)
+                variables_.append(variables.pop(n))
+                duals_lb_.append(duals.pop(f"lam_lb_{n}"))
+                duals_ub_.append(duals.pop(f"lam_ub_{n}"))
+            variables[name] = states[name] = out_states[name] = cs.hcat(variables_)
+            duals[f"lam_lb_{name}"] = cs.vcat(duals_lb_)
+            duals[f"lam_ub_{name}"] = cs.vcat(duals_ub_)
+        # for actions
+        out_actions: dict[str, SymType] = {}
+        out_actions_exp: dict[str, SymType] = {}
+        actions = self._actions
+        actions_exp = self._actions_exp
+        for kw in actions_kwargs:
+            variables_.clear()
+            duals_lb_.clear()
+            duals_ub_.clear()
+            name = kw["name"]
+            for k in range(0, Nc, spacing):
+                n = _n(name, k)
+                variables_.append(variables.pop(n))
+                duals_lb_.append(duals.pop(f"lam_lb_{n}"))
+                duals_ub_.append(duals.pop(f"lam_ub_{n}"))
+            U = cs.hcat(variables_)
+            U_exp = U if spacing == 1 else repeat(U, (1, spacing))[:, :Nc]
+            if gap := self._prediction_horizon - U_exp.shape[1]:
+                u_last = U_exp[:, -1]
+                U_exp = cs.horzcat(U_exp, *(u_last for _ in range(gap)))
+            variables[name] = actions[name] = out_actions[name] = U
+            actions_exp[name] = out_actions_exp[name] = U_exp
+            duals[f"lam_lb_{name}"] = cs.vcat(duals_lb_)
+            duals[f"lam_ub_{name}"] = cs.vcat(duals_ub_)
 
-        # create first states (k=0)
-        nx = self.nlp.nx
-        states, x = _create_states(0)
-        self._initial_states_idx = np.concatenate(
-            (self._initial_states_idx, np.arange(nx, nx + x.numel()))
-        )
-        X.append(x)
-
-        for k in range(Np):
-            # create actions at time step k
-            if k % self._input_spacing == 0 and k < self._control_horizon:
-                actions, u = _create_actions(k)
-                U.append(u)
-            U_exp.append(u)
-
-            # create next states at time step k+1
-            new_states, x_new = _create_states(k + 1)
-
-            yield (states, actions, new_states)
-
-            # shift the previous states
-            states = new_states
-            x = x_new
-            X.append(x)
-
-        # save all rolled-out lists of variables to internal dictionaries
-        X = cs.hcat(X)
-        state_names = (kw["name"] for kw in states_kwargs)
-        state_cumsizes = np.cumsum([0] + [kw.get("size", 1) for kw in states_kwargs])
-        self._states.update(zip(state_names, cs.vertsplit(X, state_cumsizes)))
-
-        U = cs.hcat(U)
-        U_exp = cs.hcat(U_exp)
-        action_names = [kw["name"] for kw in actions_kwargs]
-        action_cumsizes = np.cumsum([0] + [kw.get("size", 1) for kw in actions_kwargs])
-        self._actions.update(zip(action_names, cs.vertsplit(U, action_cumsizes)))
-        self._actions_exp.update(
-            zip(action_names, cs.vertsplit(U_exp, action_cumsizes))
-        )
+        return out_states, out_actions, out_actions_exp
 
     def disturbance(self, name: str, size: int = 1) -> SymType:
         """Adds a disturbance parameter to the MPC controller along the whole prediction
