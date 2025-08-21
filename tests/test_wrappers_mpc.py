@@ -370,6 +370,61 @@ class TestMpc(unittest.TestCase):
             self.assertIn(name, mpc.actions)
             self.assertTupleEqual(mpc.actions[name].shape, (size, N // 2))
 
+    def test_interleaved_states_and_actions__with_hpipm(self):
+        # casadi/test/python/conic.py:test_hpipm
+        x1 = cs.MX.sym("x1")
+        x2 = cs.MX.sym("x2")
+        x = cs.vertcat(x1, x2)
+        u = cs.MX.sym("u")
+        N = 4
+        xdot = cs.vertcat(0.6 * x1 - 1.11 * x2 + 0.3 * u - 0.03, 0.7 * x1 + 0.01)
+        cost = (
+            x1**2
+            + 3 * x2**2
+            + 7 * u**2
+            - 0.4 * x1 * x2
+            - 0.3 * x1 * u
+            + u
+            - x1
+            - 2 * x2
+        )
+        F = cs.Function("F", [x, u], [x + xdot, cost], ["x", "u"], ["x_next", "cost"])
+        mpc = Mpc(nlp=Nlp(), prediction_horizon=N)
+        objective = 0
+        for k, (states, actions, next_states) in enumerate(
+            mpc.interleaved_states_and_actions(
+                {"name": "x", "size": 2, "lb": -100, "ub": 100},
+                {"name": "u", "lb": -100, "ub": 100},
+            )
+        ):
+            x, _, _ = states["x"]
+            u, _, _ = actions["u"]
+            x_new, _, _ = next_states["x"]
+            x_new_predicted, stage_cost = F(x, u)
+            mpc.constraint(f"dyn{k}", x_new, "==", x_new_predicted)
+            if k == 2:
+                mpc.constraint("other-constraint", x[0], "==", 0.0)
+            objective += stage_cost
+
+        objective += cs.dot(x_new, x_new)
+        mpc.minimize(objective)
+        mpc.init_solver(
+            {
+                "print_time": False,
+                "print_problem": False,
+                "verbose": False,
+                # "N": N,
+                # "nx": [nx] * (N + 1),
+                # "nu": [nu] * N + [0],
+                # "ng": [nx] + [0] * N,
+            },
+            "hpipm",
+            "conic",
+        )
+        mpc = mpc.copy()
+        sol = mpc.solve([2, 1])
+        np.testing.assert_allclose(sol.f, 219.22188605113826, rtol=1e-6, atol=1e-6)
+
 
 class TestPwaMpc(unittest.TestCase):
     def test_pwa_dynamics__raises__if_dynamics_already_set(self):
