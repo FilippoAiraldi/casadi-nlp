@@ -386,45 +386,6 @@ class PwaMpc(Mpc[SymType]):
                 )
         self._sequence = sequence
 
-    def solve(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
-    ) -> Solution[SymType]:
-        if self._fixed_sequence_dynamics:
-            regions = self._pwa_system
-            assert regions is not None, "PWA system should have been set!"
-            if self._sequence is None:
-                raise ValueError(
-                    "A sequence must be set via `set_switching_sequence` prior to "
-                    "solving the MPC because the dyanmics were set via "
-                    "`set_affine_time_varying_dynamics`. Use `set_pwa_dynamics` instead"
-                    " to optimize over the sequence as well."
-                )
-
-            if pars is None:
-                pars = {}
-            As = []
-            Bs = []
-            Cs = []
-            Ss = []
-            Ts = []
-            for idx in self._sequence:
-                As.append(regions[idx].A)
-                Bs.append(regions[idx].B)
-                Cs.append(regions[idx].c)
-                Ss.append(regions[idx].S)
-                Ts.append(regions[idx].T)
-            prefix = self.tva_dynamics_name
-            pars[_n("A", prefix)] = np.concatenate(As, 0)
-            pars[_n("B", prefix)] = np.concatenate(Bs, 0)
-            pars[_n("c", prefix)] = np.concatenate(Cs, 0)
-            pars[_n("S", prefix)] = np.concatenate(Ss, 0)
-            pars[_n("T", prefix)] = np.concatenate(Ts, 0)
-        pars = self._prepare_for_solve(initial_conditions, pars)
-        return self.nlp.solve(pars, vals0)
-
     @staticmethod
     def get_optimal_switching_sequence(
         sol: Solution[SymType],
@@ -571,3 +532,52 @@ class PwaMpc(Mpc[SymType]):
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
         return X, U, F, G, L
+
+    def _preprocess_initial_conditions(
+        self,
+        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
+        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
+    ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
+        """Internal method to pre-process the initial conditions before solving MPC and,
+        on top of the super implementatio, also assign fixed regions in the
+        pararameters (if specified)."""
+        pars = super()._preprocess_initial_conditions(initial_conditions, pars)
+
+        if self._fixed_sequence_dynamics:
+            regions = self._pwa_system
+            assert regions is not None, "PWA system should have been set!"
+            if self._sequence is None:
+                raise ValueError(
+                    "A sequence must be set via `set_switching_sequence` prior to "
+                    "solving the MPC because the dyanmics were set via "
+                    "`set_affine_time_varying_dynamics`. Use `set_pwa_dynamics` instead"
+                    " to optimize over the sequence as well."
+                )
+
+            As = []
+            Bs = []
+            Cs = []
+            Ss = []
+            Ts = []
+            for idx in self._sequence:
+                As.append(regions[idx].A)
+                Bs.append(regions[idx].B)
+                Cs.append(regions[idx].c)
+                Ss.append(regions[idx].S)
+                Ts.append(regions[idx].T)
+            prefix = self.tva_dynamics_name
+            additional_pars = {
+                _n("A", prefix): np.concatenate(As, 0),
+                _n("B", prefix): np.concatenate(Bs, 0),
+                _n("c", prefix): np.concatenate(Cs, 0),
+                _n("S", prefix): np.concatenate(Ss, 0),
+                _n("T", prefix): np.concatenate(Ts, 0),
+            }
+            if pars is None:
+                pars = additional_pars
+            elif isinstance(pars, dict):
+                pars.update(additional_pars)
+            else:
+                pars = (p | additional_pars for p in pars)
+
+        return pars

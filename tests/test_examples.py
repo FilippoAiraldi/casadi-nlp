@@ -405,7 +405,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(solver="bonmin")
         with nostdout():
-            sol = mpc.solve({"x": [-3, 0]})
+            sol = mpc.solve_ocp({"x": [-3, 0]})
 
         tols = (1e-6, 1e-6)
         expected = {
@@ -452,7 +452,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(QRQP_OPTS, "qrqp")
         mpc.set_switching_sequence([0, 0, 0, 1])
-        sol = mpc.solve([-3, 0])
+        sol = mpc.solve_ocp([-3, 0])
 
         tols = (1e-6, 1e-6)
         expected = {
