@@ -79,11 +79,13 @@ class TestMpc(unittest.TestCase):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting="multi")
 
-        shape = (2, N + 1)
+        nx = 2
+        shape = (nx, N + 1)
         nlp.variable = Mock(return_value=cs.MX.sym("x", *shape))
-        mpc.state("x", 2, lb=0, ub=1, bound_terminal=terminal)
+        mpc.state("x", nx, lb=0, ub=1, bound_terminal=terminal)
 
         lb, ub = np.full(shape, 0.0), np.full(shape, 1.0)
+        lb[:, 0] = ub[:, 0] = 0.0  # by default
         if not terminal:
             lb[:, -1], ub[:, -1] = -np.inf, np.inf
         nlp.variable.assert_called_once()
