@@ -67,7 +67,6 @@ class HasObjective(HasConstraints[SymType]):
         self._solver: Optional[MemorizedFunc] = None
         self._solver_opts: dict[str, Any] = {}
         self._cache = cache if cache is not None else Memory(None)
-        self._failures = 0
 
     @property
     def f(self) -> Optional[SymType]:
@@ -86,11 +85,6 @@ class HasObjective(HasConstraints[SymType]):
         """Gets the NLP optimization solver options. The dict is empty, if the solver
         options are not set with method :meth:`init_solver`."""
         return self._solver_opts
-
-    @property
-    def failures(self) -> int:
-        """Gets the cumulative number of failures of the NLP solver."""
-        return self._failures
 
     def init_solver(
         self,
@@ -254,9 +248,7 @@ class HasObjective(HasConstraints[SymType]):
             vals0,
         )
         sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
-        solution = LazySolution.from_casadi_solution(sol_with_stats, self)
-        self._failures += not solution.success
-        return solution
+        return LazySolution.from_casadi_solution(sol_with_stats, self)
 
     def _process_pars_and_vals0(
         self,
