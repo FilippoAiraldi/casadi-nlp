@@ -161,8 +161,7 @@ class HasObjective(HasConstraints[SymType]):
         )
         opts["equality"] = eq.tolist() if eq.size == 1 else eq  # bugfix
 
-        con = cs.vertcat(self._g, self._h)
-        problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
+        problem = {"x": self._x, "p": self._p, "g": self.constraints_vec, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
         self._solver = self._cache.cache(solver_func)
 
@@ -244,12 +243,7 @@ class HasObjective(HasConstraints[SymType]):
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
         kwargs = self._process_pars_and_vals0(
-            {
-                "lbx": self._lbx.data,
-                "ubx": self._ubx.data,
-                "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
-                "ubg": 0,
-            },
+            {"lbx": self._lbx.data, "ubx": self._ubx.data, "lbg": self._lbg, "ubg": 0},
             pars,
             vals0,
         )
