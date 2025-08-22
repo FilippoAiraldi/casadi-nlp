@@ -120,12 +120,8 @@ class HasConstraints(HasVariables[SymType]):
 
     @property
     def constraints(self) -> dict[str, SymType]:
-        """Gets the constraints of the NLP scheme."""
-        return self._cons
-
-    @property
-    def constraints_vec(self) -> dict[str, SymType]:
-        """Gets the constraints vector of the NLP scheme."""
+        """Gets the (eq. and ineq.) constraints vector of the NLP scheme, in the order
+        of creation."""
         return cs.vvcat(self._cons.values())
 
     @cached_property

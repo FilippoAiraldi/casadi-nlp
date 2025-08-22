@@ -155,7 +155,7 @@ class HasObjective(HasConstraints[SymType]):
         )
         opts["equality"] = eq.tolist() if eq.size == 1 else eq  # bugfix
 
-        problem = {"x": self._x, "p": self._p, "g": self.constraints_vec, "f": self._f}
+        problem = {"x": self._x, "p": self._p, "g": self.constraints, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
         self._solver = self._cache.cache(solver_func)
 
