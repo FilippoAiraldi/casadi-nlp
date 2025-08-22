@@ -48,6 +48,7 @@ class HasConstraints(HasVariables[SymType]):
 
         self._g, self._lam_g = self._sym_type(0, 1), self._sym_type(0, 1)
         self._h, self._lam_h = self._sym_type(0, 1), self._sym_type(0, 1)
+        self._lbg = np.empty(0, dtype=float)
         self._lbx: np.ma.MaskedArray = np.ma.empty(0, fill_value=-np.inf)
         self._ubx: np.ma.MaskedArray = np.ma.empty(0, fill_value=+np.inf)
         self._lam_lbx = self._sym_type(0, 1)
@@ -121,6 +122,11 @@ class HasConstraints(HasVariables[SymType]):
     def constraints(self) -> dict[str, SymType]:
         """Gets the constraints of the NLP scheme."""
         return self._cons
+
+    @property
+    def constraints_vec(self) -> dict[str, SymType]:
+        """Gets the constraints vector of the NLP scheme."""
+        return cs.vvcat(self._cons.values())
 
     @cached_property
     def nonmasked_lbx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
@@ -322,17 +328,24 @@ class HasConstraints(HasVariables[SymType]):
             raise ValueError(f"Unrecognized operator {op}.")
 
         if soft:
-            slack = self.variable(f"slack_{name}", expr.shape, lb=0)[0]
+            slack = self.variable(f"slack_{name}", shape, lb=0)[0]
             expr -= slack
 
+        group, lam, lbg = (
+            ("_g", "_lam_g", np.zeros(np.prod(shape)))
+            if is_eq
+            else ("_h", "_lam_h", np.full(np.prod(shape), -np.inf))
+        )
+
         self._cons[name] = expr
-        group, lam = ("_g", "_lam_g") if is_eq else ("_h", "_lam_h")
+        setattr(self, group, cs.veccat(getattr(self, group), expr))
+        self._lbg = np.concatenate((self._lbg, lbg))
+
         name_lam = f"{lam[1:]}_{name}"
         lam_c = self._sym_type.sym(name_lam, shape[0] * shape[1])
         self._dual_vars[name_lam] = lam_c
-
-        setattr(self, group, cs.veccat(getattr(self, group), expr))
         setattr(self, lam, cs.veccat(getattr(self, lam), lam_c))
+
         return (expr, lam_c, slack) if soft else (expr, lam_c)
 
     @invalidate_cache(
