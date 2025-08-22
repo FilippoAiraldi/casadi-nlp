@@ -69,6 +69,11 @@ class Solution(_Protocol[SymType]):
     """
 
     @property
+    def casadi_solution(self) -> dict[str, cs.DM]:
+        """Gets the original CasADi solution dictionary."""
+        return self._sol
+
+    @property
     def f(self) -> float:
         """Optimal value of the objective function."""
 
@@ -345,6 +350,7 @@ class EagerSolution(Solution[SymType]):
 
     def __init__(
         self,
+        sol: dict[str, cs.DM],
         f: float,
         p_sym: SymType,
         p: cs.DM,
@@ -361,6 +367,7 @@ class EagerSolution(Solution[SymType]):
         stats: dict[str, _Any],
         solver_plugin: str,
     ) -> None:
+        self._sol = sol
         self._f = f
 
         self._p_sym = p_sym
@@ -461,6 +468,7 @@ class EagerSolution(Solution[SymType]):
                 raise RuntimeError(f"unknown dual variable type {n}")
 
         return EagerSolution(
+            sol,
             f,
             nlp._p,
             sol["p"],
