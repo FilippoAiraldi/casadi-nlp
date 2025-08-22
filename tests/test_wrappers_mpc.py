@@ -1,7 +1,7 @@
 import pickle
 import unittest
 from itertools import product
-from math import ceil, floor
+from math import ceil, floor, prod
 from random import choice
 from unittest.mock import Mock
 
@@ -205,7 +205,6 @@ class TestMpc(unittest.TestCase):
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_nonlinear_dynamics(F)
-        self.assertIn("dyn", mpc.constraints.keys())
         self.assertEqual(mpc.ng, N * (x1.size1() + x2.size1()))
 
     @parameterized.expand([(0,), (1,)])
@@ -231,8 +230,6 @@ class TestMpc(unittest.TestCase):
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_nonlinear_dynamics(F)
-        for k in range(N):
-            self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
         self.assertIn("x1", mpc.states.keys())
         self.assertIn("x2", mpc.states.keys())
         self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
@@ -305,7 +302,6 @@ class TestMpc(unittest.TestCase):
 
         mpc.set_affine_dynamics(A, B, D, c)
 
-        self.assertIn("dyn", mpc.constraints.keys())
         self.assertEqual(mpc.ng, N * ns)
 
     @parameterized.expand(product((False, True), (False, True)))
@@ -328,8 +324,6 @@ class TestMpc(unittest.TestCase):
 
         mpc.set_affine_dynamics(A, B, D, c)
 
-        for k in range(N):
-            self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
         self.assertIn("x", mpc.states.keys())
         self.assertEqual(mpc.states["x"].shape, (ns, N + 1))
 
@@ -583,17 +577,18 @@ class TestPwaMpc(unittest.TestCase):
         mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="inline")
 
         nr = len(pwa_regions)
-        constraints = {
+        eq_constraints = {
             "delta_sum": (1, N),
+        }
+        ineq_constraints = {
             "z_ub": (ns * nr, N),
             "z_lb": (ns * nr, N),
             "z_x_ub": (ns * nr, N),
             "z_x_lb": (ns * nr, N),
             "region": (nr, N),
         }
-        for con, shape in constraints.items():
-            self.assertIn(con, mpc.constraints)
-            self.assertEqual(mpc.constraints[con].shape, shape, msg=con)
+        self.assertEqual(mpc.ng, ns * N + sum(prod(s) for s in eq_constraints.values()))
+        self.assertEqual(mpc.nh, sum(prod(s) for s in ineq_constraints.values()))
 
     def test_pwa_dynamics__in_singleshooting__creates_states(self):
         tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
@@ -672,7 +667,6 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.disturbance("d", nd)
         scmpc.set_nonlinear_dynamics(F)
 
-        self.assertIn("dyn", scmpc.constraints.keys())
         self.assertEqual(scmpc.nlp.ng, N * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
@@ -689,7 +683,6 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.disturbance("d", nd)
         scmpc.set_nonlinear_dynamics(F)
 
-        self.assertNotIn("dyn", scmpc.constraints.keys())
         self.assertEqual(scmpc.nlp.ng, 0)
         for i in range(K):
             self.assertIn(_n("x1", i), scmpc.states.keys())
@@ -877,7 +870,6 @@ class TestMultiScenarioMpc(unittest.TestCase):
         msmpc.disturbance("d", nd)
         msmpc.set_nonlinear_dynamics(F)
 
-        self.assertIn("dyn", msmpc.constraints.keys())
         self.assertEqual(msmpc.nlp.ng, N * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
@@ -894,7 +886,6 @@ class TestMultiScenarioMpc(unittest.TestCase):
         msmpc.disturbance("d", nd)
         msmpc.set_nonlinear_dynamics(F)
 
-        self.assertNotIn("dyn", msmpc.constraints.keys())
         self.assertEqual(msmpc.nlp.ng, 0)
         for i in range(K):
             self.assertIn(_n("x1", i), msmpc.states.keys())
