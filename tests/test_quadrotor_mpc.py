@@ -615,7 +615,7 @@ class QuadRotorMpcActual(Mpc[cs.SX]):
         not_red_idx = np.where(not_red)[0]
         lbx, ubx = lbx[not_red].reshape(-1, 1), ubx[not_red].reshape(-1, 1)
         nx, nu = env.nx, env.nu
-        x = self.state("x", nx)
+        x, _ = self.state("x", nx)
         u, _ = self.action("u", nu)
         ns = not_red_idx.size + nu
         s, _, _ = self.variable("slack", (ns * N - not_red_idx.size, 1), lb=0)
@@ -734,10 +734,9 @@ class TestQuadRotorMpc(unittest.TestCase):
                 "w_s": np.random.rand(8, 1) * 5 + 10,
                 "perturbation": np.random.randn(3, 1) * 0.5,
             }
+            pars["x_0"] = pars["x0"]
             sol_expected = mpc_expected.solve(pars, vals_expected)
-            sol_actual: Solution[cs.SX] = mpc_actual.solve_ocp(
-                pars.pop("x0").flatten(), pars, vals_actual
-            )
+            sol_actual: Solution[cs.SX] = mpc_actual.solve(pars, vals_actual)
 
             self.assertTrue(sol_expected.success)
             self.assertTrue(sol_actual.success)

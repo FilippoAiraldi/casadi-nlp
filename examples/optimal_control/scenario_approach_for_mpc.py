@@ -72,7 +72,7 @@ F = get_dynamics()
 nx, nu, nd = F.size1_in(0), F.size1_in(1), F.size1_in(2)
 
 scmpc = ScenarioBasedMpc[cs.SX](Nlp(), K, N, shooting="single")
-x, _ = scmpc.state("x", nx)
+x, _, _ = scmpc.state("x", nx, bound_initial=False)
 u, _ = scmpc.action("u", nu, lb=-5, ub=+5)
 d, _ = scmpc.disturbance("d", nd)
 scmpc.set_nonlinear_dynamics(F)
@@ -128,9 +128,10 @@ for t in range(T):
     # sample disturbances, and assign each to a scenario
     sample = sample_disturbances(scmpc.n_scenarios, scmpc.prediction_horizon)
     pars = {scmpc.name_i("d", i): sample[i] for i in range(scmpc.n_scenarios)}
+    pars["x_0"] = x  # set initial state
 
     # run the scenario-based MPC
-    sol = scmpc.solve_ocp(x, pars, vals0)
+    sol = scmpc.solve(pars, vals0)
     assert sol.success, f"Solver failed at time {t}!"
     u_opt = sol.vals["u"][:, 0]  # apply only the first action
 

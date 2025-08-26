@@ -1,33 +1,22 @@
-from collections.abc import Collection, Generator, Iterable, Sequence
+from collections.abc import Sequence
 from inspect import signature
 from math import ceil
-from typing import (
-    Any,
-    Callable,
-    Literal,
-    Optional,
-    TypeVar,
-    Union,
-)
-from warnings import warn
+from typing import Callable, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
-from ...core.solutions import Solution
-from ...multistart import StackedMultistartNlp
 from ...util.math import repeat
-from ..scaling import NlpScaling
 from ..wrapper import Nlp, NonRetroactiveWrapper
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 MatType = TypeVar("MatType", SymType, cs.DM, np.ndarray)
 
 
-def _n(statename: str, k: int = 0) -> str:
-    """Internal utility for naming states at different time steps."""
-    return f"{statename}_{k}"
+def _n(statename: str) -> str:
+    """Internal utility for naming initial states."""
+    return f"{statename}_0"
 
 
 def _callable2csfunc(
@@ -90,9 +79,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     Raises
     ------
     ValueError
-        Raises if the shooting method is invalid; or if any of the horizons are invalid;
-        or if the NLP is a multistart NLP of type `StackedMultistartNlp`, which is not
-        supported by this wrapper.
+        Raises if the shooting method is invalid; or if any of the horizons are invalid.
     """
 
     def __init__(
@@ -131,24 +118,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         else:
             self._input_spacing = input_spacing
 
-        if nlp.is_wrapped(NlpScaling):
-            warn(
-                "Initial conditions have to be manually scaled before being passed to "
-                "`solve` or `solve_multi`",
-                RuntimeWarning,
-            )
-
-        if isinstance(nlp, StackedMultistartNlp):
-            raise ValueError(
-                "NLPs of type `StackedMultistartNlp` are not supported by "
-                f"{self.__class__.__name__}."
-            )
-
         self._states: dict[str, SymType] = {}
-        if self._is_multishooting:
-            self._initial_states_idx: npt.NDArray[np.int_] = np.empty(0, dtype=int)
-        else:
-            self._initial_states: dict[str, SymType] = {}
+        self._initial_states: dict[str, SymType] = {}
         self._actions: dict[str, SymType] = {}
         self._actions_exp: dict[str, SymType] = {}
         self._slacks: dict[str, SymType] = {}
@@ -171,6 +142,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         return self._states
 
     @property
+    def initial_states(self) -> dict[str, SymType]:
+        """Gets the initial states (parameters) of the MPC controller."""
+        return self._initial_states
+
+    @property
     def first_states(self) -> dict[str, SymType]:
         """Gets the first (along the prediction horizon) states of the controller."""
         return {n: s[:, 0] for n, s in self._states.items()}
@@ -183,10 +159,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     @property
     def ns(self) -> int:
         """Gets the number of states of the MPC controller."""
-        if self._is_multishooting:
-            return self._initial_states_idx.size
-        else:
-            return sum(x0.shape[0] for x0 in self._initial_states.values())
+        return sum(x0.shape[0] for x0 in self._initial_states.values())
 
     @property
     def actions(self) -> dict[str, SymType]:
@@ -230,10 +203,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         discrete: bool = False,
         lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
         ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> Optional[SymType]:
+    ) -> tuple[Optional[SymType], SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
-        horizon.
+        horizon. Automatically creates the constraint on the initial conditions for this
+        state.
 
         Parameters
         ----------
@@ -253,14 +228,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             to be equal to the current state of the system, it is sometimes advantageous
             to remove its bounds). By default ``True``.
         bound_terminal : bool, optional
-            If ``False``, then the upper and lower bounds on the terminal state are not
-            imposed, i.e., set to ``+/- np.inf``. By default ``True``.
+            Same as above, but for the terminal state. By default ``True``.
 
         Returns
         -------
         state : casadi.SX or MX or None
             The state symbolic variable. If ``shooting=single``, then ``None`` is
             returned since the state will only be available once the dynamics are set.
+        initial state : casadi.SX or MX
+            The initial state symbolic parameter.
 
         Raises
         ------
@@ -271,20 +247,22 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             since these can only be set after the dynamics have been set via the
             :meth:`constraint` method.
         """
+        x0_name = _n(name)
         if self._is_multishooting:
             shape = (size, self._prediction_horizon + 1)
             lb = np.broadcast_to(lb, shape).astype(float)
             ub = np.broadcast_to(ub, shape).astype(float)
-            lb[:, 0] = ub[:, 0] = 0.0  # always force bounds for initial state
+            if not bound_initial:
+                lb[:, 0] = -np.inf
+                ub[:, 0] = +np.inf
             if not bound_terminal:
                 lb[:, -1] = -np.inf
                 ub[:, -1] = +np.inf
 
-            nx = self.nlp.nx
-            self._initial_states_idx = np.concatenate(
-                (self._initial_states_idx, np.arange(nx, nx + size))
-            )
+            # create state variable and initial state constraint
             x = self.nlp.variable(name, shape, discrete, lb, ub)[0]
+            x0 = self.nlp.parameter(x0_name, (size, 1))
+            self.nlp.constraint(x0_name, x[:, 0], "==", x0)
         else:
             if np.any(lb != -np.inf) or np.any(ub != +np.inf):
                 raise RuntimeError(
@@ -293,10 +271,10 @@ class Mpc(NonRetroactiveWrapper[SymType]):
                     "method"
                 )
             x = None
-            x0_name = _n(name)
-            self._initial_states[x0_name] = self.nlp.parameter(x0_name, (size, 1))
+            x0 = self.nlp.parameter(x0_name, (size, 1))
         self._states[name] = x
-        return x
+        self._initial_states[x0_name] = x0
+        return x, x0
 
     def action(
         self,
@@ -344,167 +322,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._actions[name] = u
         self._actions_exp[name] = u_exp
         return u, u_exp
-
-    def interleaved_states_and_actions(
-        self,
-        states_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
-        actions_kwargs: Union[dict[str, Any], Collection[dict[str, Any]]],
-    ) -> Generator[
-        tuple[tuple[SymType, ...], tuple[Optional[SymType], ...]],
-        None,
-        tuple[dict[str, SymType], dict[str, SymType], dict[str, SymType]],
-    ]:
-        """Allows to create states and actions in an interleaved manner. In constrast to
-        creating all states and then all actions, this method alternates, at each time
-        step along the prediction horizon, creating a state and an action.
-
-        Parameters
-        ----------
-        states_kwargs : kwargs or collection of kwargs
-            The keyword arguments for the states to be created. See :meth:`state` for
-            more information on the expected keys. Provide a collection of multiple
-            dictionaries to create multiple states at each time step.
-        actions_kwargs : kwargs or collection of kwargs
-            Similar to `states_kwargs`, but for the actions. See :meth:`action`.
-
-        Yields
-        ------
-        2 tuples
-            At each iteration (i.e., for each time step), yields two tuples:
-
-            - states at the current time step :math:`k`
-            - actions at :math:`k` (``None`` at the last iteration).
-
-        Returns
-        -------
-        3 dictionaries
-            Returns three dictionaries. The first contains the symbolic variables for
-            the created states, while the second and third contains the symbolic
-            variables for the created actions and their expanded version
-            (see :meth:`action`).
-
-        Raises
-        ------
-        RuntimeError
-            Raises if the MPC is in single shooting mode.
-        """
-        if not self._is_multishooting:
-            raise RuntimeError(
-                "Interleaved states and actions are not supported in single-shooting."
-            )
-
-        nlp = self.nlp
-        Np = self._prediction_horizon
-        Nc = self._control_horizon
-        spacing = self._input_spacing
-        if isinstance(states_kwargs, dict):
-            states_kwargs = (states_kwargs,)
-        if isinstance(actions_kwargs, dict):
-            actions_kwargs = (actions_kwargs,)
-        stage_states: list[SymType] = []
-        stage_actions: list[SymType] = []
-
-        # create first states (k=0) and record the initial states indices
-        stage_states.clear()
-        nx_before = nlp.nx
-        for kw in states_kwargs:
-            name = kw["name"]
-            shape = (kw.get("size", 1), 1)
-            discrete = kw.get("discrete", False)
-            lb = ub = 0.0  # always force bounds for initial state
-            x = nlp.variable(_n(name, 0), shape, discrete, lb, ub)[0]
-            stage_states.append(x)
-        self._initial_states_idx = np.concatenate(
-            (self._initial_states_idx, np.arange(nx_before, nlp.nx))
-        )
-
-        # create rest of states and actions
-        for k in range(Np):
-            # create actions at time step k
-            if k % spacing == 0 and k < Nc:
-                stage_actions.clear()
-                for kw in actions_kwargs:
-                    name = kw["name"]
-                    shape = (kw.get("size", 1), 1)
-                    discrete = kw.get("discrete", False)
-                    lb = kw.get("lb", -np.inf)
-                    ub = kw.get("ub", np.inf)
-                    u = nlp.variable(_n(name, k), shape, discrete, lb, ub)[0]
-                    stage_actions.append(u)
-
-            # yield current triplet and shift states by one time step
-            yield tuple(stage_states), tuple(stage_actions)
-
-            # create states at time step k+1
-            stage_states.clear()
-            for kw in states_kwargs:
-                name = kw["name"]
-                shape = (kw.get("size", 1), 1)
-                discrete = kw.get("discrete", False)
-                if k + 1 == Np and not kw.get("bound_terminal", True):
-                    lb = -np.inf
-                    ub = np.inf
-                else:
-                    lb = kw.get("lb", -np.inf)
-                    ub = kw.get("ub", np.inf)
-                x = nlp.variable(_n(name, k + 1), shape, discrete, lb, ub)[0]
-                stage_states.append(x)
-
-        # yield the last time step, where no actions are created
-        yield tuple(stage_states), tuple(None for _ in actions_kwargs)
-
-        # compact the create states and actions per stage into single variables. This
-        # requires removing (popping) the stage entries from the `variables` and
-        # `dual_variables` dicts, and replacing them with the compacted/concatenated
-        # variables. At the same time, create also the output dictionaries with the
-        # states and actions created in this call.
-        variables = nlp.variables
-        duals = nlp.dual_variables
-        variables_: list[SymType] = []
-        duals_lb_: list[SymType] = []
-        duals_ub_: list[SymType] = []
-        # for states
-        out_states: dict[str, SymType] = {}
-        states = self._states
-        for kw in states_kwargs:
-            variables_.clear()
-            duals_lb_.clear()
-            duals_ub_.clear()
-            name = kw["name"]
-            for k in range(Np + 1):
-                n = _n(name, k)
-                variables_.append(variables.pop(n))
-                duals_lb_.append(duals.pop(f"lam_lb_{n}"))
-                duals_ub_.append(duals.pop(f"lam_ub_{n}"))
-            variables[name] = states[name] = out_states[name] = cs.hcat(variables_)
-            duals[f"lam_lb_{name}"] = cs.vcat(duals_lb_)
-            duals[f"lam_ub_{name}"] = cs.vcat(duals_ub_)
-        # for actions
-        out_actions: dict[str, SymType] = {}
-        out_actions_exp: dict[str, SymType] = {}
-        actions = self._actions
-        actions_exp = self._actions_exp
-        for kw in actions_kwargs:
-            variables_.clear()
-            duals_lb_.clear()
-            duals_ub_.clear()
-            name = kw["name"]
-            for k in range(0, Nc, spacing):
-                n = _n(name, k)
-                variables_.append(variables.pop(n))
-                duals_lb_.append(duals.pop(f"lam_lb_{n}"))
-                duals_ub_.append(duals.pop(f"lam_ub_{n}"))
-            U = cs.hcat(variables_)
-            U_exp = U if spacing == 1 else repeat(U, (1, spacing))[:, :Nc]
-            if gap := self._prediction_horizon - U_exp.shape[1]:
-                u_last = U_exp[:, -1]
-                U_exp = cs.horzcat(U_exp, *(u_last for _ in range(gap)))
-            variables[name] = actions[name] = out_actions[name] = U
-            actions_exp[name] = out_actions_exp[name] = U_exp
-            duals[f"lam_lb_{name}"] = cs.vcat(duals_lb_)
-            duals[f"lam_ub_{name}"] = cs.vcat(duals_ub_)
-
-        return out_states, out_actions, out_actions_exp
 
     def disturbance(self, name: str, size: int = 1) -> SymType:
         """Adds a disturbance parameter to the MPC controller along the whole prediction
@@ -778,169 +595,3 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
         self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
-
-    def solve_ocp(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        """Solves the MPC optimal control problem, possibly for multiple parameters
-        and initial guesses. For more information, see :meth:`solve_ocp_single` and
-        :meth:`solve_ocp_multi`."""
-        # Similar logic to `Wrapper.__call__`
-        if not self.nlp.is_multi or (
-            (pars is None or isinstance(pars, dict))
-            and (vals0 is None or isinstance(vals0, dict))
-        ):
-            return self.solve_ocp_single(initial_conditions, pars, vals0)
-        return self.solve_ocp_multi(initial_conditions, pars, vals0, **kwargs)
-
-    def solve_ocp_single(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
-    ) -> Solution[SymType]:
-        """Solves the MPC optimal control problem.
-
-        Parameters
-        ----------
-        initial_conditions : array_like or dict (str, array_like)
-            Initial conditions for the states of the MPC controller. If a dictionary is
-            provided, it must contain the initial conditions for each state variable
-            (keys must match names of the states). If an array is provided, it must be a
-            vector of the same length as the total number of states in the controller
-            (i.e., the sum of the sizes of all states).
-        pars : dict (str, array_like), optional
-            Dictionary or structure containing, for each parameter in the MPC scheme,
-            the corresponding numerical value. Can be ``None`` if no parameters are
-            present.
-        vals0 : dict (str, array_like), optional
-            Dictionary or structure containing, for each variable in the MPC scheme, the
-            corresponding initial guess. By default ``None``, in which case initial
-            guesses are not passed to the solver.
-
-        Returns
-        -------
-        sol : Solution
-            A solution object containing all the information on the MPC solution.
-        """
-        pars = self._preprocess_initial_conditions(initial_conditions, pars)
-        return self.nlp.solve(pars, vals0)
-
-    def solve_ocp_multi(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        return_all_sols: bool = False,
-        **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        """Solves the MPC optimal control problem for multiple parameters and initial
-        guesses (a.k.a., multistart). Multistarting is only enabled if the underlying
-        NLP is an instance of :class:`csnlp.multistart.MultistartNlp`.
-
-        Parameters
-        ----------
-        initial_conditions : array_like or dict (str, array_like)
-            Initial conditions for the states of the MPC controller. If a dictionary is
-            provided, it must contain the initial conditions for each state variable
-            (the keys must match the names of the states). If an array is provided, it
-            must be a vector of the same length as the total number of states in the MPC
-            controller (i.e., the sum of the sizes of all states). Note that these
-            initial conditions are shared among all multistarts.
-        pars : dict of (str, array_like) or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            parameter in the MPC scheme, the corresponding numerical value. In case a
-            single dict is passed, the same is used across all scenarions. Can be
-            ``None`` if no parameters are present.
-        vals0 : dict of (str, array_like) or iterable of, optional
-            An iterable that, for each multistart, contains a dictionary with, for each
-            variable in the MPC scheme, the corresponding initial guess. In case a
-            single dict is passed, the same is used across all scenarions. By default
-            ``None``, in which case  initial guesses are not passed to the solver.
-        return_all_sols : bool, optional
-            If ``True``, returns the solution of each multistart of the MPC; otherwise,
-            only the best solution is returned. By default, ``False``.
-
-        Returns
-        -------
-        Solution or list of Solutions
-            Depending on the flags ``return_all_sols``, returns
-
-            - the best solution out of all multiple starts
-            - all the solutions (one per start).
-        """
-        pars = self._preprocess_initial_conditions(initial_conditions, pars)
-        return self.nlp.solve_multi(pars, vals0, return_all_sols, **kwargs)
-
-    def _preprocess_initial_conditions(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
-    ) -> Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
-        """Internal method to pre-process the initial conditions before solving MPC."""
-        # Process the initial conditions. If in multiple shooting, we
-        # enforce them via lbx and ubx; for single shooting, we pass them as parameters.
-        if self._is_multishooting:
-            self._preprocess_initial_conditions_in_multishooting(initial_conditions)
-            return pars
-        return self._preprocess_initial_conditions_in_singleshooting(
-            initial_conditions, pars
-        )
-
-    def _preprocess_initial_conditions_in_multishooting(
-        self, initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]]
-    ) -> None:
-        """Internal method to pre-process the initial conditions before solving MPC
-        in multiple shooting."""
-        if isinstance(initial_conditions, dict):
-            try:
-                x0_vec = np.concatenate([initial_conditions[n] for n in self.states])
-            except ValueError:
-                # NOTE: above fails for a list of scalars
-                x0_vec = np.asarray([initial_conditions[n] for n in self.states])
-        else:
-            x0_vec = np.reshape(initial_conditions, -1)
-
-        idx = self._initial_states_idx
-        nlp = self.nlp
-        nlp.lbx[idx] = nlp.ubx[idx] = x0_vec
-
-    def _preprocess_initial_conditions_in_singleshooting(
-        self,
-        initial_conditions: Union[npt.ArrayLike, dict[str, npt.ArrayLike]],
-        pars: Union[None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]],
-    ) -> Union[dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]]:
-        """Internal method to pre-process the initial conditions before solving MPC
-        in single shooting."""
-        if isinstance(initial_conditions, dict):
-            x0_dict = {_n(n): initial_conditions[n] for n in self._states}
-        else:
-            initial_states = self._initial_states
-            if len(initial_states) == 1:
-                x0s = (initial_conditions,)
-            else:
-                x0s = np.split(
-                    np.asarray(initial_conditions),
-                    np.cumsum([s.shape[0] for s in initial_states.values()][:-1]),
-                )
-            x0_dict = {n: s for n, s in zip(initial_states, x0s)}
-
-        if pars is None:
-            pars = x0_dict
-        elif isinstance(pars, dict):
-            pars.update(x0_dict)
-        else:
-            pars = (p | x0_dict for p in pars)
-        return pars

@@ -1,7 +1,7 @@
 import pickle
 import unittest
 from itertools import product
-from math import ceil, floor, prod
+from math import ceil, floor
 from random import choice
 from unittest.mock import Mock
 
@@ -60,32 +60,40 @@ class TestMpc(unittest.TestCase):
         N = 10
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting=shooting)
-        x1 = mpc.state("x1", 2)
+        x1, x1_0 = mpc.state("x1", 2)
         if shooting == "multi":
             self.assertEqual(x1.shape, (2, N + 1))
             self.assertEqual(x1.shape, mpc.states["x1"].shape)
+            self.assertEqual(mpc.constraints["x1_0"].shape, (2, 1))
         else:
             self.assertIsNone(x1)
-        x2 = mpc.state("x2", 1)
+        self.assertEqual(x1_0.shape, (2, 1))
+        self.assertEqual(x1_0.shape, mpc.initial_states["x1_0"].shape)
+        self.assertEqual(mpc.ns, x1_0.shape[0])
+        x2, x2_0 = mpc.state("x2", 1)
         if shooting == "multi":
             self.assertEqual(x2.shape, (1, N + 1))
             self.assertEqual(x2.shape, mpc.states["x2"].shape)
+            self.assertEqual(mpc.constraints["x2_0"].shape, (1, 1))
         else:
             self.assertIsNone(x2)
+        self.assertEqual(x2_0.shape, (1, 1))
+        self.assertEqual(x2_0.shape, mpc.initial_states["x2_0"].shape)
+        self.assertEqual(mpc.ns, x1_0.shape[0] + x2_0.shape[0])
 
-    @parameterized.expand([(False,), (True,)])
-    def test_state__removes_bounds_properly(self, terminal: bool):
+    @parameterized.expand(product((False, True), (False, True)))
+    def test_state__removes_bounds_properly(self, initial: bool, terminal: bool):
         N = 10
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=N, shooting="multi")
 
-        nx = 2
-        shape = (nx, N + 1)
+        shape = (2, N + 1)
         nlp.variable = Mock(return_value=cs.MX.sym("x", *shape))
-        mpc.state("x", nx, lb=0, ub=1, bound_terminal=terminal)
+        mpc.state("x", 2, lb=0, ub=1, bound_initial=initial, bound_terminal=terminal)
 
         lb, ub = np.full(shape, 0.0), np.full(shape, 1.0)
-        lb[:, 0] = ub[:, 0] = 0.0  # by default
+        if not initial:
+            lb[:, 0], ub[:, 0] = -np.inf, np.inf
         if not terminal:
             lb[:, -1], ub[:, -1] = -np.inf, np.inf
         nlp.variable.assert_called_once()
@@ -135,7 +143,7 @@ class TestMpc(unittest.TestCase):
     def test_constraint__constructs_slack_correctly(self):
         nlp = Nlp(sym_type="MX")
         mpc = Mpc[cs.MX](nlp=nlp, prediction_horizon=10)
-        x = mpc.state("x1", 3)
+        x, _ = mpc.state("x1", 3)
         _, _, slack = mpc.constraint("c0", x, ">=", 5, soft=True)
         self.assertIn(slack.name(), mpc.slacks)
         self.assertIn(slack.name(), mpc.slacks)
@@ -191,8 +199,8 @@ class TestMpc(unittest.TestCase):
         mpc = Mpc[cs.SX](
             nlp=nlp, prediction_horizon=N, control_horizon=N // 2, shooting="multi"
         )
-        x1 = mpc.state("x1", 2)
-        x2 = mpc.state("x2", 3)
+        x1, _ = mpc.state("x1", 2)
+        x2, _ = mpc.state("x2", 3)
         u1, _ = mpc.action("u1", 3)
         u2, _ = mpc.action("u2", 1)
         x = cs.vertcat(x1[:, 0], x2[:, 0])
@@ -205,7 +213,8 @@ class TestMpc(unittest.TestCase):
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_nonlinear_dynamics(F)
-        self.assertEqual(mpc.ng, N * (x1.size1() + x2.size1()))
+        self.assertIn("dyn", mpc.constraints.keys())
+        self.assertEqual(mpc.ng, (1 + N) * 5)
 
     @parameterized.expand([(0,), (1,)])
     def test_nonlinear_dynamics__in_singleshooting__creates_states(self, i: int):
@@ -230,6 +239,8 @@ class TestMpc(unittest.TestCase):
             x_next += d[:, 0]
             F = cs.Function("F", [x, u, d], [x_next], ["x", "u", "d"], ["x+"])
         mpc.set_nonlinear_dynamics(F)
+        for k in range(N):
+            self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
         self.assertIn("x1", mpc.states.keys())
         self.assertIn("x2", mpc.states.keys())
         self.assertEqual(mpc.states["x1"].shape, (2, N + 1))
@@ -302,7 +313,8 @@ class TestMpc(unittest.TestCase):
 
         mpc.set_affine_dynamics(A, B, D, c)
 
-        self.assertEqual(mpc.ng, N * ns)
+        self.assertIn("dyn", mpc.constraints.keys())
+        self.assertEqual(mpc.ng, (N + 1) * ns)
 
     @parameterized.expand(product((False, True), (False, True)))
     def test_affine_dynamics__in_singleshooting__creates_states(
@@ -324,6 +336,8 @@ class TestMpc(unittest.TestCase):
 
         mpc.set_affine_dynamics(A, B, D, c)
 
+        for k in range(N):
+            self.assertNotIn(f"dyn_{k}", mpc.constraints.keys())
         self.assertIn("x", mpc.states.keys())
         self.assertEqual(mpc.states["x"].shape, (ns, N + 1))
 
@@ -341,159 +355,6 @@ class TestMpc(unittest.TestCase):
         mpc2 = pickle.loads(pickle.dumps(mpc))
 
         self.assertIn(repr(mpc), repr(mpc2))
-
-    def test_interleaved_states_and_actions__raises__if_single_shooting(self):
-        mpc = Mpc(nlp=Nlp(), prediction_horizon=10, shooting="single")
-        with self.assertRaises(RuntimeError):
-            list(mpc.interleaved_states_and_actions({}, {}))
-
-    @parameterized.expand([("SX",), ("MX",)])
-    def test_interleaved_states_and_actions__creates_states_and_actions(
-        self, sym_type: str
-    ):
-        Np = np.random.randint(10, 30)
-        Nc = np.random.randint(7, Np)
-        spacing = np.random.choice([1, 3])
-        n_actions = ceil(Nc / spacing)
-        mpc = Mpc(Nlp(sym_type), Np, Nc, spacing, "multi")
-        nz, nv, nx, ny, nu, nw = np.random.randint(1, 10, size=6)
-        # pre-create some other states and actions to create noise
-        mpc.state("z", nz, lb=-100, ub=100)
-        mpc.action("v", nv, lb=-100, ub=100)
-        state_kw = [{"name": "x", "size": nx, "lb": 0}, {"name": "y", "size": ny}]
-        action_kw = [{"name": "u", "size": nu}, {"name": "w", "size": nw}]
-        generator = mpc.interleaved_states_and_actions(state_kw, action_kw)
-        try:
-            while True:
-                next(generator)
-        except StopIteration as e:
-            states, actions, actions_exp = e.value
-
-        self.assertIn("z", mpc.states)
-        self.assertIn("v", mpc.actions)
-        variables = mpc.variables
-        duals = mpc.dual_variables
-        for name in ("z", "v"):
-            self.assertIn(name, variables)
-            self.assertIn(f"lam_lb_{name}", duals)
-            self.assertIn(f"lam_ub_{name}", duals)
-
-        offset = nz * (Np + 1) + nv * n_actions
-        expected = list(range(nz)) + list(range(offset, offset + nx + ny))
-        np.testing.assert_array_equal(mpc._initial_states_idx, expected)
-
-        for kw in state_kw:
-            name = kw["name"]
-            size = kw["size"]
-            self.assertIn(name, variables)
-            self.assertTupleEqual(variables[name].shape, (size, Np + 1))
-            self.assertIn(name, states)
-            self.assertTupleEqual(states[name].shape, (size, Np + 1))
-            self.assertIn(name, mpc.states)
-            self.assertTupleEqual(mpc.states[name].shape, (size, Np + 1))
-            self.assertIn(f"lam_lb_{name}", duals)
-            self.assertEqual(
-                duals[f"lam_lb_{name}"].numel(), nx * (Np + 1) if name == "x" else ny
-            )
-            self.assertIn(f"lam_ub_{name}", duals)
-            self.assertEqual(duals[f"lam_ub_{name}"].numel(), nx if name == "x" else ny)
-
-        for kw in action_kw:
-            name = kw["name"]
-            size = kw["size"]
-            self.assertIn(name, variables)
-            self.assertTupleEqual(variables[name].shape, (size, n_actions))
-            self.assertIn(name, actions)
-            self.assertTupleEqual(actions[name].shape, (size, n_actions))
-            self.assertIn(name, actions_exp)
-            self.assertTupleEqual(actions_exp[name].shape, (size, Np))
-            self.assertIn(name, mpc.actions)
-            self.assertTupleEqual(mpc.actions[name].shape, (size, n_actions))
-            self.assertIn(f"lam_lb_{name}", duals)
-            self.assertEqual(duals[f"lam_lb_{name}"].numel(), 0)
-            self.assertIn(f"lam_ub_{name}", duals)
-            self.assertEqual(duals[f"lam_ub_{name}"].numel(), 0)
-
-    @parameterized.expand(product(("SX", "MX"), range(3)))
-    def test_interleaved_states_and_actions__with_hpipm(
-        self, sym_type: str, style: int
-    ):
-        # casadi/test/python/conic.py:test_hpipm
-        x1 = cs.MX.sym("x1")
-        x2 = cs.MX.sym("x2")
-        x = cs.vertcat(x1, x2)
-        u = cs.MX.sym("u")
-        N = 4
-        xdot = cs.vertcat(0.6 * x1 - 1.11 * x2 + 0.3 * u - 0.03, 0.7 * x1 + 0.01)
-        cost = (
-            x1**2
-            + 3 * x2**2
-            + 7 * u**2
-            - 0.4 * x1 * x2
-            - 0.3 * x1 * u
-            + u
-            - x1
-            - 2 * x2
-        )
-        F = cs.Function("F", [x, u], [x + xdot, cost], ["x", "u"], ["x_next", "cost"])
-        mpc = Mpc(nlp=Nlp(sym_type), prediction_horizon=N)
-        generator = mpc.interleaved_states_and_actions(
-            {"name": "x", "size": 2, "lb": -100, "ub": 100},
-            {"name": "u", "lb": -100, "ub": 100},
-        )
-
-        # style 0: normal for loop
-        if style == 0:
-            Xs, Us = [], []
-            for (x,), (u,) in generator:
-                Xs.append(x)
-                if u is not None:
-                    Us.append(u)
-            X, U = cs.hcat(Xs), cs.hcat(Us)
-
-        # style 1: exhausted generator's return
-        elif style == 1:
-            try:
-                while True:
-                    next(generator)
-            except StopIteration as e:
-                X, U, _ = e.value
-                X, U = X["x"], U["u"]
-
-        # style 3: exhaust generator + use states and actions dicts
-        elif style == 2:
-            list(generator)
-            X, U = mpc.states["x"], mpc.actions["u"]
-
-        else:
-            raise NotImplementedError()
-
-        objective = 0
-        for k in range(N):
-            x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
-            x_new_predicted, stage_cost = F(x, u)
-            mpc.constraint(f"dyn{k}", x_new, "==", x_new_predicted)
-            if k == 2:
-                mpc.constraint("other-constraint", x[0], "==", 0.0)  # custom constr.
-            objective += stage_cost
-        objective += cs.dot(x_new, x_new)  # terminal cost
-        mpc.minimize(objective)
-        mpc.init_solver(
-            {
-                "print_time": False,
-                "print_problem": False,
-                "verbose": False,
-                # "N": N,
-                # "nx": [nx] * (N + 1),
-                # "nu": [nu] * N + [0],
-                # "ng": [nx] + [0] * N,
-            },
-            "hpipm",
-            "conic",
-        )
-        mpc = mpc.copy()
-        sol = mpc.solve_ocp([2, 1])
-        np.testing.assert_allclose(sol.f, 219.22188605113826, rtol=1e-6, atol=1e-6)
 
 
 class TestPwaMpc(unittest.TestCase):
@@ -577,18 +438,17 @@ class TestPwaMpc(unittest.TestCase):
         mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="inline")
 
         nr = len(pwa_regions)
-        eq_constraints = {
+        constraints = {
             "delta_sum": (1, N),
-        }
-        ineq_constraints = {
             "z_ub": (ns * nr, N),
             "z_lb": (ns * nr, N),
             "z_x_ub": (ns * nr, N),
             "z_x_lb": (ns * nr, N),
             "region": (nr, N),
         }
-        self.assertEqual(mpc.ng, ns * N + sum(prod(s) for s in eq_constraints.values()))
-        self.assertEqual(mpc.nh, sum(prod(s) for s in ineq_constraints.values()))
+        for con, shape in constraints.items():
+            self.assertIn(con, mpc.constraints)
+            self.assertEqual(mpc.constraints[con].shape, shape, msg=con)
 
     def test_pwa_dynamics__in_singleshooting__creates_states(self):
         tau, k1, k2, d, m = 0.5, 10, 1, 4, 10
@@ -624,8 +484,8 @@ class TestScenarioBasedMpc(unittest.TestCase):
         ny = ns // 2
         nx = ns - ny
         scmpc = SCMPC[cs.MX](Nlp(sym_type="MX"), K, N, shooting=shooting)
-        x, xs = scmpc.state("x", nx, bound_terminal=False)
-        y, ys = scmpc.state("y", ny, bound_terminal=False)
+        x, xs, _ = scmpc.state("x", nx, bound_initial=False, bound_terminal=False)
+        y, ys, _ = scmpc.state("y", ny, bound_initial=False, bound_terminal=False)
 
         self.assertEqual(len(xs), K)
         self.assertEqual(len(ys), K)
@@ -667,7 +527,8 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.disturbance("d", nd)
         scmpc.set_nonlinear_dynamics(F)
 
-        self.assertEqual(scmpc.nlp.ng, N * nx * K)
+        self.assertIn("dyn", scmpc.constraints.keys())
+        self.assertEqual(scmpc.nlp.ng, (1 + N) * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
     def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
@@ -683,6 +544,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
         scmpc.disturbance("d", nd)
         scmpc.set_nonlinear_dynamics(F)
 
+        self.assertNotIn("dyn", scmpc.constraints.keys())
         self.assertEqual(scmpc.nlp.ng, 0)
         for i in range(K):
             self.assertIn(_n("x1", i), scmpc.states.keys())
@@ -696,7 +558,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
     ):
         N, K = 10, np.random.randint(2, 20)
         scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting=shooting)
-        x, _ = scmpc.state("x", 2)
+        x, _, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
         scmpc.set_nonlinear_dynamics(lambda x, u, d: x + u + d[:2] - d[2:])
@@ -738,7 +600,7 @@ class TestScenarioBasedMpc(unittest.TestCase):
     def test_minimize_from_single__creates_objective_for_all_scenarios(self):
         N, K = 10, np.random.randint(2, 20)
         scmpc = SCMPC[cs.SX](Nlp(sym_type="SX"), K, N, shooting="multi")
-        x, _ = scmpc.state("x", 2)
+        x, _, _ = scmpc.state("x", 2)
         u, _ = scmpc.action("u", 2)
         d, _ = scmpc.disturbance("d", 4)
         lhs = cs.vertcat(cs.sum2(cs.exp(x)), cs.sum2(cs.log(u)))
@@ -870,7 +732,8 @@ class TestMultiScenarioMpc(unittest.TestCase):
         msmpc.disturbance("d", nd)
         msmpc.set_nonlinear_dynamics(F)
 
-        self.assertEqual(msmpc.nlp.ng, N * nx * K)
+        self.assertIn("dyn", msmpc.constraints.keys())
+        self.assertEqual(msmpc.nlp.ng, (1 + N) * nx * K)
 
     @parameterized.expand([("SX",), ("MX",)])
     def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
@@ -886,6 +749,7 @@ class TestMultiScenarioMpc(unittest.TestCase):
         msmpc.disturbance("d", nd)
         msmpc.set_nonlinear_dynamics(F)
 
+        self.assertNotIn("dyn", msmpc.constraints.keys())
         self.assertEqual(msmpc.nlp.ng, 0)
         for i in range(K):
             self.assertIn(_n("x1", i), msmpc.states.keys())

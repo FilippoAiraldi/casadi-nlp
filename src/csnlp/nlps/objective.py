@@ -67,6 +67,7 @@ class HasObjective(HasConstraints[SymType]):
         self._solver: Optional[MemorizedFunc] = None
         self._solver_opts: dict[str, Any] = {}
         self._cache = cache if cache is not None else Memory(None)
+        self._failures = 0
 
     @property
     def f(self) -> Optional[SymType]:
@@ -85,6 +86,11 @@ class HasObjective(HasConstraints[SymType]):
         """Gets the NLP optimization solver options. The dict is empty, if the solver
         options are not set with method :meth:`init_solver`."""
         return self._solver_opts
+
+    @property
+    def failures(self) -> int:
+        """Gets the cumulative number of failures of the NLP solver."""
+        return self._failures
 
     def init_solver(
         self,
@@ -155,7 +161,8 @@ class HasObjective(HasConstraints[SymType]):
         )
         opts["equality"] = eq.tolist() if eq.size == 1 else eq  # bugfix
 
-        problem = {"x": self._x, "p": self._p, "g": self.constraints, "f": self._f}
+        con = cs.vertcat(self._g, self._h)
+        problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
         self._solver = self._cache.cache(solver_func)
 
@@ -237,12 +244,19 @@ class HasObjective(HasConstraints[SymType]):
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
         kwargs = self._process_pars_and_vals0(
-            {"lbx": self._lbx.data, "ubx": self._ubx.data, "lbg": self._lbg, "ubg": 0},
+            {
+                "lbx": self._lbx.data,
+                "ubx": self._ubx.data,
+                "lbg": np.concatenate((np.zeros(self.ng), np.full(self.nh, -np.inf))),
+                "ubg": 0,
+            },
             pars,
             vals0,
         )
         sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
-        return LazySolution.from_casadi_solution(sol_with_stats, self)
+        solution = LazySolution.from_casadi_solution(sol_with_stats, self)
+        self._failures += not solution.success
+        return solution
 
     def _process_pars_and_vals0(
         self,

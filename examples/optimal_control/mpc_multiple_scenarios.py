@@ -120,7 +120,7 @@ p, _ = msmpc.parameter("p")
 # constraints can be added right away such as the dynamics.
 
 if shooting == "multi":
-    x, _ = msmpc.state("x", nx, lb=x_lb)
+    x, _, _ = msmpc.state("x", nx, lb=x_lb, bound_initial=False)
     msmpc.set_nonlinear_dynamics(lambda x_, u_: F(x_, u_, p))
 else:
     msmpc.state("x", nx)
@@ -140,14 +140,15 @@ msmpc.init_solver(opts)
 # Solving the MSMPC and plotting
 # ------------------------------
 # After we have generated :math:`K` samples of the uncertain parameter :math:`p`, we can
-# solve the MSMPC by passing the initial states and samples as a dictionary. If unsure
+# solve the MSMPC by passing the samples and initial states as a dictionary. If unsure
 # about the names that must be contained in this dictionary, you can check the keys of
 # :attr:`csnlp.wrappers.MultiScenarioMpc.parameters` (this contains all values that must
 # be specified to run the NLP solver).
 
+pars = {"x_0": x0}
 p_samples = np_random.uniform(1, 3, size=K)
-pars = {f"p__{i}": p_samples[i] for i in range(K)}
-sol = msmpc.solve_ocp(x0, pars)
+pars.update((f"p__{i}", p_samples[i]) for i in range(K))
+sol = msmpc.solve(pars=pars)
 
 # %%
 # For plotting, we will plot the results in a two axes, one for the states and one for

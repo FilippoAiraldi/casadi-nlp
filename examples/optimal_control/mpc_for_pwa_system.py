@@ -109,7 +109,7 @@ E = np.concatenate((E1, E2))
 
 N = 10
 mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)
-x = mpc.state("x", 2)
+x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
 mpc.set_pwa_dynamics(pwa_system, D, E)
 mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
@@ -124,7 +124,7 @@ mpc.init_solver({"record_time": True}, "bonmin")  # "bonmin", "knitro", "gurobi"
 # problem.
 
 x_0 = [-3, 0]
-sol_mixint = mpc.solve_ocp(x_0)
+sol_mixint = mpc.solve(pars={"x_0": x_0})
 
 # %%
 # ----------------------------
@@ -152,13 +152,13 @@ sol_mixint = mpc.solve_ocp(x_0)
 # a mixed-integer solver, but we can use any QP solver.
 
 mpc = wrappers.PwaMpc(nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N)
-x = mpc.state("x", 2)
+x, _ = mpc.state("x", 2)
 u, _ = mpc.action("u")
 mpc.set_affine_time_varying_dynamics(pwa_system)
 mpc.constraint("state_constraints", D1 @ x - E1, "<=", 0)
 mpc.constraint("input_constraints", D2 @ u - E2, "<=", 0)
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
-mpc.init_solver({"record_time": True}, "osqp")
+mpc.init_solver({"record_time": True}, "qrqp")
 
 # %%
 # We then set the switching sequence to be the optimal one (gathered from
@@ -167,7 +167,7 @@ mpc.init_solver({"record_time": True}, "osqp")
 
 opt_sequence = wrappers.PwaMpc.get_optimal_switching_sequence(sol_mixint)
 mpc.set_switching_sequence(opt_sequence)
-sol_qp = mpc.solve_ocp(x_0)
+sol_qp = mpc.solve(pars={"x_0": x_0})
 
 # %%
 # Effects of suboptimal sequences
@@ -180,7 +180,7 @@ sol_qp = mpc.solve_ocp(x_0)
 subopt_sequence = opt_sequence.copy()
 subopt_sequence[3] = 0
 mpc.set_switching_sequence(subopt_sequence)
-sol_qp_suboptimal = mpc.solve_ocp(x_0)
+sol_qp_suboptimal = mpc.solve(pars={"x_0": x_0})
 
 # %%
 # -------

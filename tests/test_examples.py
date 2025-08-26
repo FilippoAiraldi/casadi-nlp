@@ -9,11 +9,7 @@ from parameterized import parameterized, parameterized_class
 from scipy import io
 
 from csnlp import Nlp, Solution, scaling, wrappers
-from csnlp.multistart import (
-    MappedMultistartNlp,
-    ParallelMultistartNlp,
-    StackedMultistartNlp,
-)
+from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
 from csnlp.multistart.multistart_nlp import MultistartNlp
 
 QRQP_OPTS = {
@@ -154,48 +150,12 @@ class TestExamples(unittest.TestCase):
             x = mpc.states["x"]  # only accessible after dynamics have been set
             mpc.constraint("c0", x, ">=", -0.2)
         else:
-            x = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
+            x, _ = mpc.state("x", 2, lb=-0.2)  # must be created before dynamics
             mpc.set_nonlinear_dynamics(F)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(IPOPT_OPTS)
         mpc = mpc.copy()
-        sol = mpc.solve_ocp({"x": [0, 1]})
-        u_opt = sol.vals["u"].full().flat
-        np.testing.assert_allclose(
-            u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
-        )
-
-    def test__optimal_ctrl__with__interleaved_states_and_actions(self):
-        x = cs.MX.sym("x", 2)
-        u = cs.MX.sym("u")
-        ode = cs.vertcat((1 - x[1] ** 2) * x[0] - x[1] + u, x[0])
-        f = cs.Function("f", [x, u], [ode], ["x", "u"], ["ode"])
-        T = 10
-        N = 20
-        intg_options = {"simplify": True, "number_of_finite_elements": 4}
-        dae = {"x": x, "p": u, "ode": f(x, u)}
-        intg = cs.integrator("intg", "rk", dae, 0.0, T / N, intg_options)
-        res = intg(x0=x, p=u)
-        x_next = res["xf"]
-        F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
-        mpc = wrappers.Mpc(nlp=Nlp(sym_type=self.sym_type), prediction_horizon=N)
-        list(
-            mpc.interleaved_states_and_actions(
-                {"name": "x", "size": 2, "lb": -0.2}, {"name": "u", "lb": -1, "ub": +1}
-            )
-        )
-        X = mpc.states["x"]
-        U = mpc.actions["u"]
-        objective = 0
-        for k in range(N):
-            x, u, x_new = X[:, k], U[:, k], X[:, k + 1]
-            mpc.constraint(f"dyn{k}", x_new, "==", F(x, u))
-            objective += cs.sumsqr(x) + cs.sumsqr(u)
-        objective += cs.sumsqr(x_new)
-        mpc.minimize(objective)
-        mpc.init_solver(IPOPT_OPTS)
-        mpc = mpc.copy()
-        sol = mpc.solve_ocp([0, 1])
+        sol = mpc.solve(pars={"x_0": [0, 1]})
         u_opt = sol.vals["u"].full().flat
         np.testing.assert_allclose(
             u_opt, RESULTS["optimal_ctrl_u"], rtol=1e-6, atol=1e-6
@@ -266,10 +226,10 @@ class TestExamples(unittest.TestCase):
         np.testing.assert_allclose(RESULTS["sensitivity_j"], j0, rtol=1e-6, atol=1e-7)
         np.testing.assert_allclose(RESULTS["sensitivity_h"], h0, rtol=1e-6, atol=1e-7)
 
-    @parameterized.expand([(ParallelMultistartNlp,), (MappedMultistartNlp,)])
+    @parameterized.expand([(StackedMultistartNlp,), (ParallelMultistartNlp,)])
     def test__scaling(self, multinlp_cls: type):
         def get_dynamics(g: float, alpha: float, dt: float) -> cs.Function:
-            x, u = cs.MX.sym("x", 3), cs.MX.sym("u")
+            x, u = cs.SX.sym("x", 3), cs.SX.sym("u")
             x_next = x + cs.vertcat(x[1], u / x[2] - g, -alpha * u) * dt
             return cs.Function("F", [x, u], [x_next], ["x", "u"], ["x+"])
 
@@ -283,11 +243,12 @@ class TestExamples(unittest.TestCase):
         alpha = 1 / (300 * g)
         seed = 69
         rng = np.random.default_rng(seed)
-        if multinlp_cls is ParallelMultistartNlp:
-            kwargs = {"parallel_kwargs": {"n_jobs": 2}}
-        else:  # multinlp_cls is MappedMultistartNlp:
-            kwargs = {"parallelization": "thread"}
-        nlp = multinlp_cls(sym_type=self.sym_type, starts=K, **kwargs)
+        kwargs = (
+            {"parallel_kwargs": {"n_jobs": -1}}
+            if multinlp_cls is ParallelMultistartNlp
+            else {}
+        )
+        nlp = multinlp_cls(sym_type="SX", starts=K, **kwargs)
 
         y_nom = 1e5
         v_nom = 2e3
@@ -296,11 +257,12 @@ class TestExamples(unittest.TestCase):
         u_nom = 1e8
         scaler = scaling.Scaler()
         scaler.register("x", scale=x_nom)
+        scaler.register("x_0", scale=x_nom)
         scaler.register("u", scale=u_nom)
         nlp = wrappers.NlpScaling(nlp, scaler=scaler)
 
         mpc = wrappers.Mpc(nlp, prediction_horizon=N)
-        x = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
+        x, _ = mpc.state("x", 3, lb=cs.DM([-cs.inf, -cs.inf, 0]))
         y = x[0, :]
         m = x[2, :]
         u, _ = mpc.action("u", lb=0, ub=5e7)
@@ -313,8 +275,7 @@ class TestExamples(unittest.TestCase):
 
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 
-        # NOTE: have to manually scale the initial conditions!
-        IC = {"x": scaler.scale("x", x0).toarray().flatten()}
+        pars = [{"x_0": x0}] * K
         vals0 = [
             {
                 "x": x_init + rng.random(x_init.shape) * 1e4,
@@ -324,10 +285,7 @@ class TestExamples(unittest.TestCase):
         ]
         us, fs = [], []
         for i in range(K + 1):
-            if i != K:
-                sol = mpc.solve_ocp_single(IC, vals0=vals0[i])
-            else:
-                sol = mpc.solve_ocp_multi(IC, vals0=vals0)  # solve last with multistart
+            sol = mpc.solve(pars[i], vals0[i]) if i != K else mpc(pars, vals0)
             fs.append(sol.f)
             us.append(sol.value(u))
         us, fs = np.asarray(us).squeeze(), np.asarray(fs).squeeze()
@@ -395,7 +353,7 @@ class TestExamples(unittest.TestCase):
         mpc = wrappers.PwaMpc(
             nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
-        x = mpc.state("x", 2)
+        x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
         with nostdout():
             mpc.set_pwa_dynamics(pwa_regions, D, E, parallelization="serial")
@@ -406,7 +364,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(solver="bonmin")
         with nostdout():
-            sol = mpc.solve_ocp({"x": [-3, 0]})
+            sol = mpc.solve(pars={"x_0": [-3, 0]})
 
         tols = (1e-6, 1e-6)
         expected = {
@@ -443,7 +401,7 @@ class TestExamples(unittest.TestCase):
         mpc = wrappers.PwaMpc(
             nlp=Nlp(sym_type=self.sym_type), prediction_horizon=4, shooting=shooting
         )
-        x = mpc.state("x", 2)
+        x, _ = mpc.state("x", 2)
         u, _ = mpc.action("u")
         mpc.set_affine_time_varying_dynamics(pwa_regions)
         if shooting == "single":
@@ -453,7 +411,7 @@ class TestExamples(unittest.TestCase):
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(QRQP_OPTS, "qrqp")
         mpc.set_switching_sequence([0, 0, 0, 1])
-        sol = mpc.solve_ocp([-3, 0])
+        sol = mpc.solve(pars={"x_0": [-3, 0]})
 
         tols = (1e-6, 1e-6)
         expected = {
@@ -492,7 +450,7 @@ class TestExamples(unittest.TestCase):
         x = RESULTS["lti_mpc_xs"][0]
         X, U = [x], []
         for _ in range(50):
-            sol = mpc.solve_ocp(x)
+            sol = mpc.solve(pars={"x_0": x})
             u_opt = sol.vals["u"][:, 0].full().reshape(na)
             x = A @ x + B @ u_opt
             X.append(x)
