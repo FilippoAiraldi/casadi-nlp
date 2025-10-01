@@ -90,7 +90,7 @@ sol = nlp(vals0={"x": x_guess})
 
 
 # %%
-# We can visualize the optimal thrust strategy and thee  predicted evolution of the
+# We can visualize the optimal thrust strategy and the predicted evolution of the
 # states
 
 _, axs = plt.subplots(4, 1, sharex=True, constrained_layout=True)

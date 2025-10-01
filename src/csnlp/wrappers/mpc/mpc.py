@@ -309,17 +309,15 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             The same control  action variable, but expanded to the same length of the
             prediction horizon.
         """
-        nu_free = ceil(self._control_horizon / self._input_spacing)
+        Nc = self._control_horizon
+        spacing = self._input_spacing
+        nu_free = ceil(Nc / spacing)
         u = self.nlp.variable(name, (size, nu_free), discrete, lb, ub)[0]
 
-        u_exp: SymType = (
-            u
-            if self._input_spacing == 1
-            else repeat(u, (1, self._input_spacing))[:, : self._control_horizon]
-        )
-        gap = self._prediction_horizon - u_exp.shape[1]
-        u_last = u_exp[:, -1]
-        u_exp = cs.horzcat(u_exp, *(u_last for _ in range(gap)))
+        u_exp: SymType = u if spacing == 1 else repeat(u, (1, spacing))[:, :Nc]
+        if gap := self._prediction_horizon - u_exp.shape[1]:
+            u_last = u_exp[:, -1]
+            u_exp = cs.horzcat(u_exp, *(u_last for _ in range(gap)))
 
         self._actions[name] = u
         self._actions_exp[name] = u_exp
@@ -395,6 +393,14 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         c : symbolic or numerical array, optional
             The constant term :math:`c` in the dynamics equation. By default, ``None``.
             If not provided, the dynamics become linear instead of affine.
+        parallelization : "serial", "unroll", "inline", "thread", "openmp"
+            The type of parallelization to use (see :func:`casadi.Function.map`) when
+            applying the dynamics along the horizon in multiple shooting. By default,
+            ``"thread"`` is selected.
+        max_num_threads : int, optional
+            Maximum number of threads to use in parallelization (if in multiple
+            shooting). See :func:`casadi.Function.map` for more information. By default,
+            set equal to the prediction horizon.
 
         Returns
         -------
@@ -486,7 +492,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             The type of parallelization to use (see :func:`casadi.Function.map`) when
             applying the dynamics along the horizon in multiple shooting. By default,
             ``"thread"`` is selected.
-        max_num_threads : int, optional
+        max_num_threads_or_unrolling_base : int, optional
             Maximum number of threads to use in parallelization (if in multiple
             shooting), or the base for unrolling (if in single shooting). See
             :func:`casadi.Function.map` and :func:`casadi.Function.mapaccum` for more
@@ -582,7 +588,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
             D = cs.vcat(self._disturbances.values())
             args = (X0, U, D)
 
-        Fmapaccum = F.mapaccum(self._prediction_horizon, {"base": base})
+        Fmapaccum = F.mapaccum(
+            self._prediction_horizon, {"base": base, "allow_free": True}
+        )
         X_next = Fmapaccum(*args)
         X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])

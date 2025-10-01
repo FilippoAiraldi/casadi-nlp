@@ -442,8 +442,9 @@ class EagerSolution(Solution[SymType]):
         lam_g_and_h = sol["lam_g"]
         lam_g = lam_g_and_h[: nlp.ng, :]
         lam_h = lam_g_and_h[nlp.ng :, :]
-        lam_lbx = -cs.fmin(sol["lam_x"][nlp.nonmasked_lbx_idx, :], 0)
-        lam_ubx = cs.fmax(sol["lam_x"][nlp.nonmasked_ubx_idx, :], 0)
+        lam_x = sol["lam_x"]
+        lam_lbx = -cs.fmin(lam_x[nlp.nonmasked_lbx_idx, :], 0)
+        lam_ubx = cs.fmax(lam_x[nlp.nonmasked_ubx_idx, :], 0)
         dual_vars = nlp._dual_vars.copy()
         dual_vals = {}
         for n, var in dual_vars.items():
@@ -570,8 +571,9 @@ class LazySolution(Solution[SymType]):
 
     @_cached_property
     def lam_lbx_and_ubx(self) -> cs.DM:
-        lam_lbx = -cs.fmin(self._sol["lam_x"][self._nonmasked_lbx_idx, :], 0)
-        lam_ubx = cs.fmax(self._sol["lam_x"][self._nonmasked_ubx_idx, :], 0)
+        lam_x = self._sol["lam_x"]
+        lam_lbx = -cs.fmin(lam_x[self._nonmasked_lbx_idx, :], 0)
+        lam_ubx = cs.fmax(lam_x[self._nonmasked_ubx_idx, :], 0)
         return cs.vertcat(lam_lbx, lam_ubx)
 
     @_cached_property

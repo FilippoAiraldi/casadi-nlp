@@ -67,7 +67,6 @@ class HasObjective(HasConstraints[SymType]):
         self._solver: Optional[MemorizedFunc] = None
         self._solver_opts: dict[str, Any] = {}
         self._cache = cache if cache is not None else Memory(None)
-        self._failures = 0
 
     @property
     def f(self) -> Optional[SymType]:
@@ -86,11 +85,6 @@ class HasObjective(HasConstraints[SymType]):
         """Gets the NLP optimization solver options. The dict is empty, if the solver
         options are not set with method :meth:`init_solver`."""
         return self._solver_opts
-
-    @property
-    def failures(self) -> int:
-        """Gets the cumulative number of failures of the NLP solver."""
-        return self._failures
 
     def init_solver(
         self,
@@ -152,17 +146,22 @@ class HasObjective(HasConstraints[SymType]):
             raise RuntimeError("NLP objective not set.")
 
         opts = {} if opts is None else opts.copy()
-        if "discrete" in opts:
-            raise ValueError("The 'discrete' key is reserved for the variable domains.")
-        if self.has_discrete:
-            disc = self.discrete
-            opts["discrete"] = [disc.item()] if disc.size == 1 else disc  # bugfix
+        if "discrete" in opts or "equality" in opts:
+            raise ValueError("'discrete' and 'equality' options are reserved.")
+        disc = self.discrete
+        opts["discrete"] = disc.tolist() if disc.size == 1 else disc  # bugfix
+        eq = np.concatenate(
+            (np.full(self.ng, True, dtype=bool), np.full(self.nh, False, dtype=bool))
+        )
+        opts["equality"] = eq.tolist() if eq.size == 1 else eq  # bugfix
+
         con = cs.vertcat(self._g, self._h)
         problem = {"x": self._x, "p": self._p, "g": con, "f": self._f}
         solver_func = func(f"solver_{solver}_{self.name}", solver, problem, opts)
-
         self._solver = self._cache.cache(solver_func)
+
         opts.pop("discrete", None)
+        opts.pop("equality", None)
         self._solver_opts = opts
         self._solver_plugin = solver
         self._solver_type = type
@@ -218,7 +217,7 @@ class HasObjective(HasConstraints[SymType]):
         ----------
         pars : dict[str, array_like], optional
             Dictionary or structure containing, for each parameter in the NLP scheme,
-            the corresponding numerical value. Can be `None` if no parameters are
+            the corresponding numerical value. Can be ``None`` if no parameters are
             present.
         vals0 : dict[str, array_like], optional
             Dictionary or structure containing, for each variable in the NLP scheme, the
@@ -249,9 +248,7 @@ class HasObjective(HasConstraints[SymType]):
             vals0,
         )
         sol_with_stats = _solve_and_get_stats(self._solver, kwargs)
-        solution = LazySolution.from_casadi_solution(sol_with_stats, self)
-        self._failures += not solution.success
-        return solution
+        return LazySolution.from_casadi_solution(sol_with_stats, self)
 
     def _process_pars_and_vals0(
         self,

@@ -3,7 +3,7 @@ Linear MPC control
 ==================
 
 This example demos how an MPC controller can be built for a linear system using
-:class:`csnlp.wrappers.Mpc` and its :meth:`csnlp.wrappers.Mpc.set_linear_dynamics`
+:class:`csnlp.wrappers.Mpc` and its :meth:`csnlp.wrappers.Mpc.set_affine_dynamics`
 method. The system is a simple linear system with the following dynamics:
 
 .. math:: x_{k+1} = A x_k + B u_k.

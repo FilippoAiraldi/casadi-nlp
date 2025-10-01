@@ -35,7 +35,6 @@ _DocCell = collections.namedtuple("_DocCell", ["id", "default", "doc"])
 _TABLE_START = "+="  # string prefix that starts the table
 _CELL_END = "+-"  # string prefix that ends the cell
 _CELL_CONTENTS = "|"  # string prefix that continues the cell
-_JOINS = ("", "", "", " ")  # how to join multiple lines in a given cell
 _TYPES: dict[str, Callable] = {  # casadi types to python types
     "OT_INTEGER": int,
     "OT_STRING": str,
@@ -56,34 +55,43 @@ def _get_doc_cell(lines) -> _DocCell:
     joins is a tuple of strings to say how to join multiple lines in a given
     cell. It must have exactly one entry for each cell.
     """
-    ncol = 4
-    fields: tuple[list[str], ...] = ([], [], [], [])
+    ncol = lines[0].count(" | ") + 1
+    assert ncol in (3, 4), f"Expected 3 or 4 columns in the docstring table; got {ncol}"
+
+    fields: tuple[list[str], ...] = tuple([] for _ in range(ncol))
     for line in lines:
-        cells = line.split(" | ", ncol - 1)
-        cells[0] = cells[0].lstrip().lstrip("|")
-        cells[-1] = cells[-1].rstrip().rstrip("|")
-        if len(cells) != ncol:
-            raise ValueError("Wrong number of columns.")
+        cells = [c.strip() for c in line.split(" | ") if c]
+        cells[0] = cells[0].lstrip("|").rstrip()
+        cells[-1] = cells[-1].rstrip("|").rstrip()
         for i, c in enumerate(cells):
             fields[i].append(c.strip())
+            if i == ncol - 1:
+                break
+        else:
+            raise ValueError("Wrong number of columns.")
 
-    id, type, default, doc = (j.join(f) for j, f in zip(_JOINS, fields))
+    if ncol == 3:
+        id, type, doc = (j.join(f) for j, f in zip(("", "", " "), fields))
+        default = None
 
-    if typefunc := _TYPES.get(type):
-        try:
-            default = typefunc(default)
-        except (ValueError, TypeError):
-            includetype = True
-            if default in ("None", "GenericType()"):
-                default = None
-            elif typefunc is int:
-                with contextlib.suppress(ValueError, TypeError):
-                    default = int(float(default))
-                    includetype = False
-            if includetype:
-                default = (default, typefunc)
     else:
-        warnings.warn(f"Unknown type for '{id}', '{type}'.")
+        id, type, default, doc = (j.join(f) for j, f in zip(("", "", "", " "), fields))
+        if typefunc := _TYPES.get(type):
+            try:
+                default = typefunc(default)
+            except (ValueError, TypeError):
+                includetype = True
+                if default in ("None", "GenericType()"):
+                    default = None
+                elif typefunc is int:
+                    with contextlib.suppress(ValueError, TypeError):
+                        default = int(float(default))
+                        includetype = False
+                if includetype:
+                    default = (default, typefunc)
+        else:
+            warnings.warn(f"Unknown type for '{id}', '{type}'.")
+
     return _DocCell(id, default, doc)
 
 
@@ -105,7 +113,7 @@ def _get_doc_dict(docstring: str) -> dict[str, tuple[_Any, str]]:
             thiscell.append(line)
         else:
             break
-    return {c.id: (c.default, c.doc) for c in allcells}
+    return {c.id: ("N/A" if c.default is None else c.default, c.doc) for c in allcells}
 
 
 def get_casadi_plugins() -> dict[str, list[str]]:
@@ -113,7 +121,7 @@ def get_casadi_plugins() -> dict[str, list[str]]:
 
     Returns
     -------
-    dict of (str, list of str))
+    dict of (str, list of str)
         A dictionary containing for each type of problem a list of plugin names that
         are available.
 
@@ -144,7 +152,7 @@ def list_available_solvers() -> dict[str, list[str]]:
 
     Returns
     -------
-    dict of (str, list of str))
+    dict of (str, list of str)
         A dictionary containing for each type of problem a list of plugin names that
         are available.
 
@@ -177,7 +185,7 @@ def get_solver_options(
 
     Returns
     -------
-    dict of (str, tuple of (Any, str))
+    dict of (str, tuple of (Any, str)
         A dictionary containing for each option the default value and a description.
 
     Raises

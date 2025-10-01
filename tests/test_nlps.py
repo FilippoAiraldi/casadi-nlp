@@ -128,12 +128,10 @@ class TestNlp(unittest.TestCase):
         self.assertEqual(nlp.nx, nx)
         self.cmp(nlp.x, cs.vvcat(xs), vars=xs)
 
-        discrete_dict = {f"x{i}": d for i, d in enumerate(discretes)}
-        self.assertDictEqual(nlp._discrete, discrete_dict)
         discrete = np.concatenate(
             [
                 (np.ones if d else np.zeros)(np.prod(s), dtype=bool)
-                for s, d in zip(shapes, discrete_dict.values())
+                for s, d in zip(shapes, discretes)
             ]
         )
         np.testing.assert_array_equal(nlp.discrete, discrete)

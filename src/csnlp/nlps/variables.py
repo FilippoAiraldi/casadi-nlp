@@ -1,11 +1,10 @@
-from functools import cached_property
+from math import prod
 from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as np
 from numpy.typing import NDArray
 
-from ..core.cache import invalidate_cache
 from .parameters import HasParameters
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
@@ -25,8 +24,7 @@ class HasVariables(HasParameters[SymType]):
         super().__init__(sym_type)
         self._vars: dict[str, SymType] = {}
         self._x = self._sym_type()
-        self._has_discrete = False
-        self._discrete: dict[str, bool] = {}
+        self._discrete = np.empty(0, dtype=bool)
 
     @property
     def x(self) -> SymType:
@@ -44,26 +42,10 @@ class HasVariables(HasParameters[SymType]):
         return self._vars
 
     @property
-    def has_discrete(self) -> bool:
-        """Flags if the NLP has discrete variables."""
-        return self._has_discrete
-
-    @cached_property
     def discrete(self) -> NDArray[np.bool_]:
         """Gets the boolean array indicating which variables are discrete."""
-        if not self._has_discrete:
-            return np.zeros(self.nx, dtype=bool)
-        vars = self._vars
-        return np.concatenate(
-            [
-                (np.ones if is_discrete else np.zeros)(
-                    np.prod(vars[name].numel()), dtype=bool
-                )
-                for name, is_discrete in self._discrete.items()
-            ]
-        )
+        return self._discrete
 
-    @invalidate_cache(discrete)
     def variable(
         self,
         name: str,
@@ -96,6 +78,7 @@ class HasVariables(HasParameters[SymType]):
         var = self._sym_type.sym(name, *shape)
         self._vars[name] = var
         self._x = cs.veccat(self._x, var)
-        self._has_discrete |= discrete
-        self._discrete[name] = discrete
+        self._discrete = np.concatenate(
+            (self._discrete, np.full(prod(shape), discrete, dtype=bool))
+        )
         return var

@@ -11,7 +11,9 @@ from parameterized import parameterized
 
 from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.wrappers import Mpc, PwaMpc, PwaRegion
+from csnlp.wrappers import Mpc
+from csnlp.wrappers import MultiScenarioMpc as MSMPC
+from csnlp.wrappers import PwaMpc, PwaRegion
 from csnlp.wrappers import ScenarioBasedMpc as SCMPC
 from csnlp.wrappers.mpc.scenario_based_mpc import _n
 
@@ -646,6 +648,114 @@ class TestScenarioBasedMpc(unittest.TestCase):
                 symbolical_J, [x_i, d_i, s_i], [x_i_, d_i_, s_i_], eval=i == K - 1
             )
         np.testing.assert_almost_equal(symbolical_J, numerical_J)
+
+
+class TestMultiScenarioMpc(unittest.TestCase):
+    @parameterized.expand([(True,), (False,)])
+    def test_init__raises__with_wrong_input_sharing(self, neg: bool):
+        nlp = Nlp()
+        K = np.random.randint(2, 20)
+        N = 14
+        input_spacing = 5
+        if neg:
+            input_sharing = -1
+        else:
+            input_sharing = 4  # only 3 free actions, but we ask 4 to be shared!
+        with self.assertRaises(ValueError):
+            MSMPC[cs.MX](
+                nlp, K, N, input_spacing=input_spacing, input_sharing=input_sharing
+            )
+
+    def test_parameter__creates_as_many_parameters_as_scenarios(self):
+        K, N, np1_1, np1_2, np2_1, np2_2 = np.random.randint(2, 20, size=6)
+        shape1 = (np1_1, np1_2)
+        shape2 = (np2_1, np2_2)
+        msmpc = MSMPC[cs.MX](Nlp(sym_type="MX"), K, N)
+        p1, p1s = msmpc.parameter("p1", shape1)
+        p2, p2s = msmpc.parameter("p2", shape2)
+
+        self.assertEqual(len(p1s), K)
+        self.assertEqual(len(p2s), K)
+        np_single = np1_1 * np1_2 + np2_1 * np2_2
+        self.assertEqual(msmpc.np, np_single)
+        self.assertEqual(msmpc.np_all, np_single * K)
+        self.assertTrue(all(p1.shape == p1_i.shape == shape1 for p1_i in p1s))
+        self.assertTrue(all(p2.shape == p2_i.shape == shape2 for p2_i in p2s))
+
+    @parameterized.expand(map(lambda i: (i,), range(4)))
+    def test_action(self, sharing: int):
+        K, nu = np.random.randint(2, 20, size=2)
+        Np = 21
+        Nc = 14
+        spacing = 5
+        msmpc = MSMPC[cs.MX](Nlp(sym_type="SX"), K, Np, Nc, spacing, sharing)
+        nu_free = ceil(Nc / spacing)
+        assert nu_free == 3, f"Expected `nu_free` to be 3; got {nu_free} instead."
+        nu2 = nu // 2
+        nu1 = nu - nu2
+        u1, u1_exp, u1s, u1s_exp = msmpc.action("u1", nu1)
+        u2, u2_exp, u2s, u2s_exp = msmpc.action("u2", nu2)
+
+        self.assertEqual(msmpc.na, nu)
+        self.assertEqual(msmpc.na_all, nu * K)
+
+        self.assertEqual(len(u1s), K)
+        self.assertTrue(all(u1.shape == u.shape == (nu1, nu_free) for u in u1s))
+        self.assertEqual(len(u1s_exp), K)
+        self.assertTrue(all(u1_exp.shape == u.shape == (nu1, Np) for u in u1s_exp))
+        self.assertEqual(len(u2s), K)
+        self.assertTrue(all(u2.shape == u.shape == (nu2, nu_free) for u in u2s))
+        self.assertEqual(len(u2s_exp), K)
+        self.assertTrue(all(u2_exp.shape == u.shape == (nu2, Np) for u in u2s_exp))
+
+        for i in range(K):
+            name1 = _n("u1", i)
+            self.assertIn(name1, msmpc.actions)
+            self.assertIn(name1, msmpc.actions_expanded)
+            name2 = _n("u2", i)
+            self.assertIn(name2, msmpc.actions)
+            self.assertIn(name2, msmpc.actions_expanded)
+
+        self.assertEqual(msmpc.nx, (sharing + (nu_free - sharing) * K) * nu)
+
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_dynamics__in_multishooting__creates_dynamics_eq_constraints(self, sym_tpe):
+        nx, nu, nd, N, K = np.random.randint(4, 20, size=5)
+        x, u, d = cs.SX.sym("x", nx), cs.SX.sym("u", nu), cs.SX.sym("d", nd)
+        x_next = cs.repmat(cs.sum1(x) + cs.sum1(u) + cs.sum1(d), nx, 1)
+        F = cs.Function("F", [x, u, d], [x_next])
+        msmpc = MSMPC[cs.SX](Nlp(sym_type=sym_tpe), K, N, N // 2, shooting="multi")
+        msmpc.state("x1", nx // 2)
+        msmpc.state("x2", nx - (nx // 2))
+        msmpc.action("u1", nu // 3)
+        msmpc.action("u2", nu - (nu // 3))
+        msmpc.disturbance("d", nd)
+        msmpc.set_nonlinear_dynamics(F)
+
+        self.assertIn("dyn", msmpc.constraints.keys())
+        self.assertEqual(msmpc.nlp.ng, (1 + N) * nx * K)
+
+    @parameterized.expand([("SX",), ("MX",)])
+    def test_dynamics__in_singleshooting__creates_state_trajectories(self, sym_type):
+        nx, nu, nd, N, K = np.random.randint(4, 20, size=5)
+        x, u, d = cs.SX.sym("x", nx), cs.SX.sym("u", nu), cs.SX.sym("d", nd)
+        x_next = cs.repmat(cs.sum1(x) + cs.sum1(u) + cs.sum1(d), nx, 1)
+        F = cs.Function("F", [x, u, d], [x_next])
+        msmpc = MSMPC[cs.SX](Nlp(sym_type=sym_type), K, N, N // 2, shooting="single")
+        msmpc.state("x1", nx // 2)
+        msmpc.state("x2", nx - (nx // 2))
+        msmpc.action("u1", nu // 3)
+        msmpc.action("u2", nu - (nu // 3))
+        msmpc.disturbance("d", nd)
+        msmpc.set_nonlinear_dynamics(F)
+
+        self.assertNotIn("dyn", msmpc.constraints.keys())
+        self.assertEqual(msmpc.nlp.ng, 0)
+        for i in range(K):
+            self.assertIn(_n("x1", i), msmpc.states.keys())
+            self.assertIn(_n("x2", i), msmpc.states.keys())
+            self.assertEqual(msmpc.states[_n("x1", i)].shape, (nx // 2, N + 1))
+            self.assertEqual(msmpc.states[_n("x2", i)].shape, (nx - (nx // 2), N + 1))
 
 
 if __name__ == "__main__":

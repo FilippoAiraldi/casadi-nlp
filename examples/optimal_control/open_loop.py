@@ -10,10 +10,10 @@ bit familiar with it. If this is not the case, for more introductory examples on
 :mod:`csnlp`, see the other :ref:`introductory_examples`.
 
 The problem is inspired by the example from
-`this CasADi video <https://www.youtube.com/watch?v=JI-AyLv68Xs&t=918s>`_, where an optimal
-control problem for a 2-dimensional task is tackled. The goal is to regulate the state
-and action towards the origin.In mathematical terms, the state at time :math:`k` is
-indicated by :math:`x_k`, and evolves according to the continuous-time dynamics
+`this CasADi video <https://www.youtube.com/watch?v=JI-AyLv68Xs&t=918s>`_, where an
+optimal control problem for a 2-dimensional task is tackled. The goal is to regulate the
+state and action towards the origin.In mathematical terms, the state at time :math:`k`
+is indicated by :math:`x_k`, and evolves according to the continuous-time dynamics
 
 .. math::
     \dot{x} = f(x, u) = \begin{bmatrix}
@@ -70,7 +70,7 @@ F = cs.Function("F", [x, u], [x_next], ["x", "u"], ["x_next"])
 # states and actions: :meth:`csnlp.wrappers.Mpc.state` and
 # :meth:`csnlp.wrappers.Mpc.action`. We'll use those, and also pass some lower- and
 # upper-bounds to them. After creation of states and actions, we can set the dynamics
-# via a convenient method :meth:`csnlp.wrappers.Mpc.set_dynamics` that will
+# via a convenient method :meth:`csnlp.wrappers.Mpc.set_nonlinear_dynamics` that will
 # automatically add the initial state constraint and the dynamics constraints. Lastly,
 # an appropriate cost function is defined and the solver is initialized.
 
@@ -85,7 +85,7 @@ mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 # %%
 # Before solving, the solver is initialized, and then called with the value of the
 # initial state ``x_0``, which has been defined as a parameter by
-# :meth:`csnlp.wrappers.Mpc.set_dynamics`.
+# :meth:`csnlp.wrappers.Mpc.set_nonlinear_dynamics`.
 
 opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 5}}
 mpc.init_solver(opts)
@@ -105,7 +105,7 @@ plt.show()
 # :class:`csnlp.wrappers.Mpc` supports also single shooting. The process remains more or
 # less the same, aside from the states. In this case, no state is returned by
 # :meth:`csnlp.wrappers.Mpc.state`, but it is instead created only after the dynamics
-# are specified via :meth:`csnlp.wrappers.Mpc.set_dynamics`.
+# are specified via :meth:`csnlp.wrappers.Mpc.set_nonlinear_dynamics`.
 
 mpc = wrappers.Mpc[cs.SX](
     nlp=Nlp[cs.SX](sym_type="SX"), prediction_horizon=N, shooting="single"
@@ -114,6 +114,7 @@ u, _ = mpc.action("u", lb=-1, ub=+1)
 mpc.state("x", 2)  # does not return a symbolic variable
 mpc.set_nonlinear_dynamics(F)
 x = mpc.states["x"]  # only accessible after dynamics have been set
+mpc.constraint("x_lb", x[:, 1:], ">=", -0.2)  # equivalent to a lb on x
 mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
 mpc.init_solver(opts)
 sol = mpc.solve(pars={"x_0": [0, 1]})
