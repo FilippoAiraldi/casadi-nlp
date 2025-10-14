@@ -23,7 +23,6 @@ It contains the following submodules:
   implementations are simple and thus not optimized for performance. They are meant to
   be used as a fallback when the CasADi ally does not provide the required
   functionality.
-- :mod:`csnlp.util.plot`: a collection of stand-alone functions for plotting purposes.
 
 Submodules
 ==========
@@ -35,9 +34,8 @@ Submodules
    docs
    io
    math
-   plot
 """
 
-__all__ = ["docs", "io", "math", "plot"]
+__all__ = ["docs", "io", "math"]
 
-from . import docs, io, math, plot
+from . import docs, io, math
