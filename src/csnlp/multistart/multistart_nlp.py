@@ -485,17 +485,6 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         best_sol = min(sols, key=lambda s: _cmp_key(s, self._solver_plugin))
         return LazySolution.from_casadi_solution(best_sol, self)
 
-    def __getstate__(self, fullstate: bool = False) -> dict[str, Any]:
-        # joblib.Parallel cannot be pickled or deepcopied
-        state = super().__getstate__(fullstate)
-        state.pop("_parallel", None)
-        return state
-
-    def __setstate__(self, state: Optional[dict[str, Any]]) -> None:
-        if state is not None:
-            self.__dict__.update(state)
-        self._parallel = None
-
 
 class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     """A class that solves an NLP problem multiple times, with different initial

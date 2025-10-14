@@ -1,3 +1,4 @@
+from copy import deepcopy
 import pickle
 import unittest
 from itertools import product
@@ -156,7 +157,7 @@ class TestMultistartNlp(unittest.TestCase):
         )
         nlp.init_solver(OPTS)
         if copy:
-            nlp = nlp.copy()
+            nlp = deepcopy(nlp)
 
         # solve manually
         x0s = [0.9, 0.5, 1.1]
@@ -182,7 +183,7 @@ class TestMultistartNlp(unittest.TestCase):
     @parameterized.expand([(cls,) for cls in MULTI_NLP_CLASSES])
     def test_is_pickleable(self, multinlp_cls: type[TMultiNlp]):
         N = 3
-        nlp = multinlp_cls(starts=N, sym_type=self.sym_type)
+        nlp: MultistartNlp = multinlp_cls(starts=N, sym_type=self.sym_type)
         x = nlp.variable("x", lb=-0.5, ub=1.4)[0]
         p = nlp.parameter("p")
         nlp.minimize(
@@ -192,10 +193,15 @@ class TestMultistartNlp(unittest.TestCase):
             + cs.exp(-100 * p * (x - 1.5) ** 2)
         )
         nlp.init_solver(OPTS)
-        nlp2: MultistartNlp = pickle.loads(pickle.dumps(nlp))
-        self.assertEqual(nlp.name, nlp2.name)
+
+        with cs.global_pickle_context():
+            pickled = pickle.dumps(nlp)
+        with cs.global_unpickle_context():
+            other: MultistartNlp = pickle.loads(pickled)
+
+        self.assertEqual(nlp.name, other.name)
         if multinlp_cls is StackedMultistartNlp:
-            self.assertEqual(nlp._stacked_nlp.name, nlp2._stacked_nlp.name)
+            self.assertEqual(nlp._stacked_nlp.name, other._stacked_nlp.name)
 
 
 if __name__ == "__main__":

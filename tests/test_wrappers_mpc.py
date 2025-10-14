@@ -351,9 +351,12 @@ class TestMpc(unittest.TestCase):
         mpc.action("u1", 3)
         mpc.action("u2", 1)
 
-        mpc2 = pickle.loads(pickle.dumps(mpc))
+        with cs.global_pickle_context():
+            pickled = pickle.dumps(mpc)
+        with cs.global_unpickle_context():
+            other = pickle.loads(pickled)
 
-        self.assertIn(repr(mpc), repr(mpc2))
+        self.assertIn(repr(mpc), repr(other))
 
 
 class TestPwaMpc(unittest.TestCase):

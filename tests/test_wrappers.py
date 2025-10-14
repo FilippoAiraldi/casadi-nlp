@@ -1,6 +1,7 @@
 import pickle
 import unittest
 import warnings
+from copy import deepcopy
 
 import casadi as cs
 import numpy as np
@@ -75,8 +76,11 @@ class TestWrapper(unittest.TestCase):
         self.assertTrue(wrapped.is_wrapped(Mpc))
         self.assertTrue(wrapped.is_wrapped(NlpSensitivity))
 
-        wrapped_pickled = pickle.loads(pickle.dumps(wrapped))
-        wrapped_copied = wrapped.copy()
+        with cs.global_pickle_context():
+            pickled = pickle.dumps(wrapped)
+        with cs.global_unpickle_context():
+            wrapped_pickled = pickle.loads(pickled)
+        wrapped_copied = deepcopy(wrapped)
 
         self.assertEqual(wrapped.name, wrapped_pickled.name)
         self.assertEqual(repr(wrapped), repr(wrapped_pickled))
@@ -432,9 +436,12 @@ class TestNlpSensitivity(unittest.TestCase):
         nlp.constraint("c2", g, "<=", p[1] ** 2)
         nlp.init_solver(OPTS)
 
-        nlp2 = pickle.loads(pickle.dumps(nlp))
+        with cs.global_pickle_context():
+            pickled = pickle.dumps(nlp)
+        with cs.global_unpickle_context():
+            other_nlp = pickle.loads(pickled)
 
-        self.assertIn(repr(nlp), repr(nlp2))
+        self.assertIn(repr(nlp), repr(other_nlp))
 
 
 class TestNlpScaling(unittest.TestCase):

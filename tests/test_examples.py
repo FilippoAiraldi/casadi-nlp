@@ -1,4 +1,5 @@
 import contextlib
+from copy import deepcopy
 import os
 import sys
 import unittest
@@ -74,7 +75,7 @@ class TestExamples(unittest.TestCase):
         nlp.constraint("c1", p[:, 0], "==", [-2, 1])
         nlp.constraint("c2", p[:, -1], "==", [2, 1])
         nlp.constraint("c3", y, ">=", cs.cos(0.1 * x) - 0.5)
-        nlp = nlp.copy()
+        nlp = deepcopy(nlp)
         sol = nlp(vals0={"p": np.vstack((np.linspace(-2, 2, N), np.ones(y.shape)))})
         np.testing.assert_allclose(sol.vals["p"], RESULTS["chain_p"])
 
@@ -105,7 +106,7 @@ class TestExamples(unittest.TestCase):
             nlp.parameter("p1")
             nlp.minimize(func(x))
             nlp.init_solver(IPOPT_OPTS)
-            nlp = nlp.copy()
+            nlp = deepcopy(nlp)
 
             best_sol: Solution = nlp.solve_multi(*args)
             all_sols: list[Solution] = nlp.solve_multi(*args, return_all_sols=True)
@@ -156,7 +157,7 @@ class TestExamples(unittest.TestCase):
             mpc.set_nonlinear_dynamics(F)
         mpc.minimize(cs.sumsqr(x) + cs.sumsqr(u))
         mpc.init_solver(IPOPT_OPTS)
-        mpc = mpc.copy()
+        mpc = deepcopy(mpc)
         sol = mpc.solve(pars={"x_0": [0, 1]})
         u_opt = sol.vals["u"].full().flat
         np.testing.assert_allclose(
@@ -171,7 +172,7 @@ class TestExamples(unittest.TestCase):
         nlp.minimize(f)
         nlp.constraint("con1", cs.sumsqr(x), "<=", r)
         nlp.init_solver(IPOPT_OPTS)
-        nlp = nlp.copy()
+        nlp = deepcopy(nlp)
         r_values = np.linspace(1, 3, 25)
         f_values = []
         lam_values = []
@@ -206,7 +207,7 @@ class TestExamples(unittest.TestCase):
         _, lam = nlp.constraint("c2", g, "<=", p[1] ** 2)
         opts = {"print_time": False, "ipopt": {"sb": "yes", "print_level": 0}}
         nlp.init_solver(opts)
-        nlp = nlp.copy()
+        nlp = deepcopy(nlp)
         Z = cs.blockcat(
             [
                 [z1(x, lam, p) ** 2, z2(x)],
@@ -273,7 +274,7 @@ class TestExamples(unittest.TestCase):
         mpc.constraint("yT", y[-1], "==", yT)
         mpc.minimize(m[0] - m[-1])
         mpc.init_solver(IPOPT_OPTS)
-        mpc = mpc.copy()
+        mpc = deepcopy(mpc)
 
         x_init = cs.repmat([0, 0, 1e5], 1, N + 1)
 

@@ -1,5 +1,6 @@
 import pickle
 import unittest
+from copy import deepcopy
 from itertools import product
 from typing import Union
 from unittest.mock import Mock
@@ -597,7 +598,7 @@ class TestNlp(unittest.TestCase):
         a = 0.2
         nlp = Nlp(sym_type=self.sym_type)
         if copy:
-            nlp = nlp.copy()
+            nlp = deepcopy(nlp)
         x = nlp.variable("x", lb=0)[0]
         y = nlp.variable("y")[0]
         xy = cs.vertcat(x, y)
@@ -629,9 +630,12 @@ class TestNlp(unittest.TestCase):
         nlp.constraint("c2", g, "<=", p**2)
         nlp.init_solver(OPTS)
 
-        nlp2 = pickle.loads(pickle.dumps(nlp))
+        with cs.global_pickle_context():
+            pickled = pickle.dumps(nlp)
+        with cs.global_unpickle_context():
+            other = pickle.loads(pickled)
 
-        self.assertEqual(nlp.name, nlp2.name)
+        self.assertEqual(nlp.name, other.name)
 
     @parameterized.expand(product(("both", "lb", "ub"), (True, False)))
     def test_remove_variable_bounds__remove_bounds_correctly(
