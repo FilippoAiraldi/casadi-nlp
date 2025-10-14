@@ -9,7 +9,8 @@ import pickle
 from functools import partial as _partial
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
-from typing import TYPE_CHECKING, Any, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Callable, Literal, Optional
+from typing import Any as _Any
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
@@ -34,7 +35,7 @@ def save(
     compression: Optional[
         Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
     ] = None,
-    **data: Any,
+    **data: _Any,
 ) -> str:
     """Saves data to a (possibly compressed) file. Inspired by
     `this discussion <https://stackoverflow.com/a/57983757/19648688>`_
@@ -144,7 +145,7 @@ def save(
     return filename
 
 
-def load(filename: str) -> dict[str, Any]:
+def load(filename: str) -> dict[str, _Any]:
     """Loads data from a (possibly compressed) file.
 
     Parameters
