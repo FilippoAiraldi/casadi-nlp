@@ -14,7 +14,7 @@ and following the inheritance hierarchy, these are:
   full-fledged NLP problem.
 """
 
-__all__ = ["HasConstraints", "Nlp", "HasObjective", "HasParameters", "HasVariables"]
+__all__ = ["HasConstraints", "HasObjective", "HasParameters", "HasVariables", "Nlp"]
 
 from .constraints import HasConstraints
 from .nlp import Nlp

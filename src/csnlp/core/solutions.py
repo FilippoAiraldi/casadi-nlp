@@ -4,12 +4,10 @@ to :meth:`csnlp.Nlp.solve` or :meth:`csnlp.multistart.MultistartNlp.solve_multi`
 from collections.abc import Iterable as _Iterable
 from functools import cached_property as _cached_property
 from itertools import product as _product
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 from typing import Any as _Any
-from typing import Optional
 from typing import Protocol as _Protocol
 from typing import TypeVar as _TypeVar
-from typing import Union
 
 import casadi as cs
 import numpy as np
@@ -590,9 +588,9 @@ class LazySolution(Solution[SymType]):
         lam_lbx_and_ubx = self.lam_lbx_and_ubx
         dual_vals = {}
         for n, v in self._dual_vars.items():
-            if n.startswith("lam_g") or n.startswith("lam_h"):
+            if n.startswith(("lam_g", "lam_h")):
                 dual_vals[n] = cs.evalf(cs.substitute(v, lam_g_and_h_sym, lam_g_and_h))
-            elif n.startswith("lam_lb") or n.startswith("lam_ub"):
+            elif n.startswith(("lam_lb", "lam_ub")):
                 dual_vals[n] = cs.evalf(
                     cs.substitute(v, lam_lbx_and_ubx_sym, lam_lbx_and_ubx)
                 )
@@ -749,5 +747,4 @@ def subsevalf(
     """
     if isinstance(expr, np.ndarray):
         return _internal_subsevalf_np(expr, old, new, eval)
-    else:
-        return _internal_subsevalf_cs(expr, old, new, eval)
+    return _internal_subsevalf_cs(expr, old, new, eval)

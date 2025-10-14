@@ -84,8 +84,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             The scaled expression.
         """
         expr = subsevalf(expr, self.nlp.variables, self._svars, eval=False)
-        expr = subsevalf(expr, self.nlp.parameters, self._spars, eval=False)
-        return expr
+        return subsevalf(expr, self.nlp.parameters, self._spars, eval=False)
 
     def unscale(self, expr: SymType) -> SymType:
         """Unscales an expression with the MPC's unscaled variables and parameters.
@@ -101,8 +100,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             The unscaled expression.
         """
         expr = subsevalf(expr, self.nlp.variables, self._uvars, eval=False)
-        expr = subsevalf(expr, self.nlp.parameters, self._upars, eval=False)
-        return expr
+        return subsevalf(expr, self.nlp.parameters, self._upars, eval=False)
 
     def variable(
         self,
@@ -124,7 +122,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             uvar = self.scaler.unscale(name, var)
         else:
             if self.warns:
-                warn(f"Scaling for variable {name} not found.", RuntimeWarning)
+                warn(f"Scaling for variable {name} not found.", RuntimeWarning, 2)
             svar = uvar = var
         self._svars[name] = svar
         self._uvars[name] = uvar
@@ -138,7 +136,7 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
             upar = self.scaler.unscale(name, par)
         else:
             if self.warns:
-                warn(f"Scaling for parameter {name} not found.", RuntimeWarning)
+                warn(f"Scaling for parameter {name} not found.", RuntimeWarning, 2)
             spar = upar = par
         self._spars[name] = spar
         self._upars[name] = upar
@@ -185,9 +183,9 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         return_stacked_sol: bool = False,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         """See :meth:`csnlp.MultistartNlp.solve_multi`."""
-        assert self.nlp.is_multi and hasattr(
-            self.nlp, "solve_multi"
-        ), "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
+        assert self.nlp.is_multi and hasattr(self.nlp, "solve_multi"), (
+            "`solve_multi` called on an nlp instance that is not `MultistartNlp`."
+        )
         scaler = self.scaler
         if pars is not None:
             pars = (

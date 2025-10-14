@@ -126,6 +126,11 @@ class NlpSensitivity(Wrapper[SymType]):
         -------
         SymType
             The requested jacobian, in the form of a symbolic variable.
+
+        Raises
+        ------
+        ValueError
+            Raises if ``which`` is not one of the accepted values.
         """
         if which == "L-x":
             return cs.jacobian(self.lagrangian, self.nlp.x).T
@@ -141,6 +146,7 @@ class NlpSensitivity(Wrapper[SymType]):
             return cs.jacobian(self.kkt[0], p)[:, p_idx]
         if which == "K-y":
             return cs.jacobian(self.kkt[0], self.nlp.primal_dual)
+        raise ValueError(f"Unknown jacobian type '{which}'.")
 
     @cache
     def hessian(self, which: Literal["L-pp", "L-xx", "L-px"]) -> SymType:
@@ -161,6 +167,11 @@ class NlpSensitivity(Wrapper[SymType]):
         -------
         SymType
             The requested hessian, in the form of a symbolic variable.
+
+        Raises
+        ------
+        ValueError
+            Raises if ``which`` is not one of the accepted values.
         """
         if which == "L-pp":
             p, p_idx = self._p_idx
@@ -169,6 +180,7 @@ class NlpSensitivity(Wrapper[SymType]):
             return cs.jacobian(self.jacobian("L-x"), self.nlp.x)
         if which == "L-px":
             return cs.jacobian(self.jacobian("L-p"), self.nlp.x)
+        raise ValueError(f"Unknown jacobian type '{which}'.")
 
     @cache
     def hojacobian(self, which: Literal["K-pp", "K-yp", "K-yy", "K-py"]) -> np.ndarray:
@@ -195,6 +207,11 @@ class NlpSensitivity(Wrapper[SymType]):
         -------
         SymType
             The requested higher-order jacobian, in the form of a symbolic variable.
+
+        Raises
+        ------
+        ValueError
+            Raises if ``which`` is not one of the accepted values.
         """
         if which == "K-pp":
             p, p_idx = self._p_idx
@@ -206,6 +223,7 @@ class NlpSensitivity(Wrapper[SymType]):
             return hojacobian(self.jacobian("K-y"), self.nlp.primal_dual)[..., 0]
         if which == "K-py":
             return hojacobian(self.jacobian("K-p"), self.nlp.primal_dual)[..., 0]
+        raise ValueError(f"Unknown jacobian type '{which}'.")
 
     @property
     def licq(self) -> SymType:
@@ -273,9 +291,7 @@ class NlpSensitivity(Wrapper[SymType]):
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
         d: Callable[[SymType], Union[SymType, cs.DM]] = (
-            (lambda o: o)
-            if solution is None
-            else (lambda o: solution.value(o))  # type: ignore[union-attr]
+            (lambda o: o) if solution is None else (lambda o: solution.value(o))  # type: ignore[union-attr]
         )
         dydp, dydp_np, d2ydp2 = self._y_parametric_sensitivity(
             solution, second_order, d
@@ -300,7 +316,7 @@ class NlpSensitivity(Wrapper[SymType]):
             Zy = d(array2cs(Zy[:, 0, :, 0]))
 
             dZdp = Zy @ dydp + Zp
-            dZdp = cs2array(dZdp).reshape(Zshape + (np_,), order="F").squeeze()
+            dZdp = cs2array(dZdp).reshape((*Zshape, np_), order="F").squeeze()
             if dZdp.ndim <= 2:
                 dZdp = array2cs(dZdp)
 
@@ -323,7 +339,7 @@ class NlpSensitivity(Wrapper[SymType]):
         T1 = (d2ydp2.transpose((1, 2, 0)) @ cs2array(Zy).T).transpose((2, 0, 1))
         T2 = Zyy.transpose((0, 2, 1)) @ dydp_np + Zpy.transpose((0, 2, 1)) + Zyp
         d2Zdp2 = Zpp + T1 + dydp_np.T @ T2
-        d2Zdp2 = d2Zdp2.reshape(Zshape + (np_, np_), order="F").squeeze()
+        d2Zdp2 = d2Zdp2.reshape((*Zshape, np_, np_), order="F").squeeze()
         if d2Zdp2.ndim <= 2:
             d2Zdp2 = array2cs(d2Zdp2)
         return dZdp, d2Zdp2

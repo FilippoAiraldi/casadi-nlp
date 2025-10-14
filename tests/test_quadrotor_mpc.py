@@ -175,7 +175,6 @@ class QuadRotorEnv:
         else:
             self._n_within_termination = 0
         terminated = self._n_within_termination >= self.config.termination_N
-        #
         return self.x, cost, terminated, False, {"error": error}
 
     def render(self):

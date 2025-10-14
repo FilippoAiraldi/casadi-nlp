@@ -84,7 +84,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         """Returns the original NLP of the wrapper."""
         return self
 
-    def is_wrapped(self, *args: Any, **kwargs: Any) -> bool:
+    def is_wrapped(self, *_: Any, **__: Any) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
 

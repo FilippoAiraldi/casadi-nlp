@@ -11,12 +11,18 @@ from copy import deepcopy as _deepcopy
 from functools import partial
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
-from typing import TYPE_CHECKING
+from sys import version_info
+from typing import TYPE_CHECKING, Callable, Literal, Optional
 from typing import Any as _Any
-from typing import Callable, Literal, Optional
 from typing import TypeVar as _TypeVar
 
 from ..core.cache import invalidate_caches_of as _invalidate_caches_of
+
+if version_info >= (3, 10):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
@@ -60,7 +66,7 @@ def is_pickleable(obj: _Any) -> bool:
     try:
         pickle.dumps(obj)
         return True
-    except Exception:
+    except (TypeError, pickle.PicklingError):
         return False
 
 
@@ -76,7 +82,7 @@ class SupportsDeepcopyAndPickle:
     removed.
     """
 
-    def copy(self: T, invalidate_caches: bool = True) -> T:
+    def copy(self, invalidate_caches: bool = True) -> Self:
         """Creates a deepcopy of this instance.
 
         Parameters
@@ -97,7 +103,7 @@ class SupportsDeepcopyAndPickle:
             _invalidate_caches_of(new)
         return new
 
-    def __deepcopy__(self: T, memo: Optional[dict[int, list[_Any]]] = None) -> T:
+    def __deepcopy__(self, memo: Optional[dict[int, list[_Any]]] = None) -> Self:
         """Returns a deepcopy of the object."""
         rv = self.__reduce_ex__(4)
         if isinstance(rv, str):
@@ -108,7 +114,7 @@ class SupportsDeepcopyAndPickle:
         new_rv = (*rv[:2], fullstate, *rv[3:])
         return _reconstruct(self, memo, *new_rv)
 
-    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, _Any]]:
+    def __getstate__(self, fullstate: bool = False) -> Optional[dict[str, _Any]]:
         """Returns the instance's state to be pickled/deepcopied."""
         # https://docs.python.org/3/library/pickle.html#pickle-inst
         if not (hasattr(self, "__dict__") and self.__dict__.keys()):
@@ -188,25 +194,25 @@ def save(
     if compression is None:
         expected_ext = ".pkl"
         open_fun = open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "lzma":
         import lzma
 
         expected_ext = ".xz"
         open_fun = lzma.open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "bz2":
         import bz2
 
         expected_ext = ".pbz2"
         open_fun = bz2.BZ2File
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "gzip":
         import gzip
 
         expected_ext = ".gz"
         open_fun = gzip.open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "brotli":
         import brotli
 
@@ -300,12 +306,12 @@ def load(filename: str) -> dict[str, _Any]:
         import brotli
 
         open_fun = open
-        decompress_fun = lambda o: pickle.loads(brotli.decompress(o))  # noqa E731
+        decompress_fun = lambda o: pickle.loads(brotli.decompress(o))
     elif compression == "blosc2":
         import blosc2
 
         open_fun = open
-        decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))  # noqa E731
+        decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))
     elif compression not in ("matlab", "numpy"):
         raise ValueError(f"Unknown file extension {ext}.")
 
@@ -349,7 +355,7 @@ def _check_mat_keys(dictionary: dict, mat_struct_type: type) -> dict:
 
     for bad_key in ("__header__", "__version__", "__globals__"):
         dictionary.pop(bad_key, None)
-    for key in dictionary:
-        if isinstance(dictionary[key], mat_struct_type):
-            dictionary[key] = _todict_recursive(dictionary[key])
+    for key, value in dictionary.items():
+        if isinstance(value, mat_struct_type):
+            dictionary[key] = _todict_recursive(value)
     return dictionary

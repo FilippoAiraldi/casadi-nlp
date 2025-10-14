@@ -7,7 +7,7 @@ really does not provide the required functionality.
 import decimal as D
 import math
 from itertools import product as _product
-from typing import TYPE_CHECKING, Literal, TypeVar, Union
+from typing import TYPE_CHECKING, Literal, Optional, TypeVar, Union
 
 import casadi as cs
 import numpy as np
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 SQRT2 = math.sqrt(2)
-E = D.Decimal.exp(D.Decimal("1"))
+E = D.Decimal.exp(D.Decimal(1))
 HALF = D.Decimal("0.5")
 PI = D.Decimal(  # 258 decimal digits
     "3.14159265358979323846264338327950288419716939937510582097494459230781640628620899"
@@ -58,7 +58,7 @@ def log(
 
 
 def prod(
-    x: Union[cs.SX, cs.MX, cs.DM], axis: Literal[0, 1, None, -1, -2] = None
+    x: Union[cs.SX, cs.MX, cs.DM], axis: Optional[Literal[0, 1, -1, -2]] = None
 ) -> Union[cs.SX, cs.MX, cs.DM]:
     r"""Computes the product of all the elements in ``x`` (CasADi version of
     :func:`numpy.prod`).
@@ -316,7 +316,7 @@ def norm_inf(
 
 
 def godfrey_coefficients(
-    g: Union[int, float], n: int, scaled: bool = True
+    g: float, n: int, scaled: bool = True
 ) -> npt.NDArray[np.object_]:
     """Computes the coefficients of the Godfrey series for the Lanczos' approximation of
     the gamma function.
@@ -358,7 +358,7 @@ def godfrey_coefficients(
 
     # compute Dr (ints)
     elems = [-FAC[2 * k + 2] // (2 * FAC[k] * FAC[k + 1]) for k in range(n - 1)]
-    Dr = np.asarray([1] + elems, dtype=object)
+    Dr = np.asarray([1, *elems], dtype=object)
 
     # compute C (ints)
     C = np.empty((n, n), dtype=object)
@@ -401,7 +401,7 @@ def godfrey_coefficients(
 
 
 def gammaln(
-    z: Union[cs.SX, cs.MX, cs.DM], g: Union[int, float], n: int, prec: int = 128
+    z: Union[cs.SX, cs.MX, cs.DM], g: float, n: int, prec: int = 128
 ) -> Union[cs.SX, cs.MX, cs.DM]:
     """Computes the logarithm of the gamma function using the Lanczos approximation.
     Only valid for non-negative real scalars.

@@ -2,6 +2,7 @@ import contextlib
 import os
 import sys
 import unittest
+from typing import TYPE_CHECKING
 
 import casadi as cs
 import numpy as np
@@ -10,7 +11,9 @@ from scipy import io
 
 from csnlp import Nlp, Solution, scaling, wrappers
 from csnlp.multistart import ParallelMultistartNlp, StackedMultistartNlp
-from csnlp.multistart.multistart_nlp import MultistartNlp
+
+if TYPE_CHECKING:
+    from csnlp.multistart.multistart_nlp import MultistartNlp
 
 QRQP_OPTS = {
     "error_on_fail": True,
@@ -42,13 +45,12 @@ RESULTS = io.loadmat(EXAMPLES_DATA_FILENAME, simplify_cells=True)
 def nostdout(suppress: bool = True):
     if suppress:
         save_stdout = sys.stdout
-        f = open(os.devnull, "w")
-        sys.stdout = f
-        try:
-            yield
-        finally:
-            sys.stdout = save_stdout
-            f.close()
+        with open(os.devnull, "w") as f:
+            sys.stdout = f
+            try:
+                yield
+            finally:
+                sys.stdout = save_stdout
     else:
         yield
 

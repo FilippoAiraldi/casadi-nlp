@@ -6,7 +6,7 @@ object on the fly."""
 
 import functools
 import inspect
-from typing import Callable
+from typing import Any, Callable
 
 
 def _is_cached_property(c: Callable) -> bool:
@@ -75,14 +75,14 @@ def invalidate_cache(*callables: Callable) -> Callable:
     elif Ncp == 1:
         prop = cached_properties[0]
 
-        def invalidate_cached_properties(self):
+        def invalidate_cached_properties(self: Any) -> None:
             propname = prop.attrname
             if propname in self.__dict__:
                 del self.__dict__[propname]
 
     else:
 
-        def invalidate_cached_properties(self):
+        def invalidate_cached_properties(self: Any) -> None:
             for prop in cached_properties:
                 propname = prop.attrname
                 if propname in self.__dict__:
@@ -94,18 +94,18 @@ def invalidate_cache(*callables: Callable) -> Callable:
     elif Nlru == 1:
         lru_cache = lru_caches[0]
 
-        def invalidate_lru_caches():
+        def invalidate_lru_caches() -> None:
             lru_cache.cache_clear()
 
     else:
 
-        def invalidate_lru_caches():
+        def invalidate_lru_caches() -> None:
             for lru_cache in lru_caches:
                 lru_cache.cache_clear()
 
-    def decorating_function(func):
+    def decorating_function(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             if invalidate_cached_properties is not None and args:
                 invalidate_cached_properties(args[0])
             if invalidate_lru_caches is not None:
@@ -117,7 +117,7 @@ def invalidate_cache(*callables: Callable) -> Callable:
     return decorating_function
 
 
-def invalidate_caches_of(obj) -> None:
+def invalidate_caches_of(obj: object) -> None:
     """Similar to the decorator :func:`invalidate_cache`, but clears the case of
     the given object only once.
 

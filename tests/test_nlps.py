@@ -34,7 +34,7 @@ class TestNlp(unittest.TestCase):
         rhs: Union[cs.SX, cs.MX],
         vars: Union[list[cs.SX], list[cs.MX]],
         force_numerical: bool = False,
-    ):
+    ) -> bool:
         if isinstance(rhs, (int, float)):
             rhs = np.full(lhs.shape, rhs)
         if not force_numerical and self.sym_type == "SX":
@@ -42,6 +42,7 @@ class TestNlp(unittest.TestCase):
         old = cs.vvcat(vars)
         new = np.random.randn(*old.shape)
         np.testing.assert_allclose(subsevalf(lhs, old, new), subsevalf(rhs, old, new))
+        return True
 
     def test_init__raises__with_invalid_sym_type(self):
         with self.assertRaises(AttributeError):
@@ -248,7 +249,7 @@ class TestNlp(unittest.TestCase):
         v = nlp.variable("v", lb=0)[0]
         nlp.constraint("c0", 3 * x[0] + x[1], "<=", 5)
         nlp.constraint("c1", v, ">=", 20 - x[1] ** 2)
-        nlp.minimize(-x[0] ** 2 + 5 * (cs.log(x[0]) - 1) ** 2 + 2 * v)
+        nlp.minimize(-(x[0] ** 2) + 5 * (cs.log(x[0]) - 1) ** 2 + 2 * v)
         nlp.init_solver(OPTS)
         sol1 = nlp.solve(vals0={"x": [1, 1], "v": 0})
 
@@ -257,7 +258,7 @@ class TestNlp(unittest.TestCase):
         x = nlp.variable("x", (2, 1), lb=0)[0]
         nlp.constraint("c0", 3 * x[0] + x[1], "<=", 5)
         _, _, v = nlp.constraint("c1", x[1] ** 2, ">=", 20, soft=True)
-        nlp.minimize(-x[0] ** 2 + 5 * (cs.log(x[0]) - 1) ** 2 + 2 * v)
+        nlp.minimize(-(x[0] ** 2) + 5 * (cs.log(x[0]) - 1) ** 2 + 2 * v)
         nlp.init_solver(OPTS)
         sol2 = nlp.solve(vals0={"x": [1, 1], "slack_c1": 0})
 
@@ -287,8 +288,8 @@ class TestNlp(unittest.TestCase):
         _, lam_c2 = nlp.constraint("c2", 5, op2, y)
 
         dv = nlp.dual_variables
-        c1_name = f'lam_{"g" if op1 == "==" else "h"}_c1'
-        c2_name = f'lam_{"g" if op2 == "==" else "h"}_c2'
+        c1_name = f"lam_{'g' if op1 == '==' else 'h'}_c1"
+        c2_name = f"lam_{'g' if op2 == '==' else 'h'}_c2"
         self.assertTrue(cs.is_equal(dv["lam_lb_x"], lam_lb_x))
         self.assertTrue(cs.is_equal(dv["lam_ub_x"], lam_ub_x))
         self.assertTrue(cs.is_equal(dv["lam_lb_y"], lam_lb_y))
@@ -325,17 +326,14 @@ class TestNlp(unittest.TestCase):
         lam_lbx1, lam_ubx1 = nlp.lam_lbx, nlp.lam_ubx
         h_lbx1, h_ubx1 = nlp.h_lbx, nlp.h_ubx
         vars1 = [x1, lam_lbx_c1, lam_ubx_c1]
-        #
         x2, lam_lbx_c2, lam_ubx_c2 = nlp.variable("x2", (2, 1), lb=0)
         lam_lbx2, lam_ubx2 = nlp.lam_lbx, nlp.lam_ubx
         h_lbx2, h_ubx2 = nlp.h_lbx, nlp.h_ubx
         vars2 = vars1.copy() + [x2, lam_lbx_c2, lam_ubx_c2]
-        #
         x3, lam_lbx_c3, lam_ubx_c3 = nlp.variable("x3", (2, 1), ub=1)
         lam_lbx3, lam_ubx3 = nlp.lam_lbx, nlp.lam_ubx
         h_lbx3, h_ubx3 = nlp.h_lbx, nlp.h_ubx
         vars3 = vars2.copy() + [x3, lam_lbx_c3, lam_ubx_c3]
-        #
         x4, lam_lbx_c4, lam_ubx_c4 = nlp.variable("x4", (2, 1), lb=0, ub=1)
         lam_lbx4, lam_ubx4 = nlp.lam_lbx, nlp.lam_ubx
         h_lbx4, h_ubx4 = nlp.h_lbx, nlp.h_ubx
@@ -345,16 +343,13 @@ class TestNlp(unittest.TestCase):
             self.assertTrue(
                 all(o.is_empty() for o in [h_lbx1, lam_lbx1, h_ubx1, lam_ubx1])
             )
-            #
             self.assertTrue(all(o.is_empty() for o in [h_ubx2, lam_ubx2]))
             self.cmp(cs.evalf(h_lbx2 - (-x2)), 0, vars=vars2)
             self.cmp(cs.evalf(lam_lbx2 - lam_lbx_c2), 0, vars=vars2)
-            #
             self.cmp(cs.evalf(h_lbx3 - (-x2)), 0, vars=vars3)
             self.cmp(cs.evalf(lam_lbx3 - lam_lbx2), 0, vars=vars3)
             self.cmp((h_ubx3 - (x3 - 1)), 0, vars=vars3, force_numerical=True)
             self.cmp(cs.evalf(lam_ubx3 - lam_ubx_c3), 0, vars=vars3)
-            #
             self.cmp(h_lbx4 - cs.vertcat(-x2, -x4), 0, vars=vars4, force_numerical=True)
             e = lam_lbx4 - cs.vertcat(lam_lbx_c2, lam_lbx_c4)
             self.cmp(e, 0, vars=vars4, force_numerical=True)
@@ -365,17 +360,14 @@ class TestNlp(unittest.TestCase):
         else:
             self.cmp(cs.evalf(lam_lbx1 - lam_lbx_c1), 0, vars=vars1)
             self.cmp(cs.evalf(lam_ubx1 - lam_ubx_c1), 0, vars=vars1)
-            #
             e = lam_lbx2 - cs.vertcat(lam_lbx_c1, lam_lbx_c2)
             self.cmp(e, 0, vars=vars2, force_numerical=True)
             e = lam_ubx2 - cs.vertcat(lam_ubx_c1, lam_ubx_c2)
             self.cmp(e, 0, vars=vars2)
-            #
             e = lam_lbx3 - cs.vertcat(lam_lbx_c1, lam_lbx_c2, lam_lbx_c3)
             self.cmp(e, 0, vars=vars3, force_numerical=True)
             e = lam_ubx3 - cs.vertcat(lam_ubx_c1, lam_ubx_c2, lam_ubx_c3)
             self.cmp(e, 0, vars=vars3, force_numerical=True)
-            #
             e = lam_lbx4 - cs.vertcat(lam_lbx_c1, lam_lbx_c2, lam_lbx_c3, lam_lbx_c4)
             self.cmp(e, 0, vars=vars4, force_numerical=True)
             e = lam_ubx4 - cs.vertcat(lam_ubx_c1, lam_ubx_c2, lam_ubx_c3, lam_ubx_c4)
@@ -384,17 +376,14 @@ class TestNlp(unittest.TestCase):
             if self.sym_type == "SX":
                 self.cmp(h_lbx1 - (-np.inf - x1), 0, vars=vars1, force_numerical=True)
                 self.cmp(h_ubx1 - (x1 - np.inf), 0, vars=vars1, force_numerical=True)
-                #
                 e = h_lbx2 - cs.vertcat(-np.inf - x1, 0 - x2)
                 self.cmp(cs.evalf(e), 0, vars=vars2)
                 e = h_ubx2 - cs.vertcat(x1 - np.inf, x2 - np.inf)
                 self.cmp(cs.evalf(e), 0, vars=vars2)
-                #
                 e = h_lbx3 - cs.vertcat(-np.inf - x1, 0 - x2, -np.inf - x3)
                 self.cmp(cs.evalf(e), 0, vars=vars3)
                 e = h_ubx3 - cs.vertcat(x1 - np.inf, x2 - np.inf, x3 - 1)
                 self.cmp(cs.evalf(e), 0, vars=vars3)
-                #
                 e = h_lbx4 - cs.vertcat(-np.inf - x1, 0 - x2, -np.inf - x3, 0 - x4)
                 self.cmp(cs.evalf(e), 0, vars=vars4)
                 e = h_ubx4 - cs.vertcat(x1 - np.inf, x2 - np.inf, x3 - 1, x4 - 1)
@@ -464,8 +453,8 @@ class TestNlp(unittest.TestCase):
         sol = nlp.solve({"p": 3})
         self.assertTrue(sol.success)
         np.testing.assert_allclose(sol.f, 3)
-        for k in sol.vals.keys():
-            np.testing.assert_allclose(sol.vals[k], 0)
+        for v in sol.vals.values():
+            np.testing.assert_allclose(v, 0)
         o = sol.value(p + (x.T @ x + y.T @ y))
         np.testing.assert_allclose(sol.f, o)
 

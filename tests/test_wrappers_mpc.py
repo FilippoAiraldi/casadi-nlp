@@ -11,9 +11,8 @@ from parameterized import parameterized
 
 from csnlp import Nlp
 from csnlp.core.solutions import subsevalf
-from csnlp.wrappers import Mpc
+from csnlp.wrappers import Mpc, PwaMpc, PwaRegion
 from csnlp.wrappers import MultiScenarioMpc as MSMPC
-from csnlp.wrappers import PwaMpc, PwaRegion
 from csnlp.wrappers import ScenarioBasedMpc as SCMPC
 from csnlp.wrappers.mpc.scenario_based_mpc import _n
 
@@ -657,10 +656,7 @@ class TestMultiScenarioMpc(unittest.TestCase):
         K = np.random.randint(2, 20)
         N = 14
         input_spacing = 5
-        if neg:
-            input_sharing = -1
-        else:
-            input_sharing = 4  # only 3 free actions, but we ask 4 to be shared!
+        input_sharing = -1 if neg else 4  # only 3 free us, but we ask 4 to be shared!
         with self.assertRaises(ValueError):
             MSMPC[cs.MX](
                 nlp, K, N, input_spacing=input_spacing, input_sharing=input_sharing
@@ -682,7 +678,7 @@ class TestMultiScenarioMpc(unittest.TestCase):
         self.assertTrue(all(p1.shape == p1_i.shape == shape1 for p1_i in p1s))
         self.assertTrue(all(p2.shape == p2_i.shape == shape2 for p2_i in p2s))
 
-    @parameterized.expand(map(lambda i: (i,), range(4)))
+    @parameterized.expand([(i,) for i in range(4)])
     def test_action(self, sharing: int):
         K, nu = np.random.randint(2, 20, size=2)
         Np = 21

@@ -408,7 +408,7 @@ class TestNlpSensitivity(unittest.TestCase):
         sensitivity_all = NlpSensitivity(nlp)
         sensitivity_partial = NlpSensitivity(nlp, target_parameters=p[1])
 
-        kwargs = dict(expr=z(x), second_order=True)
+        kwargs = {"expr": z(x), "second_order": True}
         J1_, H1_ = sensitivity_all.parametric_sensitivity(**kwargs)
         J2_, H2_ = sensitivity_partial.parametric_sensitivity(**kwargs)
         for p, (_, J_exp, H_exp) in p_values_and_solutions:

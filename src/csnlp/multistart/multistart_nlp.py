@@ -1,13 +1,24 @@
 from collections.abc import Iterable, Iterator
 from functools import lru_cache
 from itertools import repeat
-from typing import Any, ClassVar, Generic, Literal, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    ClassVar,
+    Generic,
+    Literal,
+    Optional,
+    TypeVar,
+    Union,
+)
 
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 from joblib import Parallel, delayed
-from joblib.memory import MemorizedFunc
+
+if TYPE_CHECKING:
+    from joblib.memory import MemorizedFunc
 
 from ..core.cache import invalidate_cache
 from ..core.solutions import (
@@ -156,7 +167,7 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
             None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
-        **_,
+        **_: Any,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         """Solves the NLP with multiple initial conditions.
 
@@ -304,25 +315,17 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         ] = None,
         return_all_sols: bool = False,
         return_stacked_sol: bool = False,
-        **_,
+        **_: Any,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        assert not (
-            return_stacked_sol and return_all_sols
-        ), "`return_all_sols` and `return_stacked_sol` can't be both true."
+        assert not (return_stacked_sol and return_all_sols), (
+            "`return_all_sols` and `return_stacked_sol` can't be both true."
+        )
         if pars is not None:
             pars_iter = repeat(pars, self.starts) if isinstance(pars, dict) else pars
-            pars = {
-                _n(n, i): pars_i[n]
-                for i, pars_i in enumerate(pars_iter)
-                for n in pars_i.keys()
-            }
+            pars = {_n(n, i): ps[n] for i, ps in enumerate(pars_iter) for n in ps}
         if vals0 is not None:
             v0_iter = repeat(vals0, self.starts) if isinstance(vals0, dict) else vals0
-            vals0 = {
-                _n(n, i): vals0_i[n]
-                for i, vals0_i in enumerate(v0_iter)
-                for n in vals0_i.keys()
-            }
+            vals0 = {_n(n, i): v0[n] for i, v0 in enumerate(v0_iter) for n in v0}
         multi_sol = self._stacked_nlp.solve(pars, vals0)
         if return_stacked_sol:
             return multi_sol
@@ -343,8 +346,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         solver_plugin = self.unwrapped._solver_plugin
 
         def get_ith_sol(idx: int) -> EagerSolution[SymType]:
-            vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_.keys()}
-            dual_vals = {n: multi_sol.dual_vals[_n(n, idx)] for n in duals_.keys()}
+            vals = {n: multi_sol.vals[_n(n, idx)] for n in vars_}
+            dual_vals = {n: multi_sol.dual_vals[_n(n, idx)] for n in duals_}
             # get the value of p, and, lam g, lam h and lam lbx and lam ubx in a single
             # substitution to save some time
             all_vals = multi_sol.value(
@@ -382,7 +385,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
+        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_variable_bounds(name, direction, idx)
@@ -390,7 +393,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._stacked_nlp.remove_variable_bounds(_n(name, i), direction, idx)
 
     def remove_constraints(
-        self, name: str, idx: Union[tuple[int, int], list[tuple[int, int]]] = None
+        self, name: str, idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_constraints(name, idx)
@@ -448,7 +451,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
         ] = None,
         return_all_sols: bool = False,
-        **_,
+        **_: Any,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
@@ -578,11 +581,11 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         ] = None,
         return_all_sols: bool = False,
         _return_mapped_sol: bool = False,
-        **_,
+        **_: Any,
     ) -> Union[Solution[SymType], list[Solution[SymType]]]:
-        assert not (
-            _return_mapped_sol and return_all_sols
-        ), "`return_all_sols` and `_return_mapped_sol` can't be both true."
+        assert not (_return_mapped_sol and return_all_sols), (
+            "`return_all_sols` and `_return_mapped_sol` can't be both true."
+        )
         if self._mapped_solver is None:
             raise RuntimeError("Solver uninitialized.")
         pars_iter = (
@@ -632,7 +635,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         tol_stat = self._tol_stat
         for i, p in enumerate(ps):
             sol_i = {k: v[:, i] if v.size2() else v for k, v in single_sol.items()}
-            sol_i["p"] = ps[i]
+            sol_i["p"] = p
             sol_i["stats"] = _get_kkt_stats(
                 sol_i,
                 ng,

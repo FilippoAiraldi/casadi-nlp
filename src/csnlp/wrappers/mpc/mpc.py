@@ -115,8 +115,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
         if not isinstance(input_spacing, inttypes) or input_spacing <= 0:
             raise ValueError("Input spacing factor must be positive and > 0.")
-        else:
-            self._input_spacing = input_spacing
+        self._input_spacing = input_spacing
 
         self._states: dict[str, SymType] = {}
         self._initial_states: dict[str, SymType] = {}

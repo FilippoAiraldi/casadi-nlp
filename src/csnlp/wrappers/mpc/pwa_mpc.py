@@ -124,7 +124,7 @@ class PwaMpc(Mpc[SymType]):
 
     tva_dynamics_name = "tva_dyn"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._fixed_sequence_dynamics = False
         self._pwa_system: Optional[Sequence[PwaRegion]] = None
