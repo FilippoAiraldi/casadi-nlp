@@ -293,7 +293,7 @@ class PwaMpc(Mpc[SymType]):
         Returns
         -------
         Optional 3-tuple of symbolic or numerical arrays
-            In multiple shooting, returns a tuple of ``None``s. In single shooting,
+            In multiple shooting, returns a tuple of ``None``. In single shooting,
             returns the matrices :math:`F, G, L` that parametrize the dynamics. See,
             e.g., :cite:`campi_scenario_2019`.
 
