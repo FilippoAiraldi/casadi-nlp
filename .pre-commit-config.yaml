@@ -18,7 +18,7 @@ repos:
         args: [--maxkb=2000]
 
 -   repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
+    rev: v3.21.0
     hooks:
     -   id: pyupgrade
         args:
@@ -31,11 +31,11 @@ repos:
         args: [--in-place, --remove-all-unused-imports, --remove-unused-variables, --remove-duplicate-keys, --recursive]
 
 -   repo: https://github.com/pycqa/isort
-    rev: 6.0.1
+    rev: 7.0.0
     hooks:
     -   id: isort
 
--   repo: https://github.com/psf/black
+-   repo: https://github.com/psf/black-pre-commit-mirror
     rev: 25.9.0
     hooks:
     -   id: black
