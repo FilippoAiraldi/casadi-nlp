@@ -20,7 +20,7 @@ optimization purposes.
 [![Downloads](https://static.pepy.tech/badge/csnlp)](https://www.pepy.tech/projects/csnlp)
 [![Maintainability](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp/maintainability.svg)](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp)
 [![Code Coverage](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp/coverage.svg)](https://qlty.sh/gh/FilippoAiraldi/projects/casadi-nlp)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://docs.astral.sh/ruff/)
 
 ---
 
