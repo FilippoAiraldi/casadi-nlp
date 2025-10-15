@@ -1,6 +1,6 @@
-from copy import deepcopy
 import pickle
 import unittest
+from copy import deepcopy
 from itertools import product
 from typing import TypeVar
 from unittest.mock import Mock

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from copy import deepcopy
 from itertools import product
-from typing import Any, Optional
+from typing import Optional
 
 import casadi as cs
 import cvxpy as cp

@@ -1,8 +1,8 @@
 import contextlib
-from copy import deepcopy
 import os
 import sys
 import unittest
+from copy import deepcopy
 from typing import TYPE_CHECKING
 
 import casadi as cs
