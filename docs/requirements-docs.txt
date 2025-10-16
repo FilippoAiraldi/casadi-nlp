@@ -6,4 +6,3 @@ sphinxcontrib-bibtex==2.6.5
 pydata-sphinx-theme==0.16.1
 matplotlib
 scipy
-
