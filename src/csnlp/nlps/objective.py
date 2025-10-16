@@ -191,17 +191,17 @@ class HasObjective(HasConstraints[SymType]):
         self._f = objective
         self.refresh_solver()
 
-    def parameter(self, *args, **kwargs):
+    def parameter(self, *args: Any, **kwargs: Any) -> SymType:
         out = super().parameter(*args, **kwargs)
         self.refresh_solver()
         return out
 
-    def variable(self, *args, **kwargs):
+    def variable(self, *args: Any, **kwargs: Any) -> tuple[SymType, SymType, SymType]:
         out = super().variable(*args, **kwargs)
         self.refresh_solver()
         return out
 
-    def constraint(self, *args, **kwargs):
+    def constraint(self, *args: Any, **kwargs: Any) -> tuple[SymType, ...]:
         out = super().constraint(*args, **kwargs)
         self.refresh_solver()
         return out
@@ -271,6 +271,6 @@ class HasObjective(HasConstraints[SymType]):
             kwargs["p"] = cs.DM()
         if vals0 is not None:
             if vals0diff := self._vars.keys() - vals0.keys():
-                vals0.update({v: 0 for v in vals0diff})
+                vals0.update(dict.fromkeys(vals0diff, 0))
             kwargs["x0"] = subsevalf(self._x, self._vars, vals0)
         return kwargs

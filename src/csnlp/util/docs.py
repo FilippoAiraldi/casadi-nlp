@@ -6,32 +6,37 @@ functions are taken from the
 repository by the Rawlings' group.
 """
 
-import collections
 import contextlib
 import itertools
 import warnings
 from typing import Any as _Any
 from typing import Callable
+from typing import NamedTuple as _NamedTuple
 
 import casadi as cs
 
 
 class _LambdaType:
-    def __init__(self, func, typerepr):
+    def __init__(self, func: Callable[[_Any], _Any], typerepr: str) -> None:
         self.__typerepr = typerepr
         self.__func = func
 
-    def __call__(self, val):
+    def __call__(self, val: _Any) -> _Any:
         return self.__func(val)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<type '{self.__typerepr}'>"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self)
 
 
-_DocCell = collections.namedtuple("_DocCell", ["id", "default", "doc"])
+class _DocCell(_NamedTuple):
+    id: str
+    default: str
+    doc: str
+
+
 _TABLE_START = "+="  # string prefix that starts the table
 _CELL_END = "+-"  # string prefix that ends the cell
 _CELL_CONTENTS = "|"  # string prefix that continues the cell
@@ -49,7 +54,7 @@ _TYPES: dict[str, Callable] = {  # casadi types to python types
 }
 
 
-def _get_doc_cell(lines) -> _DocCell:
+def _get_doc_cell(lines: list[str]) -> _DocCell:
     """Returns a DocCell tuple for the set of lines.
 
     joins is a tuple of strings to say how to join multiple lines in a given
@@ -90,7 +95,7 @@ def _get_doc_cell(lines) -> _DocCell:
                 if includetype:
                     default = (default, typefunc)
         else:
-            warnings.warn(f"Unknown type for '{id}', '{type}'.")
+            warnings.warn(f"Unknown type for '{id}', '{type}'.", stacklevel=2)
 
     return _DocCell(id, default, doc)
 
@@ -202,7 +207,8 @@ def get_solver_options(
         raise ValueError(f"Unknown solver: '{solver}'.")
     options = _get_doc_dict(docstring)
     if display:
-        print("Available options [default] for %s:\n" % solver)
+        print(f"Available options [default] for {solver}:\n")
         for k in sorted(options.keys()):
-            print(k, "[%r]: %s\n" % options[k])
+            default, doc = options[k]
+            print(f"{k} [{default!r}]: {doc}\n")
     return options

@@ -418,7 +418,7 @@ class HasConstraints(HasVariables[SymType]):
     def remove_constraints(
         self,
         name: str,
-        idx: Union[tuple[int, int], list[tuple[int, int]]] = None,
+        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
     ) -> None:
         """Removes one or more (equality or inequality) constraints from the problem.
 

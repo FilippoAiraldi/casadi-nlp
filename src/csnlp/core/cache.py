@@ -75,14 +75,14 @@ def invalidate_cache(*callables: Callable) -> Callable:
     elif Ncp == 1:
         prop = cached_properties[0]
 
-        def invalidate_cached_properties(self):
+        def invalidate_cached_properties(self: object) -> None:
             propname = prop.attrname
             if propname in self.__dict__:
                 del self.__dict__[propname]
 
     else:
 
-        def invalidate_cached_properties(self):
+        def invalidate_cached_properties(self: object) -> None:
             for prop in cached_properties:
                 propname = prop.attrname
                 if propname in self.__dict__:
@@ -94,18 +94,19 @@ def invalidate_cache(*callables: Callable) -> Callable:
     elif Nlru == 1:
         lru_cache = lru_caches[0]
 
-        def invalidate_lru_caches():
+        def invalidate_lru_caches() -> None:
             lru_cache.cache_clear()
 
     else:
 
-        def invalidate_lru_caches():
+        def invalidate_lru_caches() -> None:
             for lru_cache in lru_caches:
                 lru_cache.cache_clear()
 
-    def decorating_function(func):
+    def decorating_function(func: Callable) -> Callable:
         @functools.wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs):  # noqa: ANN002, ANN003, ANN202
+            # if type annotated, breaks docs in `mpcrl`
             if invalidate_cached_properties is not None and args:
                 invalidate_cached_properties(args[0])
             if invalidate_lru_caches is not None:
@@ -117,14 +118,15 @@ def invalidate_cache(*callables: Callable) -> Callable:
     return decorating_function
 
 
-def invalidate_caches_of(obj) -> None:
+def invalidate_caches_of(obj: object) -> None:
     """Similar to the decorator :func:`invalidate_cache`, but clears the case of
     the given object only once.
 
     Parameters
     ----------
-    obj : Any
-        The object whose caches are to be cleared.
+    obj : object
+        The object whose caches are to be cleared. If no cached properties or lru caches
+        are found, the function does nothing.
     """
     # basically do again what csnlp.core.cache.invalidate_cache does
     for membername, member in inspect.getmembers(

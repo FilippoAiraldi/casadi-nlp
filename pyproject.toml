@@ -29,6 +29,7 @@ dependencies = [
     "numpy >= 1.21.6, < 2.0.0 ; python_version <= '3.9'",
     "casadi >= 3.6.0",
     "joblib >= 1.4.0",
+    "typing_extensions ; python_version <= '3.10'",
 ]
 keywords = ["nonlinear-optimization", "casadi", "sensitivity-analysis"]
 dynamic = ["version"]
@@ -46,13 +47,36 @@ all = [
 [tool.setuptools.dynamic]
 version = {attr = "csnlp.__version__"}
 
-[tool.black]
-target-version = ["py39", "py310", "py311", "py312", "py313"]
-color = true
+[tool.ruff.lint]  # https://docs.astral.sh/ruff/rules
+extend-select = [
+    "ANN",
+    "ARG",
+    "B",
+    "BLE",
+    "C4",
+    "E",
+    "F",
+    "FURB",
+    "I",
+    "NPY",
+    "PERF",
+    "PGH",
+    "PIE",
+    "PL",
+    "PYI",
+    "RET",
+    "RSE",
+    "RUF",
+    "SIM",
+    "T10",
+    "TC",
+    "UP",
+    "W",
+]
+extend-ignore = ["ANN401", "B019", "E402", "E731", "PLC0415", "PLR"]
 
-[tool.isort]
-profile = "black"
-py_version = 39
+[tool.ruff.lint.extend-per-file-ignores]
+"**/{tests,docs,examples}/*" = ["ANN", "B", "NPY", "PL", "RUF"]
 
 [tool.mypy]
 python_version = "3.9"

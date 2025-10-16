@@ -6,12 +6,11 @@ from numpy import typing as npt
 
 from ..core.solutions import Solution
 from ..nlps.nlp import Nlp
-from ..util.io import SupportsDeepcopyAndPickle
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class Wrapper(SupportsDeepcopyAndPickle, Generic[SymType]):
+class Wrapper(Generic[SymType]):
     """Wraps an instance of :class:`csnlp.Nlp` to allow a modular transformation of its
     methods. This class is the base class for all wrappers. The subclass can then
     override some methods to change the behavior of the original environment without

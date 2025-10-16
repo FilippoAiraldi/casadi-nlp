@@ -8,13 +8,12 @@ import numpy.typing as npt
 from joblib import Memory
 
 from ..core.debug import NlpDebug
-from ..util.io import SupportsDeepcopyAndPickle
 from .objective import HasObjective
 
 SymType = TypeVar("SymType", cs.SX, cs.MX)
 
 
-class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
+class Nlp(HasObjective[SymType]):
     r"""The generic NLP class is a controller that solves a (possibly, nonlinear)
     optimization problem to yield a (possibly, sub-) optimal solution. This is a generic
     implementation in the sense that it does not solve a particular problem, but only
@@ -64,8 +63,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
     ) -> None:
         id = next(self.__ids)
         name = f"{self.__class__.__name__}{id}" if name is None else name
-        HasObjective.__init__(self, sym_type, remove_redundant_x_bounds, cache, name)
-        SupportsDeepcopyAndPickle.__init__(self)
+        super().__init__(sym_type, remove_redundant_x_bounds, cache, name)
         self.id = id
         self._debug = NlpDebug() if debug else None
 
@@ -84,7 +82,7 @@ class Nlp(HasObjective[SymType], SupportsDeepcopyAndPickle):
         """Returns the original NLP of the wrapper."""
         return self
 
-    def is_wrapped(self, *args: Any, **kwargs: Any) -> bool:
+    def is_wrapped(self, *_: Any, **__: Any) -> bool:
         """Gets whether the NLP instance is wrapped or not by the given wrapper type."""
         return False
 

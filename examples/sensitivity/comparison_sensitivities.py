@@ -136,7 +136,7 @@ opts = {
     "print_time": False,
 }
 solver = cs.nlpsol("solver", "sqpmethod", prob, opts)
-kwargs = dict(lbx=nlp.lbx.data, ubx=nlp.ubx.data, lbg=0, ubg=0, p=0)
+kwargs = {"lbx": nlp.lbx.data, "ubx": nlp.ubx.data, "lbg": 0, "ubg": 0, "p": 0}
 sol = solver(x0=0, **kwargs)
 
 # %%

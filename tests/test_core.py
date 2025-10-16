@@ -329,7 +329,7 @@ class TestSolutions(unittest.TestCase):
                     {"f": f, "stats": {"success": success, "return_status": status}}
                     for f, success, status in case["sols"]
                 )
-                sols = enumerate(map(lambda s: DummySolution(*s), case["sols"]))
+                sols = enumerate(DummySolution(*s) for s in case["sols"])
                 min_index, _ = min(sols, key=lambda sol: DummySolution.cmp_key(sol[1]))
                 self.assertEqual(min_index, case["expected"])
 

@@ -42,7 +42,6 @@ the dynamics, we formulate the final optimal control problem
 # First, we'll address the problem without scaling. As usual, we'll import the necessary
 # classes and modules from :mod:`csnlp`.
 
-
 import casadi as cs
 import matplotlib.pyplot as plt
 import numpy as np

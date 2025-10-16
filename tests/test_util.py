@@ -3,8 +3,9 @@ import os
 import pickle
 import tempfile
 import unittest
+from copy import deepcopy
 from itertools import product
-from typing import Any, Optional
+from typing import Optional
 
 import casadi as cs
 import cvxpy as cp
@@ -20,10 +21,7 @@ from csnlp.util import docs, io, math
 TMPFILENAME: str = ""
 
 
-class EmptyClass(io.SupportsDeepcopyAndPickle): ...
-
-
-class DictClass(EmptyClass):
+class DictClass:
     def __init__(self) -> None:
         super().__init__()
         self.z, self.w = 3, 4
@@ -31,24 +29,6 @@ class DictClass(EmptyClass):
 
 
 class TestIo(unittest.TestCase):
-    @parameterized.expand(
-        [
-            (5.0, False),
-            (unittest.TestCase(), False),
-            (cs.DM(5), True),
-            (cs.SX.sym("x"), True),
-            (cs.MX.sym("x"), True),
-        ]
-    )
-    def test_is_casadi_object__guesses_correctly(self, obj: Any, result: bool):
-        self.assertEqual(io.is_casadi_object(obj), result)
-
-    def test_is_pickleable__fails_with_casadi_obj(self):
-        self.assertTrue(io.is_pickleable(5))
-        self.assertTrue(io.is_pickleable({5}))
-        self.assertTrue(io.is_pickleable("hello"))
-        self.assertFalse(io.is_pickleable(cs.SX.sym("x")))
-
     @parameterized.expand(
         [
             ("pkl",),
@@ -86,21 +66,22 @@ class TestIo(unittest.TestCase):
 
     @parameterized.expand([(False,), (True,)])
     def test_is_pickleable_and_deepcopy_able(self, copy: bool):
-        ec = EmptyClass()
-        dc = DictClass()
+        this = DictClass()
         if copy:
-            ec1 = ec.copy()
-            dc1 = dc.copy()
+            other = deepcopy(this)
         else:
-            ec1 = pickle.loads(pickle.dumps(ec))
-            dc1 = pickle.loads(pickle.dumps(dc))
-        self.assertIsNot(ec, ec1)
-        self.assertIsNot(dc, dc1)
-        self.assertTupleEqual((dc.z, dc.w), (dc1.z, dc1.w))
+            with cs.global_pickle_context():
+                pickled = pickle.dumps(this)
+            with cs.global_unpickle_context():
+                other = pickle.loads(pickled)
+
+        self.assertIsNot(this, other)
+        self.assertEqual(this.z, other.z)
+        self.assertEqual(this.w, other.w)
         if copy:
-            self.assertTupleEqual(dc.sym2.shape, dc1.sym2.shape)
+            self.assertTrue(cs.is_equal(this.sym2, other.sym2))
         else:
-            self.assertFalse(hasattr(dc1, "sym2"))
+            self.assertTupleEqual(this.sym2.shape, other.sym2.shape)
 
 
 class TestMath(unittest.TestCase):

@@ -124,7 +124,7 @@ class PwaMpc(Mpc[SymType]):
 
     tva_dynamics_name = "tva_dyn"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._fixed_sequence_dynamics = False
         self._pwa_system: Optional[Sequence[PwaRegion]] = None
@@ -293,7 +293,7 @@ class PwaMpc(Mpc[SymType]):
         Returns
         -------
         Optional 3-tuple of symbolic or numerical arrays
-            In multiple shooting, returns a tuple of ``None``s. In single shooting,
+            In multiple shooting, returns a tuple of ``None``. In single shooting,
             returns the matrices :math:`F, G, L` that parametrize the dynamics. See,
             e.g., :cite:`campi_scenario_2019`.
 

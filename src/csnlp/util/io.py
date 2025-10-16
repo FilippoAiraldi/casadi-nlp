@@ -6,124 +6,19 @@
 """
 
 import pickle
-from copy import _reconstruct
-from copy import deepcopy as _deepcopy
-from functools import partial
+from functools import partial as _partial
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Callable, Literal, Optional
 from typing import Any as _Any
-from typing import Callable, Literal, Optional
-from typing import TypeVar as _TypeVar
-
-from ..core.cache import invalidate_caches_of as _invalidate_caches_of
 
 if TYPE_CHECKING:
     from scipy.io.matlab import mat_struct
 
 
-def is_casadi_object(obj: _Any) -> bool:
-    """Checks if the object belongs to the CasADi module.
-
-    See `this thread <https://stackoverflow.com/a/52783240/19648688>`_ for more
-    details.
-
-    Parameters
-    ----------
-    obj : Any
-        Any type of object.
-
-    Returns
-    -------
-    bool
-        A flag that states whether the object belongs to CasADi or not.
-    """
-    if not hasattr(obj, "__module__"):
-        return False
-    module: str = obj.__module__.split(".")[0]
-    return module == "casadi"
-
-
-def is_pickleable(obj: _Any) -> bool:
-    """Checks whether the object is pickeable.
-
-    Parameters
-    ----------
-    obj : Any
-        The object to test against.
-
-    Returns
-    -------
-    pickleable : bool
-        A flag indicating if pickleable or not.
-    """
-    try:
-        pickle.dumps(obj)
-        return True
-    except Exception:
-        return False
-
-
-T = _TypeVar("T", bound="SupportsDeepcopyAndPickle")
-
-
-class SupportsDeepcopyAndPickle:
-    """Class that defines a :meth:`__getstate__` that is compatible with both
-    :func:`deepcopy` and :mod:`pickle`, as well as any other operation that requires the
-    instance's state.
-
-    When pickled, states that cannot be pickled (e.g., CasADi objects) are automatically
-    removed.
-    """
-
-    def copy(self: T, invalidate_caches: bool = True) -> T:
-        """Creates a deepcopy of this instance.
-
-        Parameters
-        ----------
-        invalidate_caches : bool, optional
-            If ``True``, methods decorated with
-            :func:`csnlp.core.cache.invalidate_cache` are called to clear cached
-            properties/lru caches in the copied instance. Otherwise, caches in the copy
-            are not invalidated. By default, ``True``.
-
-        Returns
-        -------
-        Instance of :class:`SupportsDeepcopyAndPickle` or its subclass
-            A deepcopy of this instance.
-        """
-        new = _deepcopy(self)
-        if invalidate_caches:
-            _invalidate_caches_of(new)
-        return new
-
-    def __deepcopy__(self: T, memo: Optional[dict[int, list[_Any]]] = None) -> T:
-        """Returns a deepcopy of the object."""
-        rv = self.__reduce_ex__(4)
-        if isinstance(rv, str):
-            return self
-        assert len(rv) < 6 or rv[5] is None, "Unexpected reductor callable."
-        # overwrite the filtered state with its full version
-        fullstate = self.__getstate__(True)
-        new_rv = (*rv[:2], fullstate, *rv[3:])
-        return _reconstruct(self, memo, *new_rv)
-
-    def __getstate__(self: T, fullstate: bool = False) -> Optional[dict[str, _Any]]:
-        """Returns the instance's state to be pickled/deepcopied."""
-        # https://docs.python.org/3/library/pickle.html#pickle-inst
-        if not (hasattr(self, "__dict__") and self.__dict__.keys()):
-            return None
-        state = self.__dict__.copy()
-        if fullstate:
-            return state
-        state_items_copy = list(state.items())
-        for attr, val in state_items_copy:
-            if is_casadi_object(val) or not is_pickleable(val):
-                state.pop(attr, None)
-        return state
-
-
-_COMPRESSION_EXTS: dict[str, Optional[str]] = {
+_COMPRESSION_EXTS: dict[
+    str, Optional[Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]]
+] = {
     ".pkl": None,
     ".xz": "lzma",
     ".pbz2": "bz2",
@@ -188,25 +83,25 @@ def save(
     if compression is None:
         expected_ext = ".pkl"
         open_fun = open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "lzma":
         import lzma
 
         expected_ext = ".xz"
         open_fun = lzma.open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "bz2":
         import bz2
 
         expected_ext = ".pbz2"
         open_fun = bz2.BZ2File
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "gzip":
         import gzip
 
         expected_ext = ".gz"
         open_fun = gzip.open
-        compress_fun = lambda o: o  # noqa E731
+        compress_fun = lambda o: o
     elif compression == "brotli":
         import brotli
 
@@ -218,7 +113,7 @@ def save(
 
         expected_ext = ".bl2"
         open_fun = open
-        compress_fun = partial(blosc2.compress, typesize=None)
+        compress_fun = _partial(blosc2.compress, typesize=None)
     elif compression == "matlab":
         expected_ext = ".mat"
     elif compression == "numpy":
@@ -300,12 +195,12 @@ def load(filename: str) -> dict[str, _Any]:
         import brotli
 
         open_fun = open
-        decompress_fun = lambda o: pickle.loads(brotli.decompress(o))  # noqa E731
+        decompress_fun = lambda o: pickle.loads(brotli.decompress(o))
     elif compression == "blosc2":
         import blosc2
 
         open_fun = open
-        decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))  # noqa E731
+        decompress_fun = lambda o: pickle.loads(blosc2.decompress(o))
     elif compression not in ("matlab", "numpy"):
         raise ValueError(f"Unknown file extension {ext}.")
 
@@ -349,7 +244,7 @@ def _check_mat_keys(dictionary: dict, mat_struct_type: type) -> dict:
 
     for bad_key in ("__header__", "__version__", "__globals__"):
         dictionary.pop(bad_key, None)
-    for key in dictionary:
-        if isinstance(dictionary[key], mat_struct_type):
-            dictionary[key] = _todict_recursive(dictionary[key])
+    for key, value in dictionary.items():
+        if isinstance(value, mat_struct_type):
+            dictionary[key] = _todict_recursive(value)
     return dictionary

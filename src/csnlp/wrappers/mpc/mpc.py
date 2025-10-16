@@ -115,8 +115,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
         if not isinstance(input_spacing, inttypes) or input_spacing <= 0:
             raise ValueError("Input spacing factor must be positive and > 0.")
-        else:
-            self._input_spacing = input_spacing
+        self._input_spacing = input_spacing
 
         self._states: dict[str, SymType] = {}
         self._initial_states: dict[str, SymType] = {}
@@ -405,7 +404,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         Returns
         -------
         Optional 4-tuple of symbolic or numerical arrays
-            In multiple shooting, returns a tuple of ``None``s. In single shooting,
+            In multiple shooting, returns a tuple of ``None``. In single shooting,
             returns the matrices :math:`F, G, H, L` that parametrize the dynamics. See,
             e.g., :cite:`campi_scenario_2019`.
 
