@@ -291,7 +291,7 @@ class NlpSensitivity(Wrapper[SymType]):
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
         d: Callable[[SymType], Union[SymType, cs.DM]] = (
-            (lambda o: o) if solution is None else (lambda o: solution.value(o))  # type: ignore[union-attr]
+            (lambda o: o) if solution is None else solution.value  # type: ignore[union-attr]
         )
         dydp, dydp_np, d2ydp2 = self._y_parametric_sensitivity(
             solution, second_order, d
