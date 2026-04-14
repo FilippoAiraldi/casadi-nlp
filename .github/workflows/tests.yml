@@ -35,7 +35,7 @@ jobs:
           coverage lcov -i -o coverage.lcov
       - name: Coverage with Qlty (main, 3.11 only)
         if: github.ref == 'refs/heads/main' && matrix.python-version == '3.11'
-        uses: qltysh/qlty-action/coverage@v1
+        uses: qltysh/qlty-action/coverage@v2
         with:
             token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
             files: coverage.lcov
