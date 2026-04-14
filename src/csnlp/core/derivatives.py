@@ -5,7 +5,6 @@ jacobian or hessian for matrices (or at least, they will be flattened). These
 another matrix."""
 
 from itertools import product as _product
-from typing import Union
 
 import casadi as cs
 import numpy as np
@@ -14,7 +13,7 @@ from .data import array2cs as _array2cs
 from .data import cs2array as _cs2array
 
 
-def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
+def hojacobian(ex: cs.MX | cs.SX, x: cs.MX | cs.SX) -> np.ndarray:
     """Computes jacobian on higher-order matrices, not just vectors.
 
     Parameters
@@ -36,7 +35,7 @@ def hojacobian(ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX]) -> np.ndarray:
 
 
 def hohessian(
-    ex: Union[cs.MX, cs.SX], x: Union[cs.MX, cs.SX], y: Union[cs.MX, cs.SX, None] = None
+    ex: cs.MX | cs.SX, x: cs.MX | cs.SX, y: cs.MX | cs.SX | None = None
 ) -> tuple[np.ndarray, np.ndarray]:
     """Computes hessian on higher-order matrices, similar to :func:`hojacobian`.
 

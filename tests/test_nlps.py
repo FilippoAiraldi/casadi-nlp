@@ -2,7 +2,6 @@ import pickle
 import unittest
 from copy import deepcopy
 from itertools import product
-from typing import Union
 from unittest.mock import Mock
 
 import casadi as cs
@@ -31,9 +30,9 @@ OPTS = {
 class TestNlp(unittest.TestCase):
     def cmp(
         self,
-        lhs: Union[cs.SX, cs.MX],
-        rhs: Union[cs.SX, cs.MX],
-        vars: Union[list[cs.SX], list[cs.MX]],
+        lhs: cs.SX | cs.MX,
+        rhs: cs.SX | cs.MX,
+        vars: list[cs.SX] | list[cs.MX],
         force_numerical: bool = False,
     ) -> bool:
         if isinstance(rhs, (int, float)):

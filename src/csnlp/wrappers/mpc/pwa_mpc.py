@@ -1,7 +1,7 @@
 from collections.abc import Collection, Iterable, Sequence
 from dataclasses import dataclass
 from numbers import Integral
-from typing import Any, Literal, Optional, TypeVar, Union
+from typing import Any, Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -127,8 +127,8 @@ class PwaMpc(Mpc[SymType]):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self._fixed_sequence_dynamics = False
-        self._pwa_system: Optional[Sequence[PwaRegion]] = None
-        self._sequence: Optional[Collection[int]] = None
+        self._pwa_system: Sequence[PwaRegion] | None = None
+        self._sequence: Collection[int] | None = None
 
     def validate_pwa_dimensions(self, pwa_system: Iterable[PwaRegion]) -> None:
         """Validates that the dimensions are correct for all matrices in
@@ -165,13 +165,13 @@ class PwaMpc(Mpc[SymType]):
     def set_pwa_dynamics(
         self,
         pwa_system: Collection[PwaRegion],
-        D: Union[npt.NDArray[np.floating], cs.DM],
+        D: npt.NDArray[np.floating] | cs.DM,
         E: npt.NDArray[np.floating],
-        clp_opts: Optional[dict[str, Any]] = None,
+        clp_opts: dict[str, Any] | None = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads: Optional[int] = None,
+        max_num_threads: int | None = None,
     ) -> None:
         r"""Sets the piecewise affine dynamics of the system for the MPC controller,
         creating auxiliary variables and constraints to handle the PWA switching. In
@@ -267,7 +267,7 @@ class PwaMpc(Mpc[SymType]):
 
     def set_affine_time_varying_dynamics(
         self, pwa_system: Sequence[PwaRegion]
-    ) -> tuple[Optional[SymType], Optional[SymType], Optional[SymType]]:
+    ) -> tuple[SymType | None, SymType | None, SymType | None]:
         r"""Sets affine time-varying dynamics as the controller's prediction model and
         creates the corresponding dynamics constraints. The dynamics in the affine
         time-varying form are described as
@@ -387,8 +387,8 @@ class PwaMpc(Mpc[SymType]):
 
     def solve(
         self,
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
+        pars: dict[str, npt.ArrayLike] | None = None,
+        vals0: dict[str, npt.ArrayLike] | None = None,
     ) -> Solution[SymType]:
         if self._fixed_sequence_dynamics:
             regions = self._pwa_system
@@ -457,7 +457,7 @@ class PwaMpc(Mpc[SymType]):
     def _set_pwa_dynamics(
         self,
         regions: Collection[PwaRegion],
-        D: Union[npt.NDArray[np.floating], cs.DM],
+        D: npt.NDArray[np.floating] | cs.DM,
         E: npt.NDArray[np.floating],
         clp_opts: dict[str, Any],
         parallelization: Literal["serial", "unroll", "inline", "thread", "openmp"],
@@ -511,7 +511,9 @@ class PwaMpc(Mpc[SymType]):
             cumsizes = np.cumsum(
                 [0] + [s.shape[0] for s in self._initial_states.values()]
             )
-            self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+            self._states = dict(
+                zip(self._states.keys(), cs.vertsplit(X, cumsizes), strict=True)
+            )
 
         U = cs.vcat(self._actions_exp.values())
         delta, _, _ = self.variable("delta", (nr, N), lb=0, ub=1, discrete=True)
@@ -545,7 +547,7 @@ class PwaMpc(Mpc[SymType]):
         X = cs.vcat(self._states.values())
         U = cs.vcat(self._actions_exp.values())
         X_next_ = []
-        for k, (A, B, c) in enumerate(zip(As, Bs, Cs)):
+        for k, (A, B, c) in enumerate(zip(As, Bs, Cs, strict=True)):
             X_next_.append(A @ X[:, k] + B @ U[:, k] + c)
         X_next = cs.hcat(X_next_)
         self.constraint("dynamics", X_next, "==", X[:, 1:])
@@ -566,5 +568,7 @@ class PwaMpc(Mpc[SymType]):
         ns = F.size2()
         X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
-        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+        self._states = dict(
+            zip(self._states.keys(), cs.vertsplit(X, cumsizes), strict=True)
+        )
         return X, U, F, G, L

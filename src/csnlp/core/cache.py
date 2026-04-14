@@ -6,7 +6,7 @@ object on the fly."""
 
 import functools
 import inspect
-from typing import Callable
+from collections.abc import Callable
 
 
 def _is_cached_property(c: Callable) -> bool:

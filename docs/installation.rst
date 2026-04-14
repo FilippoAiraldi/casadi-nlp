@@ -12,7 +12,7 @@ You can use `pip` to install **csnlp** with the command
 
 **csnlp** has the following dependencies
 
--  Python 3.9 or higher
+-  Python 3.11 or higher
 -  `NumPy <https://pypi.org/project/numpy/>`__
 -  `CasADi <https://pypi.org/project/casadi/>`__
 -  `Joblib <https://joblib.readthedocs.io/>`__

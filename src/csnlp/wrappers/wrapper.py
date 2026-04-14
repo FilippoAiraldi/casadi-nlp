@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Any, Generic, TypeVar, Union
+from typing import Any, Generic, TypeVar
 
 import casadi as cs
 from numpy import typing as npt
@@ -62,14 +62,14 @@ class Wrapper(Generic[SymType]):
 
     def __call__(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         # Similar logic to `MultiStartNlp.__call__`: call solve_multi only if either
         # pars or vals0 is an iterable; otherwise, run the single, base NLP
         if not self.nlp.is_multi or (

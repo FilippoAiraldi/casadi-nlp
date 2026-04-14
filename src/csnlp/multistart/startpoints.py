@@ -1,5 +1,5 @@
 from collections.abc import Generator, Sequence
-from typing import Any, NamedTuple, Optional, Union
+from typing import Any, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
@@ -52,16 +52,14 @@ class RandomStartPoints:
         self,
         points: dict[str, RandomStartPoint],
         multistarts: int = 10,
-        biases: Optional[dict[str, npt.ArrayLike]] = None,
-        scales: Optional[dict[str, npt.ArrayLike]] = None,
-        seed: Union[
-            None,
-            int,
-            Sequence[int],
-            np.random.SeedSequence,
-            np.random.BitGenerator,
-            np.random.Generator,
-        ] = None,
+        biases: dict[str, npt.ArrayLike] | None = None,
+        scales: dict[str, npt.ArrayLike] | None = None,
+        seed: None
+        | int
+        | Sequence[int]
+        | np.random.SeedSequence
+        | np.random.BitGenerator
+        | np.random.Generator = None,
     ) -> None:
         self.points = points
         self.multistarts = multistarts

@@ -9,8 +9,8 @@ repository by the Rawlings' group.
 import contextlib
 import itertools
 import warnings
+from collections.abc import Callable
 from typing import Any as _Any
-from typing import Callable
 from typing import NamedTuple as _NamedTuple
 
 import casadi as cs
@@ -76,11 +76,13 @@ def _get_doc_cell(lines: list[str]) -> _DocCell:
             raise ValueError("Wrong number of columns.")
 
     if ncol == 3:
-        id, type, doc = (j.join(f) for j, f in zip(("", "", " "), fields))
+        id, type, doc = (j.join(f) for j, f in zip(("", "", " "), fields, strict=True))
         default = None
 
     else:
-        id, type, default, doc = (j.join(f) for j, f in zip(("", "", "", " "), fields))
+        id, type, default, doc = (
+            j.join(f) for j, f in zip(("", "", "", " "), fields, strict=True)
+        )
         if typefunc := _TYPES.get(type):
             try:
                 default = typefunc(default)

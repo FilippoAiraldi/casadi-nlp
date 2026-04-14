@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import cache, cached_property
-from typing import Callable, Literal, Optional, TypeVar, Union
+from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -44,7 +45,7 @@ class NlpSensitivity(Wrapper[SymType]):
     def __init__(
         self,
         nlp: Nlp[SymType],
-        target_parameters: Optional[SymType] = None,
+        target_parameters: SymType | None = None,
         include_barrier_term: bool = True,
     ) -> None:
         super().__init__(nlp)
@@ -70,7 +71,7 @@ class NlpSensitivity(Wrapper[SymType]):
         )
 
     @cached_property
-    def kkt(self) -> tuple[SymType, Optional[SymType]]:
+    def kkt(self) -> tuple[SymType, SymType | None]:
         r"""Gets the KKT conditions of the NLP problem in vector form, i.e.,
 
         .. math::
@@ -256,9 +257,9 @@ class NlpSensitivity(Wrapper[SymType]):
     def parametric_sensitivity(
         self,
         expr: SymType = None,
-        solution: Optional[Solution[SymType]] = None,
+        solution: Solution[SymType] | None = None,
         second_order: bool = False,
-    ) -> Union[tuple[SymType, Optional[SymType]], tuple[cs.DM, Optional[cs.DM]]]:
+    ) -> tuple[SymType, SymType | None] | tuple[cs.DM, cs.DM | None]:
         r"""Performs the (symbolic or numerical) sensitivity of the NLP w.r.t. its
         parametrization, according to :cite:`buskens_sensitivity_2001`.
 
@@ -290,7 +291,7 @@ class NlpSensitivity(Wrapper[SymType]):
             Raises if the KKT conditions lead to a singular matrix.
         """
         # first and second order sensitivities, a.k.a., dydp and d2dydp2
-        d: Callable[[SymType], Union[SymType, cs.DM]] = (
+        d: Callable[[SymType], SymType | cs.DM] = (
             (lambda o: o) if solution is None else solution.value  # type: ignore[union-attr]
         )
         dydp, dydp_np, d2ydp2 = self._y_parametric_sensitivity(
@@ -346,10 +347,10 @@ class NlpSensitivity(Wrapper[SymType]):
 
     def _y_parametric_sensitivity(
         self,
-        solution: Optional[Solution[SymType]],
+        solution: Solution[SymType] | None,
         second_order: bool,
-        d: Callable[[SymType], Union[SymType, cs.DM]],
-    ) -> Union[tuple[SymType, np.ndarray, SymType], tuple[cs.DM, np.ndarray, cs.DM]]:
+        d: Callable[[SymType], SymType | cs.DM],
+    ) -> tuple[SymType, np.ndarray, SymType] | tuple[cs.DM, np.ndarray, cs.DM]:
         """Internal utility to compute the sensitivity of ``y`` w.r.t. ``p``."""
         # first order sensitivity, a.k.a., dydp
         Ky = d(self.jacobian("K-y"))
@@ -386,8 +387,8 @@ class NlpSensitivity(Wrapper[SymType]):
         name: str,
         shape: tuple[int, int] = (1, 1),
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         """See :meth:`csnlp.Nlp.variable`."""
         return self.nlp.variable(name, shape, discrete, lb, ub)
@@ -396,9 +397,9 @@ class NlpSensitivity(Wrapper[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -411,7 +412,7 @@ class NlpSensitivity(Wrapper[SymType]):
         return self.nlp.minimize(objective)
 
     @invalidate_cache(jacobian, hessian, hojacobian)
-    def set_target_parameters(self, parameters: Optional[SymType]) -> None:
+    def set_target_parameters(self, parameters: SymType | None) -> None:
         """Sets the target parameters of the sensitivity wrapper.
 
         Parameters
@@ -430,7 +431,7 @@ class NlpSensitivity(Wrapper[SymType]):
         self._p_idx_internal = self.nlp.p, find_index_in_vector(self.nlp.p, p)
 
     @property
-    def _p_idx(self) -> tuple[SymType, Union[slice, npt.NDArray[np.int64]]]:
+    def _p_idx(self) -> tuple[SymType, slice | npt.NDArray[np.int64]]:
         """Internal utility to return the indices of ``p`` from all the NLP pars. While
         SX is fine with computing jacobians with indexed variables, MX requires purely
         symbolic variables. So, for MX, jacobians need to be computed for all elements

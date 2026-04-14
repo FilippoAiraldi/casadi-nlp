@@ -7,7 +7,7 @@ really does not provide the required functionality.
 import decimal as D
 import math
 from itertools import product as _product
-from typing import TYPE_CHECKING, Literal, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -31,8 +31,8 @@ LNSQRT2PI = SQRT2PI.ln()
 
 
 def log(
-    x: Union[cs.SX, cs.MX, cs.DM], base: Union[None, cs.SX, cs.MX, cs.DM] = None
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    x: cs.SX | cs.MX | cs.DM, base: None | cs.SX | cs.MX | cs.DM = None
+) -> cs.SX | cs.MX | cs.DM:
     r"""Computes the logarithm. With one argument, return the natural logarithm of
     :math:`x` (to base :math:`e`). With two arguments, return the logarithm of :math:`x`
     to the given base :math:`b`, calculated as :math:`\frac{\log x}{\log b}`.
@@ -58,8 +58,8 @@ def log(
 
 
 def prod(
-    x: Union[cs.SX, cs.MX, cs.DM], axis: Optional[Literal[0, 1, -1, -2]] = None
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    x: cs.SX | cs.MX | cs.DM, axis: Literal[0, 1, -1, -2] | None = None
+) -> cs.SX | cs.MX | cs.DM:
     r"""Computes the product of all the elements in ``x`` (CasADi version of
     :func:`numpy.prod`).
 
@@ -100,10 +100,10 @@ def prod(
 
 
 def normal_cdf(
-    x: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
-    scale: Union[cs.SX, cs.MX, cs.DM] = 1,
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    x: cs.SX | cs.MX | cs.DM,
+    loc: cs.SX | cs.MX | cs.DM = 0,
+    scale: cs.SX | cs.MX | cs.DM = 1,
+) -> cs.SX | cs.MX | cs.DM:
     """Computes the cdf of a normal distribution (CasADi version of
     :data:`scipy.stats.norm`'s ``cdf`` method).
 
@@ -125,10 +125,10 @@ def normal_cdf(
 
 
 def normal_ppf(
-    p: Union[cs.SX, cs.MX, cs.DM],
-    loc: Union[cs.SX, cs.MX, cs.DM] = 0,
-    scale: Union[cs.SX, cs.MX, cs.DM] = 1,
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    p: cs.SX | cs.MX | cs.DM,
+    loc: cs.SX | cs.MX | cs.DM = 0,
+    scale: cs.SX | cs.MX | cs.DM = 1,
+) -> cs.SX | cs.MX | cs.DM:
     """Computes the quantile (invese of :func:`norm_cdf`) of a normal distribution
     (CasADi version of :data:`scipy.stats.norm`'s ``ppf`` method).
 
@@ -150,8 +150,8 @@ def normal_ppf(
 
 
 def repeat(
-    a: Union[cs.SX, cs.MX, cs.DM], repeats: Union[int, tuple[int, int]]
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    a: cs.SX | cs.MX | cs.DM, repeats: int | tuple[int, int]
+) -> cs.SX | cs.MX | cs.DM:
     """Repeats elements in array.
 
     Parameters
@@ -401,8 +401,8 @@ def godfrey_coefficients(
 
 
 def gammaln(
-    z: Union[cs.SX, cs.MX, cs.DM], g: float, n: int, prec: int = 128
-) -> Union[cs.SX, cs.MX, cs.DM]:
+    z: cs.SX | cs.MX | cs.DM, g: float, n: int, prec: int = 128
+) -> cs.SX | cs.MX | cs.DM:
     """Computes the logarithm of the gamma function using the Lanczos approximation.
     Only valid for non-negative real scalars.
 
@@ -444,7 +444,7 @@ def gammaln(
     # cs.if_else(z < 1, cs.substitute(out, z, z + 1) - cs.log(z), out)
 
 
-def digamma1p(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
+def digamma1p(z: cs.SX | cs.MX | cs.DM, n: int) -> cs.SX | cs.MX | cs.DM:
     """Computes the digamma function evaluated at :math:`z+1` via asymptotic expansion.
     Only valid for non-negative real scalars.
 
@@ -474,7 +474,7 @@ def digamma1p(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.D
     return cs.log1p(z) - 0.5 / z1p - cs.sum1(1 / ((N_2 / B) * powers))
 
 
-def digamma(z: Union[cs.SX, cs.MX, cs.DM], n: int) -> Union[cs.SX, cs.MX, cs.DM]:
+def digamma(z: cs.SX | cs.MX | cs.DM, n: int) -> cs.SX | cs.MX | cs.DM:
     """Computes the digamma function via asymptotic expansion.
     Only valid for non-negative real scalars.
 

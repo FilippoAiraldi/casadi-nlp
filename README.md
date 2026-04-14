@@ -13,7 +13,7 @@ optimization purposes.
 
 [![PyPI version](https://badge.fury.io/py/csnlp.svg)](https://badge.fury.io/py/csnlp)
 [![Source Code License](https://img.shields.io/badge/license-MIT-blueviolet)](https://github.com/FilippoAiraldi/casadi-nlp/blob/main/LICENSE)
-![Python 3.9](https://img.shields.io/badge/python->=3.9-green.svg)
+![Python 3.11](https://img.shields.io/badge/python->=3.11-green.svg)
 
 [![Tests](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml/badge.svg)](https://github.com/FilippoAiraldi/casadi-nlp/actions/workflows/tests.yml)
 [![Docs](https://readthedocs.org/projects/casadi-nlp/badge/?version=stable)](https://casadi-nlp.readthedocs.io/en/stable/?badge=stable)
@@ -64,7 +64,7 @@ pip install csnlp
 
 **csnlp** has the following dependencies
 
-- Python 3.9 or higher
+- Python 3.11 or higher
 - [NumPy](https://pypi.org/project/numpy/)
 - [CasADi](https://pypi.org/project/casadi/)
 - [Joblib](https://joblib.readthedocs.io/)

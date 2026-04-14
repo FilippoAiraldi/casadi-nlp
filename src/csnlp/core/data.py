@@ -2,14 +2,12 @@
 to convert to and from numpy arrays and CasADi symbolic variables, and how to find
 the indices of a symbolic variable in a vector of symbols."""
 
-from typing import Union
-
 import casadi as cs
 import numpy as np
 import numpy.typing as npt
 
 
-def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
+def array2cs(x: np.ndarray) -> cs.SX | cs.MX:
     """Converts the numpy array ``x`` containing scalar symbolic variables to a single
     symbolic variable (see :func:`cs2array` for the opposite functionality).
 
@@ -50,13 +48,13 @@ def array2cs(x: np.ndarray) -> Union[cs.SX, cs.MX]:
         indices = np.ndindex(shape)
     else:
         raise ValueError("Can only convert 1D and 2D arrays to CasADi SX or MX.")
-    m: Union[cs.SX, cs.MX] = cls(*shape)
+    m: cs.SX | cs.MX = cls(*shape)
     for idx in indices:
         m[idx] = x[idx]
     return m
 
 
-def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
+def cs2array(x: cs.MX | cs.SX) -> np.ndarray:
     """Converts the symbolic variable ``x`` to a numpy array of scalar symbolic
     variables (see :func:`array2cs` for the opposite functionality).
 
@@ -85,9 +83,7 @@ def cs2array(x: Union[cs.MX, cs.SX]) -> np.ndarray:
     return y
 
 
-def find_index_in_vector(
-    V: Union[cs.SX, cs.MX], a: Union[cs.SX, cs.MX]
-) -> npt.NDArray[np.int_]:
+def find_index_in_vector(V: cs.SX | cs.MX, a: cs.SX | cs.MX) -> npt.NDArray[np.int_]:
     """Finds the indices of ``a`` in ``V``.
 
     Parameters

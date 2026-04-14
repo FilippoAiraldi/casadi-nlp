@@ -4,7 +4,7 @@ to :meth:`csnlp.Nlp.solve` or :meth:`csnlp.multistart.MultistartNlp.solve_multi`
 from collections.abc import Iterable as _Iterable
 from functools import cached_property as _cached_property
 from itertools import product as _product
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 from typing import Any as _Any
 from typing import Protocol as _Protocol
 from typing import TypeVar as _TypeVar
@@ -23,7 +23,7 @@ SymType = _TypeVar("SymType", cs.SX, cs.MX)
 SymOrNumType = _TypeVar("SymOrNumType", cs.SX, cs.MX, cs.DM, int, float, np.ndarray)
 
 
-def _is_infeas(status: str, solver_plugin: str) -> Optional[bool]:
+def _is_infeas(status: str, solver_plugin: str) -> bool | None:
     """Internal utility to compute whether the solver status indicates infeasibility."""
     # NLPs
     if solver_plugin == "ipopt":
@@ -167,7 +167,7 @@ class Solution(_Protocol[SymType]):
         return self.stats["success"]
 
     @_cached_property
-    def infeasible(self) -> Optional[bool]:
+    def infeasible(self) -> bool | None:
         r"""Gets whether the solver status indicates infeasibility. If ``False``, it
         does not imply feasibility as the solver or its CasADi interface may have not
         detect it.
@@ -217,9 +217,7 @@ class Solution(_Protocol[SymType]):
         """Gets the IPOPT barrier parameter at the optimal solution"""
         return self.stats["iterations"]["mu"][-1]
 
-    def value(
-        self, expr: Union[SymType, np.ndarray], eval: bool = True
-    ) -> Union[SymType, cs.DM]:
+    def value(self, expr: SymType | np.ndarray, eval: bool = True) -> SymType | cs.DM:
         """Computes the value of the expression substituting the values of this
         solution in the expression.
 
@@ -518,8 +516,8 @@ class LazySolution(Solution[SymType]):
         lam_lbx_and_ubx_sym: SymType,
         vars: dict[str, SymType],
         dual_vars: dict[str, SymType],
-        nonmasked_lbx_idx: Union[slice, npt.NDArray[np.int64]],
-        nonmasked_ubx_idx: Union[slice, npt.NDArray[np.int64]],
+        nonmasked_lbx_idx: slice | npt.NDArray[np.int64],
+        nonmasked_ubx_idx: slice | npt.NDArray[np.int64],
         stats: dict[str, _Any],
         solver_plugin: str,
     ) -> None:
@@ -629,7 +627,7 @@ class LazySolution(Solution[SymType]):
         )
 
 
-def _broadcast_like(x: SymOrNumType, other: SymOrNumType) -> Union[SymType, np.ndarray]:
+def _broadcast_like(x: SymOrNumType, other: SymOrNumType) -> SymType | np.ndarray:
     """Internal utility to broadcast a value, if numerical, to the other's shape."""
     if isinstance(x, (np.ndarray, cs.DM)):
         target_shape = other.shape
@@ -646,10 +644,10 @@ def _broadcast_like(x: SymOrNumType, other: SymOrNumType) -> Union[SymType, np.n
 
 def _internal_subsevalf_cs(
     expr: SymType,
-    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
+    old: SymType | dict[str, SymType] | _Iterable[SymType],
+    new: SymOrNumType | dict[str, SymOrNumType] | _Iterable[SymOrNumType],
     eval: bool,
-) -> Union[SymType, cs.DM]:
+) -> SymType | cs.DM:
     """Internal utility for substituting and evaluting casadi objects."""
     if isinstance(expr, cs.DM):
         return expr
@@ -665,7 +663,7 @@ def _internal_subsevalf_cs(
                 old_vals.append(old_val)
                 new_vals.append(_broadcast_like(new_val, old_val))
         else:  # iterable
-            for old_val, new_val in zip(old, new):
+            for old_val, new_val in zip(old, new, strict=True):
                 old_vals.append(old_val)
                 new_vals.append(_broadcast_like(new_val, old_val))
         new_expr = cs.substitute(expr, cs.vvcat(old_vals), cs.vvcat(new_vals))
@@ -674,10 +672,10 @@ def _internal_subsevalf_cs(
 
 def _internal_subsevalf_np(
     expr: np.ndarray,
-    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
+    old: SymType | dict[str, SymType] | _Iterable[SymType],
+    new: SymOrNumType | dict[str, SymOrNumType] | _Iterable[SymOrNumType],
     eval: bool,
-) -> Union[SymType, np.ndarray, cs.DM]:
+) -> SymType | np.ndarray | cs.DM:
     """Internal utility for substituting and evaluting arrays of casadi objects."""
     # if not symbolic, return it
     if expr.dtype != object:
@@ -710,11 +708,11 @@ def _internal_subsevalf_np(
 
 
 def subsevalf(
-    expr: Union[SymType, np.ndarray],
-    old: Union[SymType, dict[str, SymType], _Iterable[SymType]],
-    new: Union[SymOrNumType, dict[str, SymOrNumType], _Iterable[SymOrNumType]],
+    expr: SymType | np.ndarray,
+    old: SymType | dict[str, SymType] | _Iterable[SymType],
+    new: SymOrNumType | dict[str, SymOrNumType] | _Iterable[SymOrNumType],
     eval: bool = True,
-) -> Union[SymType, cs.DM, np.ndarray]:
+) -> SymType | cs.DM | np.ndarray:
     """Substitutes the old variables with the new ones in the symbolic expression,
     and evaluates it, if required.
 

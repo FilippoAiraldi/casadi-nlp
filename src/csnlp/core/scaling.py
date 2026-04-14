@@ -2,8 +2,6 @@
 instance wrapped with :class:`csnlp.wrappers.NlpScaling`. The classes in this module
 inform the wrapper on which variables or parameters to scale and how to scale them."""
 
-from typing import Optional
-
 import numpy as np
 import numpy.typing as npt
 
@@ -25,7 +23,7 @@ class Scaler(dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]):
     """
 
     def __init__(
-        self, d: Optional[dict[str, tuple[npt.ArrayLike, npt.ArrayLike]]] = None
+        self, d: dict[str, tuple[npt.ArrayLike, npt.ArrayLike]] | None = None
     ) -> None:
         super().__init__()
         if d is not None:

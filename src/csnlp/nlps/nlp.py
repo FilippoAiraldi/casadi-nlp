@@ -1,6 +1,6 @@
 from collections.abc import Iterator, Sequence
 from itertools import count
-from typing import Any, ClassVar, Literal, Optional, TypeVar, Union
+from typing import Any, ClassVar, Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -58,7 +58,7 @@ class Nlp(HasObjective[SymType]):
         sym_type: Literal["SX", "MX"] = "SX",
         remove_redundant_x_bounds: bool = True,
         cache: Memory = None,
-        name: Optional[str] = None,
+        name: str | None = None,
         debug: bool = False,
     ) -> None:
         id = next(self.__ids)
@@ -73,7 +73,7 @@ class Nlp(HasObjective[SymType]):
         return self._sym_type
 
     @property
-    def debug(self) -> Optional[NlpDebug]:
+    def debug(self) -> NlpDebug | None:
         """Gets debug information on the NLP scheme."""
         return self._debug
 
@@ -97,8 +97,8 @@ class Nlp(HasObjective[SymType]):
         name: str,
         shape: tuple[int, int] = (1, 1),
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, discrete, lb, ub)
         if self._debug is not None:
@@ -108,9 +108,9 @@ class Nlp(HasObjective[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -124,9 +124,9 @@ class Nlp(HasObjective[SymType]):
         name: str,
         ins: Sequence[SymType],
         outs: Sequence[SymType],
-        name_in: Optional[Sequence[str]] = None,
-        name_out: Optional[Sequence[str]] = None,
-        opts: Optional[dict[Any, Any]] = None,
+        name_in: Sequence[str] | None = None,
+        name_out: Sequence[str] | None = None,
+        opts: dict[Any, Any] | None = None,
         mx_prewrap: bool = False,
     ) -> cs.Function:
         """Converts the optimization problem to an ``SX`` or ``MX`` symbolic

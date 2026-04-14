@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from math import ceil
-from typing import Callable, Literal, Optional, TypeVar, Union
+from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as npy
@@ -65,7 +66,7 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         nlp: Nlp[SymType],
         n_scenarios: int,
         prediction_horizon: int,
-        control_horizon: Optional[int] = None,
+        control_horizon: int | None = None,
         input_spacing: int = 1,
         input_sharing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
@@ -165,8 +166,8 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         name: str,
         size: int = 1,
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -npy.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +npy.inf,
+        lb: npt.ArrayLike | cs.DM = -npy.inf,
+        ub: npt.ArrayLike | cs.DM = +npy.inf,
     ) -> tuple[SymType, SymType, list[SymType], list[SymType]]:
         """Adds one control action variable per scenario to the MSMPC controller.
         Automatically handles sharing of actions across scenarios, generating less free
@@ -267,15 +268,13 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         self,
         A: MatType,
         B: MatType,
-        D: Optional[MatType] = None,
-        c: Optional[MatType] = None,
+        D: MatType | None = None,
+        c: MatType | None = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads: Optional[int] = None,
-    ) -> tuple[
-        Optional[MatType], Optional[MatType], Optional[MatType], Optional[MatType]
-    ]:
+        max_num_threads: int | None = None,
+    ) -> tuple[MatType | None, MatType | None, MatType | None, MatType | None]:
         # NOTE: contrary to `ScenarioBasedMpc`, `D` can be optional here. Also, no need
         # to take the number of scenarios into account for threading, as we will run the
         # dynamics once and then chain-substitute for each scenario.
@@ -285,14 +284,12 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
 
     def set_nonlinear_dynamics(
         self,
-        F: Union[
-            cs.Function,
-            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
-        ],
+        F: cs.Function
+        | Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads_or_unrolling_base: Optional[int] = None,
+        max_num_threads_or_unrolling_base: int | None = None,
     ) -> None:
         # NOTE: contrary to `ScenarioBasedMpc`, `F` is allowed to have no disturbances.
         # Also, no need to take the number of scenarios into account for threading, as
@@ -302,8 +299,8 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         )
 
     def _set_singleshooting_affine_dynamics(
-        self, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
-    ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+        self, A: MatType, B: MatType, D: MatType | None, c: MatType | None
+    ) -> tuple[MatType, MatType, MatType | None, MatType | None]:
         # NOTE: conversely to `ScenarioBasedMpc`, here first we create the dynamics with
         # the single states/actions/disturbances (we suppose single parameters have been
         # also used in A,B,D,c), and then chain-substitute to get each scenario's
@@ -327,7 +324,7 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         for i in range(self._n_scenarios):
             X_i = self._chained_substitution_for_scenario_i(X, i, True)
             X_i_split = cs.vertsplit(X_i, cumsizes)
-            for n, x in zip(state_names, X_i_split):
+            for n, x in zip(state_names, X_i_split, strict=True):
                 self._states[_n(n, i)] = x
         return F, G, H, L
 
@@ -379,12 +376,12 @@ class MultiScenarioMpc(ScenarioBasedMpc[SymType]):
         for i in range(self._n_scenarios):
             X_i = self._chained_substitution_for_scenario_i(X, i, True)
             X_i_split = cs.vertsplit(X_i, cumsizes)
-            for n, x in zip(state_names, X_i_split):
+            for n, x in zip(state_names, X_i_split, strict=True):
                 self._states[_n(n, i)] = x
 
     def _chained_substitution_for_scenario_i(
         self, expr: SymType, i: int, skip_states: bool = False
-    ) -> Union[SymType, cs.DM]:
+    ) -> SymType | cs.DM:
         """Iternal utility to perform substitutions in chain for the i-th scenario."""
         states = ({}, {}) if skip_states else (self.single_states, self.states_i(i))
         return _chained_substitute(

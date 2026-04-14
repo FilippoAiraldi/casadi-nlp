@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Any, Optional, TypeVar, Union
+from typing import Any, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -61,7 +61,7 @@ class QuadRotorEnv:
     nx: int = 10
     nu: int = 3
 
-    def __init__(self, config: Union[dict, QuadRotorEnvConfig] = None) -> None:
+    def __init__(self, config: dict | QuadRotorEnvConfig = None) -> None:
         config = init_config(config, QuadRotorEnvConfig)
         self.config = config
 
@@ -121,7 +121,7 @@ class QuadRotorEnv:
             + W[3] * np.maximum(0, u - self.config.u_bounds[:, 1]).sum(axis=-1)
         )
 
-    def phi(self, alt: Union[float, np.ndarray]) -> np.ndarray:
+    def phi(self, alt: float | np.ndarray) -> np.ndarray:
         if isinstance(alt, np.ndarray):
             alt = alt.squeeze()
             assert alt.ndim == 1, "Altitudes must be a vector"
@@ -182,19 +182,19 @@ class QuadRotorEnv:
 
     def get_dynamics(
         self,
-        g: Union[float, cs.SX],
-        thrust_coeff: Union[float, cs.SX],
-        pitch_d: Union[float, cs.SX],
-        pitch_dd: Union[float, cs.SX],
-        pitch_gain: Union[float, cs.SX],
-        roll_d: Union[float, cs.SX],
-        roll_dd: Union[float, cs.SX],
-        roll_gain: Union[float, cs.SX],
+        g: float | cs.SX,
+        thrust_coeff: float | cs.SX,
+        pitch_d: float | cs.SX,
+        pitch_dd: float | cs.SX,
+        pitch_gain: float | cs.SX,
+        roll_d: float | cs.SX,
+        roll_dd: float | cs.SX,
+        roll_gain: float | cs.SX,
         winds: dict[float, float] = None,
-    ) -> Union[
-        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray],
-        tuple[cs.SX, cs.SX, cs.SX],
-    ]:
+    ) -> (
+        tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+        | tuple[cs.SX, cs.SX, cs.SX]
+    ):
         T = self.config.T
         is_casadi = any(
             isinstance(o, (cs.SX, cs.MX, cs.DM))
@@ -422,10 +422,10 @@ class GenericMPC:
 
 def subsevalf(
     expr: cs.SX,
-    old: Union[cs.SX, dict[str, cs.SX], list[cs.SX], tuple[cs.SX]],
-    new: Union[cs.SX, dict[str, cs.SX], list[cs.SX], tuple[cs.SX]],
+    old: cs.SX | dict[str, cs.SX] | list[cs.SX] | tuple[cs.SX],
+    new: cs.SX | dict[str, cs.SX] | list[cs.SX] | tuple[cs.SX],
     eval: bool = True,
-) -> Union[cs.SX, np.ndarray]:
+) -> cs.SX | np.ndarray:
     if isinstance(old, dict):
         for name, o in old.items():
             expr = cs.substitute(expr, o, new[name])
@@ -443,9 +443,7 @@ def subsevalf(
 ConfigType = TypeVar("ConfigType")
 
 
-def init_config(
-    config: Optional[Union[ConfigType, dict]], cls: type[ConfigType]
-) -> ConfigType:
+def init_config(config: ConfigType | dict | None, cls: type[ConfigType]) -> ConfigType:
     if config is None:
         return cls()
     if isinstance(config, cls):
@@ -486,7 +484,7 @@ class QuadRotorMPC(GenericMPC):
     def __init__(
         self,
         env: QuadRotorEnv,
-        config: Union[dict, QuadRotorMPCConfig] = None,
+        config: dict | QuadRotorMPCConfig = None,
         mpctype: str = "V",
     ) -> None:
         assert mpctype in {

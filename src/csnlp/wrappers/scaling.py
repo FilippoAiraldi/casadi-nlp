@@ -1,5 +1,5 @@
 from collections.abc import Iterable
-from typing import Literal, Optional, TypeVar, Union
+from typing import Literal, TypeVar
 from warnings import warn
 
 import casadi as cs
@@ -107,8 +107,8 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
         name: str,
         shape: tuple[int, int] = (1, 1),
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         """See :meth:`csnlp.Nlp.variable`."""
         can_scale = name in self.scaler
@@ -145,9 +145,9 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -160,8 +160,8 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
 
     def solve(
         self,
-        pars: Optional[dict[str, npt.ArrayLike]] = None,
-        vals0: Optional[dict[str, npt.ArrayLike]] = None,
+        pars: dict[str, npt.ArrayLike] | None = None,
+        vals0: dict[str, npt.ArrayLike] | None = None,
     ) -> Solution[SymType]:
         """See :meth:`csnlp.Nlp.solve`."""
         scaler = self.scaler
@@ -173,15 +173,15 @@ class NlpScaling(NonRetroactiveWrapper[SymType]):
 
     def solve_multi(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         return_all_sols: bool = False,
         return_stacked_sol: bool = False,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         """See :meth:`csnlp.MultistartNlp.solve_multi`."""
         assert self.nlp.is_multi and hasattr(self.nlp, "solve_multi"), (
             "`solve_multi` called on an nlp instance that is not `MultistartNlp`."

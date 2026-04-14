@@ -7,9 +7,7 @@ from typing import (
     ClassVar,
     Generic,
     Literal,
-    Optional,
     TypeVar,
-    Union,
 )
 
 import casadi as cs
@@ -40,7 +38,7 @@ def _n(sym_name: str, scenario: int) -> str:
 
 def _chained_substitute(
     expr: SymType, *old_and_new: tuple[dict[str, SymType], dict[str, SymType]]
-) -> Union[SymType, cs.DM]:
+) -> SymType | cs.DM:
     """Internal utility to perform substitutions in chain."""
     OLD = []
     NEW = []
@@ -53,7 +51,7 @@ def _chained_substitute(
 
 
 def _cmp_key(
-    sol: dict[str, Any], plugin_solver: Optional[str]
+    sol: dict[str, Any], plugin_solver: str | None
 ) -> tuple[bool, bool, float]:
     """Internal utility, similar to :func:`Solution.cmp_key`, but for native CasADi's
     solution dictionaries."""
@@ -68,8 +66,8 @@ def _cmp_key(
 def _get_kkt_stats(
     sol: dict[str, Any],
     ng: int,
-    nonmasked_lbx_idx: Union[slice, npt.NDArray[np.int64]],
-    nonmasked_ubx_idx: Union[slice, npt.NDArray[np.int64]],
+    nonmasked_lbx_idx: slice | npt.NDArray[np.int64],
+    nonmasked_ubx_idx: slice | npt.NDArray[np.int64],
     lbx: npt.NDArray[np.float64],
     ubx: npt.NDArray[np.float64],
     dlagrangian: cs.Function,
@@ -137,14 +135,14 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
 
     def __call__(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         **kwargs: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         # call solve_multi only if either pars or vals0 is an iterable; otherwise, run
         # the single, base NLP
         if (pars is None or isinstance(pars, dict)) and (
@@ -160,15 +158,15 @@ class MultistartNlp(Nlp[SymType], Generic[SymType]):
 
     def solve_multi(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         return_all_sols: bool = False,
         **_: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         """Solves the NLP with multiple initial conditions.
 
         Parameters
@@ -245,8 +243,8 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         name: str,
         shape: tuple[int, int] = (1, 1),
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         out = super().variable(name, shape, discrete, lb, ub)
         for i in range(self._starts):
@@ -257,9 +255,9 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -297,9 +295,9 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def init_solver(
         self,
-        opts: Optional[dict[str, Any]] = None,
+        opts: dict[str, Any] | None = None,
         solver: str = "ipopt",
-        type: Optional[Literal["nlp", "conic"]] = None,
+        type: Literal["nlp", "conic"] | None = None,
     ) -> None:
         out = super().init_solver(opts, solver, type)
         self._stacked_nlp.init_solver(opts, solver, type)
@@ -307,16 +305,16 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def solve_multi(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         return_all_sols: bool = False,
         return_stacked_sol: bool = False,
         **_: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         assert not (return_stacked_sol and return_all_sols), (
             "`return_all_sols` and `return_stacked_sol` can't be both true."
         )
@@ -385,7 +383,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
+        idx: None | tuple[int, int] | list[tuple[int, int]] = None,
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_variable_bounds(name, direction, idx)
@@ -393,7 +391,7 @@ class StackedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
             self._stacked_nlp.remove_variable_bounds(_n(name, i), direction, idx)
 
     def remove_constraints(
-        self, name: str, idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None
+        self, name: str, idx: None | tuple[int, int] | list[tuple[int, int]] = None
     ) -> None:
         idx = [idx] if isinstance(idx, tuple) else list(idx)
         super().remove_constraints(name, idx)
@@ -426,12 +424,12 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         self,
         *args: Any,
         starts: int,
-        parallel_kwargs: Optional[dict[str, Any]] = None,
+        parallel_kwargs: dict[str, Any] | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, starts=starts, **kwargs)
         self._parallel_kwargs = parallel_kwargs if parallel_kwargs is not None else {}
-        self._parallel: Optional[Parallel] = None
+        self._parallel: Parallel | None = None
 
     def initialize_parallel(self) -> None:
         """Initializes the parallel backend."""
@@ -444,15 +442,15 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def solve_multi(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         return_all_sols: bool = False,
         **_: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         if self._solver is None:
             raise RuntimeError("Solver uninitialized.")
         if self._parallel is None:
@@ -475,7 +473,7 @@ class ParallelMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         )
         kwargs = (
             self._process_pars_and_vals0(shared_kwargs.copy(), p, v0)
-            for p, v0 in zip(pars_iter, vals0_iter)
+            for p, v0 in zip(pars_iter, vals0_iter, strict=True)
         )
         sols: Iterator[dict[str, Any]] = self._parallel(
             delayed(_solve_and_get_stats)(self._solver, kw) for kw in kwargs
@@ -520,7 +518,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "serial",
-        max_num_threads: Optional[int] = None,
+        max_num_threads: int | None = None,
         tol_stat: float = 1e-8,
         tol_eq: float = 1e-8,
         tol_ineq: float = 1e-8,
@@ -528,7 +526,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         **kwargs: Any,
     ) -> None:
         super().__init__(*args, starts=starts, **kwargs)
-        self._mapped_solver: Optional[MemorizedFunc] = None
+        self._mapped_solver: MemorizedFunc | None = None
         self._parallelization = parallelization
         self._max_num_threads = max_num_threads
         self._tol_eq = tol_eq
@@ -562,16 +560,16 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
 
     def solve_multi(
         self,
-        pars: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
-        vals0: Union[
-            None, dict[str, npt.ArrayLike], Iterable[dict[str, npt.ArrayLike]]
-        ] = None,
+        pars: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
+        vals0: None
+        | dict[str, npt.ArrayLike]
+        | Iterable[dict[str, npt.ArrayLike]] = None,
         return_all_sols: bool = False,
         _return_mapped_sol: bool = False,
         **_: Any,
-    ) -> Union[Solution[SymType], list[Solution[SymType]]]:
+    ) -> Solution[SymType] | list[Solution[SymType]]:
         assert not (_return_mapped_sol and return_all_sols), (
             "`return_all_sols` and `_return_mapped_sol` can't be both true."
         )
@@ -590,7 +588,7 @@ class MappedMultistartNlp(MultistartNlp[SymType], Generic[SymType]):
         x0s = []
         ps = []
         default = cs.DM.zeros(0, 1)
-        for p, v0 in zip(pars_iter, vals0_iter):
+        for p, v0 in zip(pars_iter, vals0_iter, strict=True):
             kwargs = self._process_pars_and_vals0({}, p, v0)
             x0s.append(kwargs.get("x0", default))
             ps.append(kwargs.get("p", default))

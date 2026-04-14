@@ -2,7 +2,6 @@ import random
 import unittest
 from functools import cached_property, lru_cache
 from itertools import product, repeat
-from typing import Union
 
 import casadi as cs
 import numpy as np
@@ -176,9 +175,7 @@ class TestSolutions(unittest.TestCase):
             subsevalf(x**2, x, y, eval=True)
 
     @parameterized.expand([(cs.SX,), (cs.MX,)])
-    def test_subsevalf__computes_correct_value(
-        self, XX: Union[type[cs.SX], type[cs.MX]]
-    ):
+    def test_subsevalf__computes_correct_value(self, XX: type[cs.SX] | type[cs.MX]):
         shape = (3, 4)
         V = {
             "x": (XX.sym("x", *shape), np.random.rand(*shape) * 10),
@@ -216,7 +213,7 @@ class TestSolutions(unittest.TestCase):
 
     @parameterized.expand([(cs.SX,), (cs.MX,)])
     def test_eager_solution__computes_correct_value(
-        self, XX: Union[type[cs.SX], type[cs.MX]]
+        self, XX: type[cs.SX] | type[cs.MX]
     ):
         shape = (3, 4)
         V = {
@@ -425,7 +422,7 @@ class TestSolutions(unittest.TestCase):
 class TestData(unittest.TestCase):
     @parameterized.expand(product([cs.MX, cs.SX], [(1, 1), (3, 1), (1, 3), (3, 3)]))
     def test_cs2array_array2cs__convert_properly(
-        self, sym_type: Union[type[cs.SX], type[cs.MX]], shape: tuple[int, int]
+        self, sym_type: type[cs.SX] | type[cs.MX], shape: tuple[int, int]
     ):
         x = sym_type.sym("x", *shape)
         a = cs2array(x)
@@ -443,7 +440,7 @@ class TestData(unittest.TestCase):
 
     @parameterized.expand([(cs.SX,), (cs.MX,)])
     def test_find_index_in_vector__works_properly(
-        self, sym_type: Union[type[cs.SX], type[cs.MX]]
+        self, sym_type: type[cs.SX] | type[cs.MX]
     ):
         X = sym_type.sym("X", 5)
         x = cs.horzcat(X[3], X[2])

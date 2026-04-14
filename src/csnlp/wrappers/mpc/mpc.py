@@ -1,7 +1,7 @@
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from inspect import signature
 from math import ceil
-from typing import Callable, Literal, Optional, TypeVar, Union
+from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -33,8 +33,8 @@ def _callable2csfunc(
 
 
 def _create_ati_mats(
-    N: int, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
-) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+    N: int, A: MatType, B: MatType, D: MatType | None, c: MatType | None
+) -> tuple[MatType, MatType, MatType | None, MatType | None]:
     """Internal utility to build the affine time-invariant (ATI) matrices."""
     ns = A.shape[0]
 
@@ -86,7 +86,7 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         nlp: Nlp[SymType],
         prediction_horizon: int,
-        control_horizon: Optional[int] = None,
+        control_horizon: int | None = None,
         input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
@@ -200,11 +200,11 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         name: str,
         size: int = 1,
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
         bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> tuple[Optional[SymType], SymType]:
+    ) -> tuple[SymType | None, SymType]:
         """Adds a state variable to the MPC controller along the whole prediction
         horizon. Automatically creates the constraint on the initial conditions for this
         state.
@@ -280,8 +280,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         name: str,
         size: int = 1,
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType]:
         """Adds a control action variable to the MPC controller along the whole control
         horizon. Automatically expands this action to be of the same length of the
@@ -345,9 +345,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -361,15 +361,13 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self,
         A: MatType,
         B: MatType,
-        D: Optional[MatType] = None,
-        c: Optional[MatType] = None,
+        D: MatType | None = None,
+        c: MatType | None = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads: Optional[int] = None,
-    ) -> tuple[
-        Optional[MatType], Optional[MatType], Optional[MatType], Optional[MatType]
-    ]:
+        max_num_threads: int | None = None,
+    ) -> tuple[MatType | None, MatType | None, MatType | None, MatType | None]:
         r"""Sets affine dynamics as the controller's prediction model and creates the
         corresponding dynamics constraints. The dynamics are in the affine form
 
@@ -469,14 +467,12 @@ class Mpc(NonRetroactiveWrapper[SymType]):
 
     def set_nonlinear_dynamics(
         self,
-        F: Union[
-            cs.Function,
-            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
-        ],
+        F: cs.Function
+        | Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads_or_unrolling_base: Optional[int] = None,
+        max_num_threads_or_unrolling_base: int | None = None,
     ) -> None:
         """Sets the nonlinear dynamics of the controller's prediction model and creates
         the corresponding dynamics constraints.
@@ -532,8 +528,8 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         self._dynamics_already_set = True
 
     def _set_singleshooting_affine_dynamics(
-        self, A: MatType, B: MatType, D: Optional[MatType], c: Optional[MatType]
-    ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+        self, A: MatType, B: MatType, D: MatType | None, c: MatType | None
+    ) -> tuple[MatType, MatType, MatType | None, MatType | None]:
         """Internal utility to create affine dynamics constraints and states in
         single shooting mode."""
         ns = A.shape[0]
@@ -550,7 +546,9 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         # append initial state, reshape and save to internal dict
         X = cs.vertcat(x_0, X_next).reshape((ns, N + 1))
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
-        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+        self._states = dict(
+            zip(self._states.keys(), cs.vertsplit(X, cumsizes), strict=True)
+        )
         return F, G, H, L
 
     def _set_multishooting_nonlinear_dynamics(
@@ -593,4 +591,6 @@ class Mpc(NonRetroactiveWrapper[SymType]):
         X_next = Fmapaccum(*args)
         X = cs.horzcat(X0, X_next)
         cumsizes = np.cumsum([0] + [s.shape[0] for s in self._initial_states.values()])
-        self._states = dict(zip(self._states.keys(), cs.vertsplit(X, cumsizes)))
+        self._states = dict(
+            zip(self._states.keys(), cs.vertsplit(X, cumsizes), strict=True)
+        )

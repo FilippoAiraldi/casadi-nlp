@@ -1,5 +1,5 @@
 from functools import cached_property
-from typing import Literal, TypeVar, Union
+from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -123,7 +123,7 @@ class HasConstraints(HasVariables[SymType]):
         return self._cons
 
     @cached_property
-    def nonmasked_lbx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
+    def nonmasked_lbx_idx(self) -> slice | npt.NDArray[np.int64]:
         """Gets the indices of non-masked entries in :meth:`lbx` (or the full slice)."""
         return (
             slice(None)
@@ -132,7 +132,7 @@ class HasConstraints(HasVariables[SymType]):
         )
 
     @cached_property
-    def nonmasked_ubx_idx(self) -> Union[slice, npt.NDArray[np.int64]]:
+    def nonmasked_ubx_idx(self) -> slice | npt.NDArray[np.int64]:
         """Gets the indices of non-masked entries in :meth:`ubx` (or the full slice)."""
         return (
             slice(None)
@@ -181,8 +181,8 @@ class HasConstraints(HasVariables[SymType]):
         name: str,
         shape: tuple[int, int] = (1, 1),
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
     ) -> tuple[SymType, SymType, SymType]:
         r"""Adds a variable to the NLP problem.
 
@@ -250,9 +250,9 @@ class HasConstraints(HasVariables[SymType]):
     def constraint(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[SymType, ...]:
@@ -342,7 +342,7 @@ class HasConstraints(HasVariables[SymType]):
         self,
         name: str,
         direction: Literal["lb", "ub", "both"],
-        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
+        idx: None | tuple[int, int] | list[tuple[int, int]] = None,
     ) -> None:
         """Removes one or more lower and/or upper bounds from the given variable
 
@@ -418,7 +418,7 @@ class HasConstraints(HasVariables[SymType]):
     def remove_constraints(
         self,
         name: str,
-        idx: Union[None, tuple[int, int], list[tuple[int, int]]] = None,
+        idx: None | tuple[int, int] | list[tuple[int, int]] = None,
     ) -> None:
         """Removes one or more (equality or inequality) constraints from the problem.
 

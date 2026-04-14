@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from inspect import signature
-from typing import Callable, Literal, Optional, TypeVar, Union
+from typing import Literal, TypeVar
 
 import casadi as cs
 import numpy as np
@@ -55,7 +56,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         nlp: Nlp[SymType],
         n_scenarios: int,
         prediction_horizon: int,
-        control_horizon: Optional[int] = None,
+        control_horizon: int | None = None,
         input_spacing: int = 1,
         shooting: Literal["single", "multi"] = "multi",
     ) -> None:
@@ -111,11 +112,11 @@ class ScenarioBasedMpc(Mpc[SymType]):
         name: str,
         size: int = 1,
         discrete: bool = False,
-        lb: Union[npt.ArrayLike, cs.DM] = -np.inf,
-        ub: Union[npt.ArrayLike, cs.DM] = +np.inf,
+        lb: npt.ArrayLike | cs.DM = -np.inf,
+        ub: npt.ArrayLike | cs.DM = +np.inf,
         bound_initial: bool = True,
         bound_terminal: bool = True,
-    ) -> tuple[SymType, list[Optional[SymType]], SymType]:
+    ) -> tuple[SymType, list[SymType | None], SymType]:
         """Adds one state variable per scenario to the SCMPC controller. Automatically
         creates the (shared) constraint on the initial conditions for these states.
 
@@ -234,9 +235,9 @@ class ScenarioBasedMpc(Mpc[SymType]):
     def constraint_from_single(
         self,
         name: str,
-        lhs: Union[SymType, np.ndarray, cs.DM],
+        lhs: SymType | np.ndarray | cs.DM,
         op: Literal["==", ">=", "<="],
-        rhs: Union[SymType, np.ndarray, cs.DM],
+        rhs: SymType | np.ndarray | cs.DM,
         soft: bool = False,
         simplify: bool = True,
     ) -> tuple[list[SymType], ...]:
@@ -310,14 +311,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
         A: MatType,
         B: MatType,
         D: MatType,
-        c: Optional[MatType] = None,
+        c: MatType | None = None,
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads: Optional[int] = None,
-    ) -> tuple[
-        Optional[MatType], Optional[MatType], Optional[MatType], Optional[MatType]
-    ]:
+        max_num_threads: int | None = None,
+    ) -> tuple[MatType | None, MatType | None, MatType | None, MatType | None]:
         if D is None:
             raise ValueError(
                 "The dynamics matrix D must be given, as SCMPC is a tool to account for"
@@ -330,14 +329,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
 
     def set_nonlinear_dynamics(
         self,
-        F: Union[
-            cs.Function,
-            Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
-        ],
+        F: cs.Function
+        | Callable[[tuple[npt.ArrayLike, ...]], tuple[npt.ArrayLike, ...]],
         parallelization: Literal[
             "serial", "unroll", "inline", "thread", "openmp"
         ] = "thread",
-        max_num_threads_or_unrolling_base: Optional[int] = None,
+        max_num_threads_or_unrolling_base: int | None = None,
     ) -> None:
         n_in = F.n_in() if isinstance(F, cs.Function) else len(signature(F).parameters)
         nd = self.nd
@@ -362,8 +359,8 @@ class ScenarioBasedMpc(Mpc[SymType]):
         )
 
     def _set_singleshooting_affine_dynamics(
-        self, A: MatType, B: MatType, D: MatType, c: Optional[MatType]
-    ) -> tuple[MatType, MatType, Optional[MatType], Optional[MatType]]:
+        self, A: MatType, B: MatType, D: MatType, c: MatType | None
+    ) -> tuple[MatType, MatType, MatType | None, MatType | None]:
         disturbance_names = self.single_disturbances.keys()
         X0 = cs.vcat(self._initial_states.values())
         U = cs.vec(cs.vcat(self._actions_exp.values()))  # NOTE: different from vvcat!
@@ -388,7 +385,7 @@ class ScenarioBasedMpc(Mpc[SymType]):
         for i in range(self._n_scenarios):
             X_i = cs.vertcat(X0, X_next_pred[:, i]).reshape((ns, N + 1))
             X_i_split = cs.vertsplit(X_i, cumsizes)
-            for n, x in zip(state_names, X_i_split):
+            for n, x in zip(state_names, X_i_split, strict=True):
                 self._states[_n(n, i)] = x
         return F, G, H, L
 
@@ -447,12 +444,12 @@ class ScenarioBasedMpc(Mpc[SymType]):
         for i in range(self._n_scenarios):
             X_i = cs.horzcat(X0, X_next_split[i])
             X_i_split = cs.vertsplit(X_i, cumsizes)
-            for n, x in zip(state_names, X_i_split):
+            for n, x in zip(state_names, X_i_split, strict=True):
                 self._states[_n(n, i)] = x
 
     def _chained_substitution_for_scenario_i(
         self, expr: SymType, i: int
-    ) -> Union[SymType, cs.DM]:
+    ) -> SymType | cs.DM:
         """Iternal utility to perform substitutions in chain for the i-th scenario."""
         return _chained_substitute(
             expr,

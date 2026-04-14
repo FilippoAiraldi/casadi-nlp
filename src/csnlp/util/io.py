@@ -9,15 +9,17 @@ import pickle
 from functools import partial as _partial
 from os.path import splitext as _splitext
 from pickletools import optimize as _optimize
-from typing import TYPE_CHECKING, Callable, Literal, Optional
+from typing import TYPE_CHECKING, Literal
 from typing import Any as _Any
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from scipy.io.matlab import mat_struct
 
 
 _COMPRESSION_EXTS: dict[
-    str, Optional[Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]]
+    str, Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"] | None
 ] = {
     ".pkl": None,
     ".xz": "lzma",
@@ -32,9 +34,8 @@ _COMPRESSION_EXTS: dict[
 
 def save(
     filename: str,
-    compression: Optional[
-        Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
-    ] = None,
+    compression: Literal["lzma", "bz2", "gzip", "brotli", "blosc2", "matlab", "numpy"]
+    | None = None,
     **data: _Any,
 ) -> str:
     """Saves data to a (possibly compressed) file. Inspired by
