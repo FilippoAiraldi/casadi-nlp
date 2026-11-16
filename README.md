@@ -120,7 +120,7 @@ nlp.constraint("c2", g, "<=", p**2)
 nlp.init_solver()  # initializes IPOPT under the hood
 sol = nlp.solve(pars={"p": 1.25})  # solves the NLP for parameter p=1.25
 
-x_opt = sol.vals["x"]   # optimal values can be retrieved via the dict .vals
+x_opt = sol.vals["x"]  # optimal values can be retrieved via the dict .vals
 y_opt = sol.value(y)  # or the .value method
 ```
 
